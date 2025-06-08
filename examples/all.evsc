@@ -1,0 +1,8 @@
+@include std;
+
+#fn main |args: String[_]| -> {
+  let arg0: String = args[0];
+  let arg1 := args[1];
+
+  std::println(arg0);
+}

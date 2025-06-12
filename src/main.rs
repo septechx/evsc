@@ -1,13 +1,16 @@
+mod ast;
 mod lexer;
+mod parser;
 
-use lexer::lexer::Lexer;
+use lexer::lexer::tokenize;
+use parser::parser::parse;
 use std::fs;
 
 fn main() {
-    let file = fs::read_to_string("examples/all.evsc").unwrap();
+    let file = fs::read_to_string("examples/02.evsc").unwrap();
 
-    let mut lexer = Lexer::new(file);
-    let tokens = lexer.tokenize();
+    let tokens = tokenize(file);
+    let ast = parse(tokens);
 
-    println!("{:?}", tokens);
+    println!("{:#?}", ast);
 }

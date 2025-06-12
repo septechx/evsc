@@ -1,5 +1,18 @@
-#[derive(Debug, Clone)]
-pub enum Token {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    pub value: String,
+    pub kind: TokenKind,
+}
+
+impl Token {
+    pub fn new(kind: TokenKind, value: String) -> Self {
+        Self { value, kind }
+    }
+}
+
+// We need a way to match tokens without their data for lookup purposes
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TokenKind {
     // Symbols
     Semicolon,
     Pipe,
@@ -12,27 +25,33 @@ pub enum Token {
     CloseParen,
     Dot,
     Equals,
-    ColonEquals,
     Underscore,
     OpenBracket,
     CloseBracket,
     Hash,
     At,
     Comma,
+    Plus,
+    Dash,
+    Star,
+    Slash,
+    Percent,
+    And,
+    Or,
+    DotDot,
+    EqualsEquals,
+    NotEquals,
+    Less,
+    More,
+    LessEquals,
+    MoreEquals,
 
     // Literals
-    Identifier(String),
-    StringLiteral(String),
-    Number(String),
-
-    // Keywords
-    Let,
-    Fn,
-    On,
-    Include,
-    Decl,
+    Identifier,
+    StringLiteral,
+    Number,
 
     // Special
     Eof,
-    Unknown(char),
+    Unknown,
 }

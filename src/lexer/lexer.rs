@@ -1,4 +1,4 @@
-use crate::lexer::token::Token;
+use crate::lexer::token::{Token, TokenKind};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -38,9 +38,9 @@ impl Lexer {
         let mut tokens: Vec<Token> = vec![];
 
         while !self.at_eof() {
-            let clone = self.clone();
-            let remaining = clone.remaining_input();
+            let remaining = self.remaining_input();
             let mut matched = false;
+            let mut match_len = 0;
 
             for handler in REGEXES.iter() {
                 if let Some(mat) = handler.regex.find(remaining) {
@@ -49,7 +49,7 @@ impl Lexer {
                         if let Some(token) = (handler.handler)(matched_text) {
                             tokens.push(token);
                         }
-                        self.advance(matched_text.len());
+                        match_len = matched_text.len();
                         matched = true;
                         break;
                     }
@@ -57,47 +57,43 @@ impl Lexer {
             }
 
             if !matched {
-                tokens.push(Token::Unknown(remaining.chars().next().unwrap_or('\0')));
-                self.advance(1);
+                let next_char = remaining.chars().next().unwrap_or('\0');
+                tokens.push(Token::new(TokenKind::Unknown, next_char.to_string()));
+                match_len = 1;
 
                 eprintln!(
                     "{}",
                     format!(
                         "[Lexer/ERROR] Unexpected character at position {}: '{}'",
-                        self.pos,
-                        remaining.chars().next().unwrap_or('\0'),
+                        self.pos, next_char,
                     )
                     .red()
                     .bold()
                 );
             }
+
+            self.advance(match_len);
         }
 
         tokens
     }
 }
 
-fn default_handler(token: Token) -> TokenHandler {
-    Arc::new(move |_| Some(token.clone()))
+pub fn tokenize(file: String) -> Vec<Token> {
+    let mut lexer = Lexer::new(file);
+    lexer.tokenize()
+}
+
+fn default_handler(kind: TokenKind, value: &'static str) -> TokenHandler {
+    Arc::new(move |_| Some(Token::new(kind, value.to_string())))
 }
 
 fn skip_handler() -> TokenHandler {
     Arc::new(|_| None)
 }
 
-fn token_with_content_handler(token_type: fn(String) -> Token) -> TokenHandler {
-    Arc::new(move |content| {
-        if token_type as usize == Token::StringLiteral as usize {
-            let value = content[1..content.len() - 1].to_string();
-            Some(Token::StringLiteral(value))
-        } else if token_type as usize == Token::Identifier as usize {
-            Some(Token::Identifier(content.to_string()))
-        } else if token_type as usize == Token::Number as usize {
-            Some(Token::Number(content.to_string()))
-        } else {
-            None
-        }
-    })
+fn literal_handler(kind: TokenKind) -> TokenHandler {
+    Arc::new(move |val| Some(Token::new(kind, val.to_string())))
 }
 
 struct RegexHandler {
@@ -117,41 +113,47 @@ lazy_static! {
         RegexHandler::new(Regex::new(r"^\s+").unwrap(), skip_handler()),
 
         // Multi-character operators (must come before single chars)
-        RegexHandler::new(Regex::new(r"^::").unwrap(), default_handler(Token::DoubleColon)),
-        RegexHandler::new(Regex::new(r"^:=").unwrap(), default_handler(Token::ColonEquals)),
-        RegexHandler::new(Regex::new(r"^->").unwrap(), default_handler(Token::Arrow)),
-
-        // Keywords (must come before general identifier)
-        RegexHandler::new(Regex::new(r"^let\b").unwrap(), default_handler(Token::Let)),
-        RegexHandler::new(Regex::new(r"^fn\b").unwrap(), default_handler(Token::Fn)),
-        RegexHandler::new(Regex::new(r"^on\b").unwrap(), default_handler(Token::On)),
-        RegexHandler::new(Regex::new(r"^include\b").unwrap(), default_handler(Token::Include)),
-        RegexHandler::new(Regex::new(r"^decl\b").unwrap(), default_handler(Token::Decl)),
+        RegexHandler::new(Regex::new(r"^::").unwrap(), default_handler(TokenKind::DoubleColon, "::")),
+        RegexHandler::new(Regex::new(r"^->").unwrap(), default_handler(TokenKind::Arrow, "->")),
+        RegexHandler::new(Regex::new(r"^&&").unwrap(), default_handler(TokenKind::And, "&&")),
+        RegexHandler::new(Regex::new(r"^\|\|").unwrap(), default_handler(TokenKind::Or, "||")),
+        RegexHandler::new(Regex::new(r"^\.\.").unwrap(), default_handler(TokenKind::DotDot, "..")),
+        RegexHandler::new(Regex::new(r"^<=").unwrap(), default_handler(TokenKind::LessEquals, "<=")),
+        RegexHandler::new(Regex::new(r"^>=").unwrap(), default_handler(TokenKind::MoreEquals, ">=")),
+        RegexHandler::new(Regex::new(r"^==").unwrap(), default_handler(TokenKind::EqualsEquals, "==")),
+        RegexHandler::new(Regex::new(r"^!=").unwrap(), default_handler(TokenKind::NotEquals, "!=")),
 
         // String literals
-        RegexHandler::new(Regex::new(r#"^"([^"\\]|\\.)*""#).unwrap(), token_with_content_handler(Token::StringLiteral)),
+        RegexHandler::new(Regex::new(r#"^"[^"]*""#).unwrap(), literal_handler(TokenKind::StringLiteral)),
 
         // Numbers
-        RegexHandler::new(Regex::new(r"^\d+(\.\d+)?").unwrap(), token_with_content_handler(Token::Number)),
+        RegexHandler::new(Regex::new(r"^[0-9]+(\.[0-9]+)?").unwrap(), literal_handler(TokenKind::Number)),
 
         // Identifiers (must come after keywords)
-        RegexHandler::new(Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap(), token_with_content_handler(Token::Identifier)),
+        RegexHandler::new(Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap(), literal_handler(TokenKind::Identifier)),
 
         // Single character tokens
-        RegexHandler::new(Regex::new(r"^;").unwrap(), default_handler(Token::Semicolon)),
-        RegexHandler::new(Regex::new(r"^\|").unwrap(), default_handler(Token::Pipe)),
-        RegexHandler::new(Regex::new(r"^:").unwrap(), default_handler(Token::Colon)),
-        RegexHandler::new(Regex::new(r"^\{").unwrap(), default_handler(Token::OpenCurly)),
-        RegexHandler::new(Regex::new(r"^\}").unwrap(), default_handler(Token::CloseCurly)),
-        RegexHandler::new(Regex::new(r"^\(").unwrap(), default_handler(Token::OpenParen)),
-        RegexHandler::new(Regex::new(r"^\)").unwrap(), default_handler(Token::CloseParen)),
-        RegexHandler::new(Regex::new(r"^\.").unwrap(), default_handler(Token::Dot)),
-        RegexHandler::new(Regex::new(r"^=").unwrap(), default_handler(Token::Equals)),
-        RegexHandler::new(Regex::new(r"^_").unwrap(), default_handler(Token::Underscore)),
-        RegexHandler::new(Regex::new(r"^\[").unwrap(), default_handler(Token::OpenBracket)),
-        RegexHandler::new(Regex::new(r"^\]").unwrap(), default_handler(Token::CloseBracket)),
-        RegexHandler::new(Regex::new(r"^,").unwrap(), default_handler(Token::Comma)),
-        RegexHandler::new(Regex::new(r"^#").unwrap(), default_handler(Token::Hash)),
-        RegexHandler::new(Regex::new(r"^@").unwrap(), default_handler(Token::At)),
+        RegexHandler::new(Regex::new(r"^;").unwrap(), default_handler(TokenKind::Semicolon, ";")),
+        RegexHandler::new(Regex::new(r"^\+").unwrap(), default_handler(TokenKind::Plus, "+")),
+        RegexHandler::new(Regex::new(r"^\-").unwrap(), default_handler(TokenKind::Dash, "-")),
+        RegexHandler::new(Regex::new(r"^\*").unwrap(), default_handler(TokenKind::Star, "*")),
+        RegexHandler::new(Regex::new(r"^/").unwrap(), default_handler(TokenKind::Slash, "/")),
+        RegexHandler::new(Regex::new(r"^%").unwrap(), default_handler(TokenKind::Percent, "%")),
+        RegexHandler::new(Regex::new(r"^\|").unwrap(), default_handler(TokenKind::Pipe, "|")),
+        RegexHandler::new(Regex::new(r"^:").unwrap(), default_handler(TokenKind::Colon, ":")),
+        RegexHandler::new(Regex::new(r"^\{").unwrap(), default_handler(TokenKind::OpenCurly, "{")),
+        RegexHandler::new(Regex::new(r"^\}").unwrap(), default_handler(TokenKind::CloseCurly, "}")),
+        RegexHandler::new(Regex::new(r"^\(").unwrap(), default_handler(TokenKind::OpenParen, "(")),
+        RegexHandler::new(Regex::new(r"^\)").unwrap(), default_handler(TokenKind::CloseParen, ")")),
+        RegexHandler::new(Regex::new(r"^\.").unwrap(), default_handler(TokenKind::Dot, ".")),
+        RegexHandler::new(Regex::new(r"^=").unwrap(), default_handler(TokenKind::Equals, "=")),
+        RegexHandler::new(Regex::new(r"^_").unwrap(), default_handler(TokenKind::Underscore, "_")),
+        RegexHandler::new(Regex::new(r"^\[").unwrap(), default_handler(TokenKind::OpenBracket, "[")),
+        RegexHandler::new(Regex::new(r"^\]").unwrap(), default_handler(TokenKind::CloseBracket, "]")),
+        RegexHandler::new(Regex::new(r"^,").unwrap(), default_handler(TokenKind::Comma, ",")),
+        RegexHandler::new(Regex::new(r"^#").unwrap(), default_handler(TokenKind::Hash, "#")),
+        RegexHandler::new(Regex::new(r"^@").unwrap(), default_handler(TokenKind::At, "@")),
+        RegexHandler::new(Regex::new(r"^>").unwrap(), default_handler(TokenKind::More, ">")),
+        RegexHandler::new(Regex::new(r"^<").unwrap(), default_handler(TokenKind::Less, "<")),
     ];
 }

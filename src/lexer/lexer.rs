@@ -58,10 +58,8 @@ impl Lexer {
 
             if !matched {
                 let next_char = remaining.chars().next().unwrap_or('\0');
-                tokens.push(Token::new(TokenKind::Unknown, next_char.to_string()));
-                match_len = 1;
 
-                eprintln!(
+                panic!(
                     "{}",
                     format!(
                         "[Lexer/ERROR] Unexpected character at position {}: '{}'",
@@ -94,6 +92,16 @@ fn skip_handler() -> TokenHandler {
 
 fn literal_handler(kind: TokenKind) -> TokenHandler {
     Arc::new(move |val| Some(Token::new(kind, val.to_string())))
+}
+
+fn identifier_handler() -> TokenHandler {
+    Arc::new(|val| {
+        if let Some(kind) = TokenKind::lookup_reserved(val) {
+            Some(Token::new(kind, val.to_string()))
+        } else {
+            Some(Token::new(TokenKind::Identifier, val.to_string()))
+        }
+    })
 }
 
 struct RegexHandler {
@@ -130,7 +138,7 @@ lazy_static! {
         RegexHandler::new(Regex::new(r"^[0-9]+(\.[0-9]+)?").unwrap(), literal_handler(TokenKind::Number)),
 
         // Identifiers (must come after keywords)
-        RegexHandler::new(Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap(), literal_handler(TokenKind::Identifier)),
+        RegexHandler::new(Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap(), identifier_handler()),
 
         // Single character tokens
         RegexHandler::new(Regex::new(r"^;").unwrap(), default_handler(TokenKind::Semicolon, ";")),

@@ -16,6 +16,7 @@ use crate::{
 use super::{
     expr::{parse_binary_expr, parse_primary_expr},
     parser::Parser,
+    stmt::parser_var_decl_statement,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -94,4 +95,8 @@ pub fn create_token_lookups() {
     nud(Number, Primary, parse_primary_expr);
     nud(StringLiteral, Primary, parse_primary_expr);
     nud(Identifier, Primary, parse_primary_expr);
+
+    // Statements
+    stmt(Const, parser_var_decl_statement);
+    stmt(Let, parser_var_decl_statement);
 }

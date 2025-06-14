@@ -81,8 +81,13 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Box<dyn Expr> {
             value: parser.advance().value,
         }),
         _ => panic!(
-            "Cannot create primary expression from {:?}",
-            parser.current_token_kind()
+            "{}",
+            format!(
+                "Cannot create primary expression from {:?}",
+                parser.current_token_kind()
+            )
+            .red()
+            .bold()
         ),
     }
 }

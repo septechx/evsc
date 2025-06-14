@@ -7,7 +7,7 @@ use parser::parser::parse;
 use std::fs;
 
 fn main() {
-    let file = fs::read_to_string("examples/02.evsc").unwrap();
+    let file = fs::read_to_string("examples/03.evsc").unwrap();
 
     let tokens = tokenize(file);
     let ast = parse(tokens);

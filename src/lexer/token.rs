@@ -1,3 +1,6 @@
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub value: String,
@@ -51,7 +54,31 @@ pub enum TokenKind {
     StringLiteral,
     Number,
 
+    // Reserved
+    Const,
+    Let,
+    True,
+    False,
+    Null,
+
     // Special
     Eof,
-    Unknown,
+}
+
+lazy_static! {
+    static ref RESERVED_KEYWORDS: HashMap<&'static str, TokenKind> = {
+        let mut m = HashMap::new();
+        m.insert("true", TokenKind::True);
+        m.insert("false", TokenKind::False);
+        m.insert("null", TokenKind::Null);
+        m.insert("let", TokenKind::Let);
+        m.insert("const", TokenKind::Const);
+        m
+    };
+}
+
+impl TokenKind {
+    pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
+        RESERVED_KEYWORDS.get(ident).copied()
+    }
 }

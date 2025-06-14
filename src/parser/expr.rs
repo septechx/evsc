@@ -1,9 +1,15 @@
+use std::collections::HashMap;
+
 use colored::Colorize;
 
 use crate::{
     ast::{
-        ast::Expr,
-        expressions::{AssignmentExpr, BinaryExpr, NumberExpr, PrefixExpr, StringExpr, SymbolExpr},
+        ast::{Expr, Type},
+        expressions::{
+            ArrayLiteralExpr, AssignmentExpr, BinaryExpr, NumberExpr, PrefixExpr, StringExpr,
+            StructInstantiationExpr, SymbolExpr,
+        },
+        statements::StructProperty,
     },
     lexer::token::TokenKind,
     parser::lookups::LED_LU,
@@ -12,6 +18,7 @@ use crate::{
 use super::{
     lookups::{BP_LU, BindingPower, NUD_LU},
     parser::Parser,
+    types::parse_type,
 };
 
 pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
@@ -22,12 +29,9 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
         nud_lu.get(&token_kind).cloned().unwrap_or_else(|| {
             panic!(
                 "{}",
-                format!(
-                    "[Parser/ERROR] Nud handler expected for token {:?}",
-                    token_kind
-                )
-                .red()
-                .bold()
+                format!("Nud handler expected for token {:?}", token_kind)
+                    .red()
+                    .bold()
             )
         })
     };
@@ -52,12 +56,9 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
             led_lu.get(&token_kind).cloned().unwrap_or_else(|| {
                 panic!(
                     "{}",
-                    format!(
-                        "[Parser/ERROR] Led handler expected for token {:?}",
-                        token_kind
-                    )
-                    .red()
-                    .bold()
+                    format!("Led handler expected for token {:?}", token_kind)
+                        .red()
+                        .bold()
                 )
             })
         };
@@ -134,4 +135,81 @@ pub fn parse_grouping_expr(parser: &mut Parser) -> Box<dyn Expr> {
     parser.expect(TokenKind::CloseParen);
 
     expr
+}
+
+pub fn parse_struct_instantiation_expr(
+    parser: &mut Parser,
+    left: Box<dyn Expr>,
+    bp: BindingPower,
+) -> Box<dyn Expr> {
+    // Reflection or something
+    let name = match left.as_any().downcast_ref::<SymbolExpr>() {
+        Some(symbol) => symbol.value.clone(),
+        None => panic!("Expected struct name for struct instantiation"),
+    };
+    let mut properties: HashMap<String, Box<dyn Expr>> = HashMap::new();
+
+    parser.expect(TokenKind::OpenCurly);
+
+    loop {
+        if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
+            break;
+        }
+
+        let property_name = parser.expect(TokenKind::Identifier).value;
+        parser.expect(TokenKind::Colon);
+        let expr = parse_expr(parser, BindingPower::Logical);
+
+        if parser.current_token_kind() != TokenKind::CloseCurly {
+            parser.expect(TokenKind::Comma);
+        }
+
+        if properties.contains_key(&property_name) {
+            panic!(
+                "{}",
+                format!(
+                    "Property {} has already been defined in struct instantiation",
+                    property_name
+                )
+                .red()
+                .bold()
+            );
+        }
+
+        properties.insert(property_name, expr);
+    }
+
+    parser.expect(TokenKind::CloseCurly);
+
+    Box::new(StructInstantiationExpr { name, properties })
+}
+
+// TODO: Add [len]type array support
+pub fn parse_array_literal_expr(parser: &mut Parser) -> Box<dyn Expr> {
+    let mut underlying: Box<dyn Type>;
+    let mut contents: Vec<Box<dyn Expr>> = vec![];
+
+    parser.expect(TokenKind::OpenBracket);
+    parser.expect(TokenKind::CloseBracket);
+
+    underlying = parse_type(parser, BindingPower::DefaultBp);
+
+    parser.expect(TokenKind::OpenCurly);
+    loop {
+        if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
+            break;
+        }
+
+        contents.push(parse_expr(parser, BindingPower::Logical));
+
+        if parser.current_token_kind() != TokenKind::CloseCurly {
+            parser.expect(TokenKind::Comma);
+        }
+    }
+    parser.expect(TokenKind::CloseCurly);
+
+    Box::new(ArrayLiteralExpr {
+        underlying,
+        contents,
+    })
 }

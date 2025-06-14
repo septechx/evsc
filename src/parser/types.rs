@@ -67,12 +67,9 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Box<dyn Type> {
         nud_lu.get(&token_kind).cloned().unwrap_or_else(|| {
             panic!(
                 "{}",
-                format!(
-                    "[Parser/ERROR] Type nud handler expected for token {:?}",
-                    token_kind
-                )
-                .red()
-                .bold()
+                format!("Type nud handler expected for token {:?}", token_kind)
+                    .red()
+                    .bold()
             )
         })
     };
@@ -97,12 +94,9 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Box<dyn Type> {
             led_lu.get(&token_kind).cloned().unwrap_or_else(|| {
                 panic!(
                     "{}",
-                    format!(
-                        "[Parser/ERROR] Type led handler expected for token {:?}",
-                        token_kind
-                    )
-                    .red()
-                    .bold()
+                    format!("Type led handler expected for token {:?}", token_kind)
+                        .red()
+                        .bold()
                 )
             })
         };

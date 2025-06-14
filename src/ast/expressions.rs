@@ -1,10 +1,10 @@
-use super::ast::Expr;
+use super::ast::{Expr, Type};
 use crate::lexer::token::Token;
 use num::Num;
-use std::clone::Clone;
+use std::{any::Any, clone::Clone, collections::HashMap};
 
 // Literals
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NumberExpr<T: Num + Clone + std::fmt::Debug + 'static> {
     pub value: T,
 }
@@ -15,9 +15,13 @@ impl<T: Num + Clone + std::fmt::Debug + 'static> Expr for NumberExpr<T> {
             value: self.value.clone(),
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StringExpr {
     pub value: String,
 }
@@ -28,9 +32,13 @@ impl Expr for StringExpr {
             value: self.value.clone(),
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SymbolExpr {
     pub value: String,
 }
@@ -41,10 +49,14 @@ impl Expr for SymbolExpr {
             value: self.value.clone(),
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 // Complex
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BinaryExpr {
     pub left: Box<dyn Expr>,
     pub operator: Token,
@@ -59,9 +71,13 @@ impl Expr for BinaryExpr {
             right: self.right.clone_box(),
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PrefixExpr {
     pub operator: Token,
     pub right: Box<dyn Expr>,
@@ -74,9 +90,13 @@ impl Expr for PrefixExpr {
             right: self.right.clone_box(),
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AssignmentExpr {
     pub assigne: Box<dyn Expr>,
     pub operator: Token,
@@ -90,6 +110,48 @@ impl Expr for AssignmentExpr {
             operator: self.operator.clone(),
             value: self.value.clone_box(),
         })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StructInstantiationExpr {
+    pub name: String,
+    pub properties: HashMap<String, Box<dyn Expr>>,
+}
+
+impl Expr for StructInstantiationExpr {
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(StructInstantiationExpr {
+            name: self.name.clone(),
+            properties: self.properties.clone(),
+        })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayLiteralExpr {
+    pub underlying: Box<dyn Type>,
+    pub contents: Vec<Box<dyn Expr>>,
+}
+
+impl Expr for ArrayLiteralExpr {
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(ArrayLiteralExpr {
+            underlying: self.underlying.clone(),
+            contents: self.contents.clone(),
+        })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

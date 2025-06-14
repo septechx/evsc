@@ -62,6 +62,8 @@ pub enum TokenKind {
     True,
     False,
     Null,
+    Struct,
+    Static,
 
     // Special
     Eof,
@@ -75,6 +77,8 @@ lazy_static! {
         m.insert("null", TokenKind::Null);
         m.insert("let", TokenKind::Let);
         m.insert("const", TokenKind::Const);
+        m.insert("struct", TokenKind::Struct);
+        m.insert("static", TokenKind::Static);
         m
     };
 }

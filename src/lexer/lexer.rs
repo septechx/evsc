@@ -66,7 +66,7 @@ impl Lexer {
                 panic!(
                     "{}",
                     format!(
-                        "[Lexer/ERROR] Unexpected character at line {}, position {}: '{}'",
+                        "Unexpected character at line {}, position {}: '{}'",
                         self.line, self.pos, next_char,
                     )
                     .red()

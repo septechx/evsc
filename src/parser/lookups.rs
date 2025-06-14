@@ -15,11 +15,11 @@ use crate::{
 
 use super::{
     expr::{
-        parse_assignment_expr, parse_binary_expr, parse_grouping_expr, parse_prefix_expr,
-        parse_primary_expr,
+        parse_array_literal_expr, parse_assignment_expr, parse_binary_expr, parse_grouping_expr,
+        parse_prefix_expr, parse_primary_expr, parse_struct_instantiation_expr,
     },
     parser::Parser,
-    stmt::parser_var_decl_statement,
+    stmt::{parse_struct_decl_stmt, parse_var_decl_statement},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -103,10 +103,14 @@ pub fn create_token_lookups() {
     nud(StringLiteral, parse_primary_expr);
     nud(Identifier, parse_primary_expr);
     nud(OpenParen, parse_grouping_expr);
-
     nud(Dash, parse_prefix_expr);
 
+    // Call & Member
+    led(OpenCurly, Call, parse_struct_instantiation_expr);
+    nud(OpenBracket, parse_array_literal_expr);
+
     // Statements
-    stmt(Const, parser_var_decl_statement);
-    stmt(Let, parser_var_decl_statement);
+    stmt(Const, parse_var_decl_statement);
+    stmt(Let, parse_var_decl_statement);
+    stmt(Struct, parse_struct_decl_stmt);
 }

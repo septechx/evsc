@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::ast::{Expr, Stmt, Type};
 
 #[derive(Debug)]
@@ -23,3 +25,24 @@ pub struct VarDeclStmt {
 }
 
 impl Stmt for VarDeclStmt {}
+
+#[derive(Debug)]
+pub struct StructProperty {
+    pub is_static: bool,
+    pub explicit_type: Box<dyn Type>,
+}
+
+#[derive(Debug)]
+pub struct StructMethod {
+    pub is_static: bool,
+    //pub explicit_type: Box<dyn Type>,
+}
+
+#[derive(Debug)]
+pub struct StructDeclStmt {
+    pub name: String,
+    pub properties: HashMap<String, StructProperty>,
+    pub methods: HashMap<String, StructMethod>,
+}
+
+impl Stmt for StructDeclStmt {}

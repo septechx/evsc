@@ -46,7 +46,7 @@ type LedHandler = fn(&mut Parser, Box<dyn Expr>, BindingPower) -> Box<dyn Expr>;
 type StmtLookup = HashMap<TokenKind, StmtHandler>;
 type NudLookup = HashMap<TokenKind, NudHandler>;
 type LedLookup = HashMap<TokenKind, LedHandler>;
-type BpLookup = HashMap<TokenKind, BindingPower>;
+pub type BpLookup = HashMap<TokenKind, BindingPower>;
 
 lazy_static! {
     pub static ref BP_LU: Mutex<BpLookup> = Mutex::new(HashMap::new());

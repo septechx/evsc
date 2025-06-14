@@ -5,7 +5,7 @@ use crate::{
     lexer::token::{Token, TokenKind},
 };
 
-use super::{lookups::create_token_lookups, stmt::parse_stmt};
+use super::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -15,6 +15,7 @@ pub struct Parser {
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         create_token_lookups();
+        create_token_type_lookups();
         Self { tokens, pos: 0 }
     }
 

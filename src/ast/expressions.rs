@@ -10,8 +10,6 @@ pub struct NumberExpr<T: Num + Clone + std::fmt::Debug + 'static> {
 }
 
 impl<T: Num + Clone + std::fmt::Debug + 'static> Expr for NumberExpr<T> {
-    fn expr(&self) -> () {}
-
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(NumberExpr {
             value: self.value.clone(),
@@ -25,8 +23,6 @@ pub struct StringExpr {
 }
 
 impl Expr for StringExpr {
-    fn expr(&self) -> () {}
-
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(StringExpr {
             value: self.value.clone(),
@@ -40,8 +36,6 @@ pub struct SymbolExpr {
 }
 
 impl Expr for SymbolExpr {
-    fn expr(&self) -> () {}
-
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(SymbolExpr {
             value: self.value.clone(),
@@ -58,8 +52,6 @@ pub struct BinaryExpr {
 }
 
 impl Expr for BinaryExpr {
-    fn expr(&self) -> () {}
-
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(BinaryExpr {
             left: self.left.clone_box(),
@@ -76,8 +68,6 @@ pub struct PrefixExpr {
 }
 
 impl Expr for PrefixExpr {
-    fn expr(&self) -> () {}
-
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(PrefixExpr {
             operator: self.operator.clone(),
@@ -94,8 +84,6 @@ pub struct AssignmentExpr {
 }
 
 impl Expr for AssignmentExpr {
-    fn expr(&self) -> () {}
-
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(AssignmentExpr {
             assigne: self.assigne.clone_box(),

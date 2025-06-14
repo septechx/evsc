@@ -70,32 +70,10 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
 
 pub fn parse_primary_expr(parser: &mut Parser) -> Box<dyn Expr> {
     match parser.current_token_kind() {
-        TokenKind::NumberLiteral => {
+        TokenKind::Number => {
             let value = parser.advance().value;
-            // Default to f32 for backward compatibility
             Box::new(NumberExpr {
                 value: value.parse::<f32>().unwrap(),
-            })
-        }
-        TokenKind::FloatLiteral => {
-            let value = parser.advance().value;
-            // Parse as f64 for better precision
-            Box::new(NumberExpr {
-                value: value.parse::<f64>().unwrap(),
-            })
-        }
-        TokenKind::IntegerLiteral => {
-            let value = parser.advance().value;
-            // Default to i32 for integers
-            Box::new(NumberExpr {
-                value: value.parse::<i32>().unwrap(),
-            })
-        }
-        TokenKind::UnsignedLiteral => {
-            let value = parser.advance().value;
-            // Default to u32 for unsigned integers
-            Box::new(NumberExpr {
-                value: value.parse::<u32>().unwrap(),
             })
         }
         TokenKind::StringLiteral => Box::new(StringExpr {
@@ -212,7 +190,7 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Box<dyn Expr> {
     parser.advance();
 
     match parser.current_token_kind() {
-        TokenKind::NumberLiteral | TokenKind::IntegerLiteral | TokenKind::UnsignedLiteral => {
+        TokenKind::Number => {
             let length = parser.current_token().value.parse::<usize>().unwrap();
             parser.advance();
             parser.expect(TokenKind::CloseBracket);

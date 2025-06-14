@@ -95,10 +95,7 @@ pub fn create_token_lookups() {
     led(Percent, Multiplicative, parse_binary_expr);
 
     // Literals & Symbols
-    nud(NumberLiteral, parse_primary_expr);
-    nud(UnsignedLiteral, parse_primary_expr);
-    nud(IntegerLiteral, parse_primary_expr);
-    nud(FloatLiteral, parse_primary_expr);
+    nud(Number, parse_primary_expr);
     nud(StringLiteral, parse_primary_expr);
     nud(Identifier, parse_primary_expr);
     nud(OpenParen, parse_grouping_expr);

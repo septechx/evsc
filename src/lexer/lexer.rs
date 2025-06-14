@@ -112,48 +112,6 @@ fn comment_handler() -> TokenHandler {
     Arc::new(|_| None)
 }
 
-fn number_handler() -> TokenHandler {
-    Arc::new(|val| {
-        // Check for type suffixes
-        if val.ends_with("f32") {
-            Some(Token::new(
-                TokenKind::FloatLiteral,
-                val[..val.len() - 3].to_string(),
-            ))
-        } else if val.ends_with("f64") {
-            Some(Token::new(
-                TokenKind::FloatLiteral,
-                val[..val.len() - 3].to_string(),
-            ))
-        } else if val.ends_with("i8")
-            || val.ends_with("i16")
-            || val.ends_with("i32")
-            || val.ends_with("i64")
-            || val.ends_with("i128")
-            || val.ends_with("isize")
-        {
-            Some(Token::new(
-                TokenKind::IntegerLiteral,
-                val[..val.len() - 2].to_string(),
-            ))
-        } else if val.ends_with("u8")
-            || val.ends_with("u16")
-            || val.ends_with("u32")
-            || val.ends_with("u64")
-            || val.ends_with("u128")
-            || val.ends_with("usize")
-        {
-            Some(Token::new(
-                TokenKind::UnsignedLiteral,
-                val[..val.len() - 2].to_string(),
-            ))
-        } else {
-            // Default to generic number literal
-            Some(Token::new(TokenKind::NumberLiteral, val.to_string()))
-        }
-    })
-}
-
 struct RegexHandler {
     regex: Regex,
     handler: TokenHandler,
@@ -192,11 +150,8 @@ lazy_static! {
         // String literals
         RegexHandler::new(Regex::new(r#"^"[^"]*""#).unwrap(), literal_handler(TokenKind::StringLiteral)),
 
-        // Numbers with optional type suffixes
-        RegexHandler::new(
-            Regex::new(r"^[0-9]+(\.[0-9]+)?(f32|f64|i8|i16|i32|i64|i128|isize|u8|u16|u32|u64|u128|usize)?").unwrap(),
-            number_handler()
-        ),
+        // Numbers
+        RegexHandler::new(Regex::new(r"^[0-9]+(\.[0-9]+)?").unwrap(), literal_handler(TokenKind::Number)),
 
         // Identifiers (must come after keywords)
         RegexHandler::new(Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*").unwrap(), identifier_handler()),

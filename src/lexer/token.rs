@@ -30,6 +30,9 @@ pub enum TokenKind {
     Equals,
     PlusEquals,
     MinusEquals,
+    StarEquals,
+    SlashEquals,
+    PercentEquals,
     Underscore,
     OpenBracket,
     CloseBracket,
@@ -54,7 +57,10 @@ pub enum TokenKind {
     // Literals
     Identifier,
     StringLiteral,
-    Number,
+    NumberLiteral,   // Generic number literal (will be parsed based on suffix)
+    IntegerLiteral,  // i8, i16, i32, i64, i128, isize
+    UnsignedLiteral, // u8, u16, u32, u64, u128, usize
+    FloatLiteral,    // f32, f64
 
     // Reserved
     Const,

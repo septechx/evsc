@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::{
     ast::{
         ast::Type,
-        types::{SymbolType, VectorType},
+        types::{FixedArrayType, SymbolType, VectorType},
     },
     lexer::token::TokenKind::{self, *},
 };
@@ -51,12 +51,32 @@ fn parse_symbol_type(parser: &mut Parser) -> Box<dyn Type> {
     })
 }
 
-// TODO: Add support for [len]type for fixed size arrays
 fn parse_array_type(parser: &mut Parser) -> Box<dyn Type> {
     parser.advance();
-    parser.expect(TokenKind::CloseBracket);
-    let underlying = parse_type(parser, DefaultBp);
-    Box::new(VectorType { underlying })
+
+    match parser.current_token_kind() {
+        Number => {
+            let length = parser.current_token().value.parse::<usize>().unwrap();
+            parser.advance();
+            parser.expect(CloseBracket);
+            let underlying = parse_type(parser, DefaultBp);
+            Box::new(FixedArrayType { length, underlying })
+        }
+        CloseBracket => {
+            parser.advance();
+            let underlying = parse_type(parser, DefaultBp);
+            Box::new(VectorType { underlying })
+        }
+        _ => panic!(
+            "{}",
+            format!(
+                "Expected number or ']' in array type, got {:?}",
+                parser.current_token_kind()
+            )
+            .red()
+            .bold()
+        ),
+    }
 }
 
 pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Box<dyn Type> {

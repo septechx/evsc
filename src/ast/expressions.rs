@@ -155,6 +155,27 @@ impl Expr for ArrayLiteralExpr {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FixedArrayLiteralExpr {
+    pub underlying: Box<dyn Type>,
+    pub length: usize,
+    pub contents: Vec<Box<dyn Expr>>,
+}
+
+impl Expr for FixedArrayLiteralExpr {
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(FixedArrayLiteralExpr {
+            underlying: self.underlying.clone(),
+            length: self.length,
+            contents: self.contents.clone(),
+        })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl Clone for Box<dyn Expr> {
     fn clone(&self) -> Self {
         self.clone_box()

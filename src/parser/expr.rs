@@ -4,12 +4,11 @@ use colored::Colorize;
 
 use crate::{
     ast::{
-        ast::{Expr, Type},
+        ast::Expr,
         expressions::{
-            ArrayLiteralExpr, AssignmentExpr, BinaryExpr, NumberExpr, PrefixExpr, StringExpr,
-            StructInstantiationExpr, SymbolExpr,
+            ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, NumberExpr,
+            PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
         },
-        statements::StructProperty,
     },
     lexer::token::TokenKind,
     parser::lookups::LED_LU,
@@ -71,9 +70,34 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
 
 pub fn parse_primary_expr(parser: &mut Parser) -> Box<dyn Expr> {
     match parser.current_token_kind() {
-        TokenKind::Number => Box::new(NumberExpr {
-            value: parser.advance().value.parse::<f32>().unwrap(),
-        }),
+        TokenKind::NumberLiteral => {
+            let value = parser.advance().value;
+            // Default to f32 for backward compatibility
+            Box::new(NumberExpr {
+                value: value.parse::<f32>().unwrap(),
+            })
+        }
+        TokenKind::FloatLiteral => {
+            let value = parser.advance().value;
+            // Parse as f64 for better precision
+            Box::new(NumberExpr {
+                value: value.parse::<f64>().unwrap(),
+            })
+        }
+        TokenKind::IntegerLiteral => {
+            let value = parser.advance().value;
+            // Default to i32 for integers
+            Box::new(NumberExpr {
+                value: value.parse::<i32>().unwrap(),
+            })
+        }
+        TokenKind::UnsignedLiteral => {
+            let value = parser.advance().value;
+            // Default to u32 for unsigned integers
+            Box::new(NumberExpr {
+                value: value.parse::<u32>().unwrap(),
+            })
+        }
         TokenKind::StringLiteral => Box::new(StringExpr {
             value: parser.advance().value,
         }),
@@ -184,32 +208,84 @@ pub fn parse_struct_instantiation_expr(
     Box::new(StructInstantiationExpr { name, properties })
 }
 
-// TODO: Add [len]type array support
 pub fn parse_array_literal_expr(parser: &mut Parser) -> Box<dyn Expr> {
-    let mut underlying: Box<dyn Type>;
-    let mut contents: Vec<Box<dyn Expr>> = vec![];
+    parser.advance();
 
-    parser.expect(TokenKind::OpenBracket);
-    parser.expect(TokenKind::CloseBracket);
+    match parser.current_token_kind() {
+        TokenKind::NumberLiteral | TokenKind::IntegerLiteral | TokenKind::UnsignedLiteral => {
+            let length = parser.current_token().value.parse::<usize>().unwrap();
+            parser.advance();
+            parser.expect(TokenKind::CloseBracket);
+            let underlying = parse_type(parser, BindingPower::DefaultBp);
 
-    underlying = parse_type(parser, BindingPower::DefaultBp);
+            parser.expect(TokenKind::OpenCurly);
+            let mut contents = Vec::with_capacity(length);
 
-    parser.expect(TokenKind::OpenCurly);
-    loop {
-        if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
-            break;
+            loop {
+                if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
+                    break;
+                }
+
+                contents.push(parse_expr(parser, BindingPower::Logical));
+
+                if parser.current_token_kind() != TokenKind::CloseCurly {
+                    parser.expect(TokenKind::Comma);
+                }
+            }
+            parser.expect(TokenKind::CloseCurly);
+
+            if contents.len() != length {
+                panic!(
+                    "{}",
+                    format!(
+                        "Fixed array literal has {} elements but expected {}",
+                        contents.len(),
+                        length
+                    )
+                    .red()
+                    .bold()
+                );
+            }
+
+            Box::new(FixedArrayLiteralExpr {
+                underlying,
+                length,
+                contents,
+            })
         }
+        TokenKind::CloseBracket => {
+            parser.advance();
+            let underlying = parse_type(parser, BindingPower::DefaultBp);
 
-        contents.push(parse_expr(parser, BindingPower::Logical));
+            parser.expect(TokenKind::OpenCurly);
+            let mut contents = Vec::new();
 
-        if parser.current_token_kind() != TokenKind::CloseCurly {
-            parser.expect(TokenKind::Comma);
+            loop {
+                if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
+                    break;
+                }
+
+                contents.push(parse_expr(parser, BindingPower::Logical));
+
+                if parser.current_token_kind() != TokenKind::CloseCurly {
+                    parser.expect(TokenKind::Comma);
+                }
+            }
+            parser.expect(TokenKind::CloseCurly);
+
+            Box::new(ArrayLiteralExpr {
+                underlying,
+                contents,
+            })
         }
+        _ => panic!(
+            "{}",
+            format!(
+                "Expected number or ']' in array literal, got {:?}",
+                parser.current_token_kind()
+            )
+            .red()
+            .bold()
+        ),
     }
-    parser.expect(TokenKind::CloseCurly);
-
-    Box::new(ArrayLiteralExpr {
-        underlying,
-        contents,
-    })
 }

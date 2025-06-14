@@ -26,6 +26,21 @@ impl Type for VectorType {
     }
 }
 
+#[derive(Debug)]
+pub struct FixedArrayType {
+    pub length: usize,
+    pub underlying: Box<dyn Type>,
+}
+
+impl Type for FixedArrayType {
+    fn clone_box(&self) -> Box<dyn Type> {
+        Box::new(FixedArrayType {
+            length: self.length,
+            underlying: self.underlying.clone_box(),
+        })
+    }
+}
+
 impl Clone for Box<dyn Type> {
     fn clone(&self) -> Self {
         self.clone_box()

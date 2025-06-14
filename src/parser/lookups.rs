@@ -3,14 +3,8 @@ use std::{collections::HashMap, sync::Mutex};
 use lazy_static::lazy_static;
 
 use crate::{
-    ast::{
-        ast::{Expr, Stmt},
-        expressions::{NumberExpr, StringExpr, SymbolExpr},
-    },
-    lexer::token::{
-        Token,
-        TokenKind::{self, *},
-    },
+    ast::ast::{Expr, Stmt},
+    lexer::token::TokenKind::{self, *},
 };
 
 use super::{
@@ -74,7 +68,9 @@ pub fn create_token_lookups() {
     led(Equals, Assignment, parse_assignment_expr);
     led(PlusEquals, Assignment, parse_assignment_expr);
     led(MinusEquals, Assignment, parse_assignment_expr);
-    // TODO: Add *=, /= and %=
+    led(StarEquals, Assignment, parse_assignment_expr);
+    led(SlashEquals, Assignment, parse_assignment_expr);
+    led(PercentEquals, Assignment, parse_assignment_expr);
 
     // Logical
     led(And, Logical, parse_binary_expr);
@@ -99,7 +95,10 @@ pub fn create_token_lookups() {
     led(Percent, Multiplicative, parse_binary_expr);
 
     // Literals & Symbols
-    nud(Number, parse_primary_expr);
+    nud(NumberLiteral, parse_primary_expr);
+    nud(UnsignedLiteral, parse_primary_expr);
+    nud(IntegerLiteral, parse_primary_expr);
+    nud(FloatLiteral, parse_primary_expr);
     nud(StringLiteral, parse_primary_expr);
     nud(Identifier, parse_primary_expr);
     nud(OpenParen, parse_grouping_expr);

@@ -3,7 +3,7 @@ use colored::Colorize;
 use crate::{
     ast::{
         ast::Expr,
-        expressions::{BinaryExpr, NumberExpr, StringExpr, SymbolExpr},
+        expressions::{AssignmentExpr, BinaryExpr, NumberExpr, PrefixExpr, StringExpr, SymbolExpr},
     },
     lexer::token::TokenKind,
     parser::lookups::LED_LU,
@@ -14,7 +14,6 @@ use super::{
     parser::Parser,
 };
 
-// 42 + 5 * 4;
 pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
     let token_kind = parser.current_token_kind();
 
@@ -105,4 +104,34 @@ pub fn parse_binary_expr(
         operator,
         right,
     })
+}
+
+pub fn parse_prefix_expr(parser: &mut Parser) -> Box<dyn Expr> {
+    let operator = parser.advance();
+    let right = parse_expr(parser, BindingPower::DefaultBp);
+
+    Box::new(PrefixExpr { operator, right })
+}
+
+pub fn parse_assignment_expr(
+    parser: &mut Parser,
+    assigne: Box<dyn Expr>,
+    bp: BindingPower,
+) -> Box<dyn Expr> {
+    let operator = parser.advance();
+    let value = parse_expr(parser, BindingPower::Assignment);
+
+    Box::new(AssignmentExpr {
+        assigne,
+        operator,
+        value,
+    })
+}
+
+pub fn parse_grouping_expr(parser: &mut Parser) -> Box<dyn Expr> {
+    parser.advance();
+    let expr = parse_expr(parser, BindingPower::DefaultBp);
+    parser.expect(TokenKind::CloseParen);
+
+    expr
 }

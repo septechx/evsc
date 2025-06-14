@@ -11,6 +11,7 @@ pub struct Lexer {
     file_content: String,
     file_len: usize,
     pos: usize,
+    line: usize,
 }
 
 impl Lexer {
@@ -19,6 +20,7 @@ impl Lexer {
             file_len: file.len(),
             file_content: file,
             pos: 0,
+            line: 1,
         }
     }
 
@@ -27,6 +29,8 @@ impl Lexer {
     }
 
     fn advance(&mut self, len: usize) {
+        let advanced_text = &self.file_content[self.pos..self.pos + len];
+        self.line += advanced_text.matches('\n').count();
         self.pos += len;
     }
 
@@ -62,8 +66,8 @@ impl Lexer {
                 panic!(
                     "{}",
                     format!(
-                        "[Lexer/ERROR] Unexpected character at position {}: '{}'",
-                        self.pos, next_char,
+                        "[Lexer/ERROR] Unexpected character at line {}, position {}: '{}'",
+                        self.line, self.pos, next_char,
                     )
                     .red()
                     .bold()
@@ -104,6 +108,10 @@ fn identifier_handler() -> TokenHandler {
     })
 }
 
+fn comment_handler() -> TokenHandler {
+    Arc::new(|_| None)
+}
+
 struct RegexHandler {
     regex: Regex,
     handler: TokenHandler,
@@ -120,6 +128,9 @@ lazy_static! {
         // Whitespace (check first to skip efficiently)
         RegexHandler::new(Regex::new(r"^\s+").unwrap(), skip_handler()),
 
+        // Comments (must come after whitespace but before other tokens)
+        RegexHandler::new(Regex::new(r"^//[^\n]*").unwrap(), comment_handler()),
+
         // Multi-character operators (must come before single chars)
         RegexHandler::new(Regex::new(r"^::").unwrap(), default_handler(TokenKind::DoubleColon, "::")),
         RegexHandler::new(Regex::new(r"^->").unwrap(), default_handler(TokenKind::Arrow, "->")),
@@ -130,6 +141,8 @@ lazy_static! {
         RegexHandler::new(Regex::new(r"^>=").unwrap(), default_handler(TokenKind::MoreEquals, ">=")),
         RegexHandler::new(Regex::new(r"^==").unwrap(), default_handler(TokenKind::EqualsEquals, "==")),
         RegexHandler::new(Regex::new(r"^!=").unwrap(), default_handler(TokenKind::NotEquals, "!=")),
+        RegexHandler::new(Regex::new(r"^\+=").unwrap(), default_handler(TokenKind::PlusEquals, "+=")),
+        RegexHandler::new(Regex::new(r"^-=").unwrap(), default_handler(TokenKind::MinusEquals, "-=")),
 
         // String literals
         RegexHandler::new(Regex::new(r#"^"[^"]*""#).unwrap(), literal_handler(TokenKind::StringLiteral)),

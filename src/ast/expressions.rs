@@ -69,6 +69,42 @@ impl Expr for BinaryExpr {
     }
 }
 
+#[derive(Debug)]
+pub struct PrefixExpr {
+    pub operator: Token,
+    pub right: Box<dyn Expr>,
+}
+
+impl Expr for PrefixExpr {
+    fn expr(&self) -> () {}
+
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(PrefixExpr {
+            operator: self.operator.clone(),
+            right: self.right.clone_box(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct AssignmentExpr {
+    pub assigne: Box<dyn Expr>,
+    pub operator: Token,
+    pub value: Box<dyn Expr>,
+}
+
+impl Expr for AssignmentExpr {
+    fn expr(&self) -> () {}
+
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(AssignmentExpr {
+            assigne: self.assigne.clone_box(),
+            operator: self.operator.clone(),
+            value: self.value.clone_box(),
+        })
+    }
+}
+
 impl Clone for Box<dyn Expr> {
     fn clone(&self) -> Self {
         self.clone_box()

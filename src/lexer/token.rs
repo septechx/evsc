@@ -28,6 +28,8 @@ pub enum TokenKind {
     CloseParen,
     Dot,
     Equals,
+    PlusEquals,
+    MinusEquals,
     Underscore,
     OpenBracket,
     CloseBracket,

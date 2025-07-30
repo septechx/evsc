@@ -3,8 +3,9 @@ use std::{collections::HashMap, sync::Mutex};
 use lazy_static::lazy_static;
 
 use crate::{
-    ast::ast::{Expr, Stmt},
+    ast::ast::{Expression, Statement},
     lexer::token::TokenKind::{self, *},
+    parser::stmt::parse_return_stmt,
 };
 
 use super::{
@@ -13,7 +14,7 @@ use super::{
         parse_prefix_expr, parse_primary_expr, parse_struct_instantiation_expr,
     },
     parser::Parser,
-    stmt::{parse_struct_decl_stmt, parse_var_decl_statement},
+    stmt::{parse_fn_decl_stmt, parse_struct_decl_stmt, parse_var_decl_statement},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -33,9 +34,9 @@ pub enum BindingPower {
 }
 use BindingPower::*;
 
-type StmtHandler = fn(&mut Parser) -> Box<dyn Stmt>;
-type NudHandler = fn(&mut Parser) -> Box<dyn Expr>;
-type LedHandler = fn(&mut Parser, Box<dyn Expr>, BindingPower) -> Box<dyn Expr>;
+type StmtHandler = fn(&mut Parser) -> anyhow::Result<Statement>;
+type NudHandler = fn(&mut Parser) -> anyhow::Result<Expression>;
+type LedHandler = fn(&mut Parser, Expression, BindingPower) -> anyhow::Result<Expression>;
 
 type StmtLookup = HashMap<TokenKind, StmtHandler>;
 type NudLookup = HashMap<TokenKind, NudHandler>;
@@ -109,4 +110,6 @@ pub fn create_token_lookups() {
     stmt(Const, parse_var_decl_statement);
     stmt(Let, parse_var_decl_statement);
     stmt(Struct, parse_struct_decl_stmt);
+    stmt(Fn, parse_fn_decl_stmt);
+    stmt(Return, parse_return_stmt);
 }

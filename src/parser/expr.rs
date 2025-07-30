@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use anyhow::{Result, anyhow};
 use colored::Colorize;
 
 use crate::{
     ast::{
-        ast::Expr,
+        ast::Expression,
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, NumberExpr,
             PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
@@ -20,22 +21,22 @@ use super::{
     types::parse_type,
 };
 
-pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
+pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
     let token_kind = parser.current_token_kind();
 
     let nud_fn = {
         let nud_lu = NUD_LU.lock().unwrap();
-        nud_lu.get(&token_kind).cloned().unwrap_or_else(|| {
-            panic!(
+        nud_lu.get(&token_kind).cloned().ok_or_else(|| {
+            anyhow!(
                 "{}",
                 format!("Nud handler expected for token {:?}", token_kind)
                     .red()
                     .bold()
             )
-        })
+        })?
     };
 
-    let mut left = nud_fn(parser);
+    let mut left = nud_fn(parser)?;
 
     loop {
         let current_bp = {
@@ -52,37 +53,39 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Box<dyn Expr> {
         let token_kind = parser.current_token_kind();
         let led_fn = {
             let led_lu = LED_LU.lock().unwrap();
-            led_lu.get(&token_kind).cloned().unwrap_or_else(|| {
-                panic!(
+            led_lu.get(&token_kind).cloned().ok_or_else(|| {
+                anyhow!(
                     "{}",
                     format!("Led handler expected for token {:?}", token_kind)
                         .red()
                         .bold()
                 )
-            })
+            })?
         };
 
-        left = led_fn(parser, left.clone(), current_bp);
+        left = led_fn(parser, left.clone(), current_bp)?;
     }
 
-    left
+    Ok(left)
 }
 
-pub fn parse_primary_expr(parser: &mut Parser) -> Box<dyn Expr> {
+pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
     match parser.current_token_kind() {
         TokenKind::Number => {
             let value = parser.advance().value;
-            Box::new(NumberExpr {
-                value: value.parse::<f32>().unwrap(),
-            })
+            Ok(Expression::Number(NumberExpr {
+                value: value
+                    .parse::<i32>()
+                    .map_err(|e| anyhow!("Failed to parse number: {}", e))?,
+            }))
         }
-        TokenKind::StringLiteral => Box::new(StringExpr {
+        TokenKind::StringLiteral => Ok(Expression::String(StringExpr {
             value: parser.advance().value,
-        }),
-        TokenKind::Identifier => Box::new(SymbolExpr {
+        })),
+        TokenKind::Identifier => Ok(Expression::Symbol(SymbolExpr {
             value: parser.advance().value,
-        }),
-        _ => panic!(
+        })),
+        _ => Err(anyhow!(
             "{}",
             format!(
                 "Cannot create primary expression from {:?}",
@@ -90,130 +93,131 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Box<dyn Expr> {
             )
             .red()
             .bold()
-        ),
+        )),
     }
 }
 
 pub fn parse_binary_expr(
     parser: &mut Parser,
-    left: Box<dyn Expr>,
+    left: Expression,
     bp: BindingPower,
-) -> Box<dyn Expr> {
+) -> Result<Expression> {
     let operator = parser.advance();
-    let right = parse_expr(parser, bp);
+    let right = parse_expr(parser, bp)?;
 
-    Box::new(BinaryExpr {
-        left,
+    Ok(Expression::Binary(BinaryExpr {
+        left: Box::new(left),
         operator,
-        right,
-    })
+        right: Box::new(right),
+    }))
 }
 
-pub fn parse_prefix_expr(parser: &mut Parser) -> Box<dyn Expr> {
+pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expression> {
     let operator = parser.advance();
-    let right = parse_expr(parser, BindingPower::DefaultBp);
+    let right = parse_expr(parser, BindingPower::DefaultBp)?;
 
-    Box::new(PrefixExpr { operator, right })
+    Ok(Expression::Prefix(PrefixExpr {
+        operator,
+        right: Box::new(right),
+    }))
 }
 
 pub fn parse_assignment_expr(
     parser: &mut Parser,
-    assigne: Box<dyn Expr>,
+    assigne: Expression,
     bp: BindingPower,
-) -> Box<dyn Expr> {
+) -> Result<Expression> {
     let operator = parser.advance();
-    let value = parse_expr(parser, BindingPower::Assignment);
+    let value = parse_expr(parser, BindingPower::Assignment)?;
 
-    Box::new(AssignmentExpr {
-        assigne,
+    Ok(Expression::Assignment(AssignmentExpr {
+        assigne: Box::new(assigne),
         operator,
-        value,
-    })
+        value: Box::new(value),
+    }))
 }
 
-pub fn parse_grouping_expr(parser: &mut Parser) -> Box<dyn Expr> {
+pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expression> {
     parser.advance();
-    let expr = parse_expr(parser, BindingPower::DefaultBp);
-    parser.expect(TokenKind::CloseParen);
+    let expr = parse_expr(parser, BindingPower::DefaultBp)?;
+    parser.expect(TokenKind::CloseParen)?;
 
-    expr
+    Ok(expr)
 }
 
 pub fn parse_struct_instantiation_expr(
     parser: &mut Parser,
-    left: Box<dyn Expr>,
-    bp: BindingPower,
-) -> Box<dyn Expr> {
-    // Reflection or something
-    let name = match left.as_any().downcast_ref::<SymbolExpr>() {
-        Some(symbol) => symbol.value.clone(),
-        None => panic!("Expected struct name for struct instantiation"),
-    };
-    let mut properties: HashMap<String, Box<dyn Expr>> = HashMap::new();
+    name_expr: Expression,
+    _bp: BindingPower, // Unused but kept for API consistency
+) -> Result<Expression> {
+    parser.advance();
 
-    parser.expect(TokenKind::OpenCurly);
+    let name = match name_expr {
+        Expression::Symbol(symbol_expr) => symbol_expr.value,
+        _ => return Err(anyhow!("Expected struct name to be a symbol")),
+    };
+
+    let mut properties: HashMap<String, Expression> = HashMap::new();
 
     loop {
-        if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
+        if parser.current_token_kind() == TokenKind::CloseCurly {
+            parser.advance();
             break;
         }
 
-        let property_name = parser.expect(TokenKind::Identifier).value;
-        parser.expect(TokenKind::Colon);
-        let expr = parse_expr(parser, BindingPower::Logical);
+        let property_name = parser.expect(TokenKind::Identifier)?.value;
+        parser.expect(TokenKind::Colon)?;
 
-        if parser.current_token_kind() != TokenKind::CloseCurly {
-            parser.expect(TokenKind::Comma);
-        }
-
-        if properties.contains_key(&property_name) {
-            panic!(
-                "{}",
-                format!(
-                    "Property {} has already been defined in struct instantiation",
-                    property_name
-                )
-                .red()
-                .bold()
-            );
-        }
+        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
 
         properties.insert(property_name, expr);
+
+        if parser.current_token_kind() == TokenKind::CloseCurly {
+            parser.advance();
+            break;
+        }
+
+        parser.expect(TokenKind::Comma)?;
     }
 
-    parser.expect(TokenKind::CloseCurly);
-
-    Box::new(StructInstantiationExpr { name, properties })
+    Ok(Expression::StructInstantiation(StructInstantiationExpr {
+        name,
+        properties,
+    }))
 }
 
-pub fn parse_array_literal_expr(parser: &mut Parser) -> Box<dyn Expr> {
+pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
     parser.advance();
 
     match parser.current_token_kind() {
         TokenKind::Number => {
-            let length = parser.current_token().value.parse::<usize>().unwrap();
+            // Fixed-size array
+            let length = parser
+                .current_token()
+                .value
+                .parse::<usize>()
+                .map_err(|e| anyhow!("Failed to parse array length: {}", e))?;
             parser.advance();
-            parser.expect(TokenKind::CloseBracket);
-            let underlying = parse_type(parser, BindingPower::DefaultBp);
+            parser.expect(TokenKind::CloseBracket)?;
 
-            parser.expect(TokenKind::OpenCurly);
+            // Get the underlying type
+            let underlying = parse_type(parser, BindingPower::DefaultBp)?;
+
+            // Parse array contents
+            parser.expect(TokenKind::OpenCurly)?;
             let mut contents = Vec::with_capacity(length);
 
-            loop {
-                if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
-                    break;
-                }
-
-                contents.push(parse_expr(parser, BindingPower::Logical));
+            while parser.current_token_kind() != TokenKind::CloseCurly {
+                contents.push(parse_expr(parser, BindingPower::Logical)?);
 
                 if parser.current_token_kind() != TokenKind::CloseCurly {
-                    parser.expect(TokenKind::Comma);
+                    parser.expect(TokenKind::Comma)?;
                 }
             }
-            parser.expect(TokenKind::CloseCurly);
+            parser.expect(TokenKind::CloseCurly)?;
 
             if contents.len() != length {
-                panic!(
+                return Err(anyhow!(
                     "{}",
                     format!(
                         "Fixed array literal has {} elements but expected {}",
@@ -222,41 +226,38 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Box<dyn Expr> {
                     )
                     .red()
                     .bold()
-                );
+                ));
             }
 
-            Box::new(FixedArrayLiteralExpr {
+            Ok(Expression::FixedArrayLiteral(FixedArrayLiteralExpr {
                 underlying,
                 length,
                 contents,
-            })
+            }))
         }
         TokenKind::CloseBracket => {
+            // Variable-length array
             parser.advance();
-            let underlying = parse_type(parser, BindingPower::DefaultBp);
+            let underlying = parse_type(parser, BindingPower::DefaultBp)?;
 
-            parser.expect(TokenKind::OpenCurly);
+            parser.expect(TokenKind::OpenCurly)?;
             let mut contents = Vec::new();
 
-            loop {
-                if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
-                    break;
-                }
-
-                contents.push(parse_expr(parser, BindingPower::Logical));
+            while parser.current_token_kind() != TokenKind::CloseCurly {
+                contents.push(parse_expr(parser, BindingPower::Logical)?);
 
                 if parser.current_token_kind() != TokenKind::CloseCurly {
-                    parser.expect(TokenKind::Comma);
+                    parser.expect(TokenKind::Comma)?;
                 }
             }
-            parser.expect(TokenKind::CloseCurly);
+            parser.expect(TokenKind::CloseCurly)?;
 
-            Box::new(ArrayLiteralExpr {
+            Ok(Expression::ArrayLiteral(ArrayLiteralExpr {
                 underlying,
                 contents,
-            })
+            }))
         }
-        _ => panic!(
+        _ => Err(anyhow!(
             "{}",
             format!(
                 "Expected number or ']' in array literal, got {:?}",
@@ -264,6 +265,6 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Box<dyn Expr> {
             )
             .red()
             .bold()
-        ),
+        )),
     }
 }

@@ -1,12 +1,33 @@
-use std::any::Any;
+use super::expressions::*;
+use super::statements::*;
+use super::types::*;
 
-pub trait Stmt: std::fmt::Debug {}
-
-pub trait Expr: std::fmt::Debug {
-    fn clone_box(&self) -> Box<dyn Expr>;
-    fn as_any(&self) -> &dyn Any;
+#[derive(Debug, Clone)]
+pub enum Statement {
+    Block(BlockStmt),
+    Expression(ExpressionStmt),
+    VarDecl(VarDeclStmt),
+    StructDecl(StructDeclStmt),
+    FnDecl(FnDeclStmt),
+    Return(ReturnStmt),
 }
 
-pub trait Type: std::fmt::Debug {
-    fn clone_box(&self) -> Box<dyn Type>;
+#[derive(Debug, Clone)]
+pub enum Expression {
+    Number(NumberExpr),
+    String(StringExpr),
+    Symbol(SymbolExpr),
+    Binary(BinaryExpr),
+    Prefix(PrefixExpr),
+    Assignment(AssignmentExpr),
+    StructInstantiation(StructInstantiationExpr),
+    ArrayLiteral(ArrayLiteralExpr),
+    FixedArrayLiteral(FixedArrayLiteralExpr),
+}
+
+#[derive(Debug, Clone)]
+pub enum Type {
+    Symbol(SymbolType),
+    Vector(VectorType),
+    FixedArray(FixedArrayType),
 }

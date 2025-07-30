@@ -1,6 +1,6 @@
 //@include std;
 //
-//fn main(args: [_]String) {
+//fn main(args: []String) {
 //  let arg0: String = args[0];
 //  let arg1 = args[1];
 //

@@ -13,7 +13,6 @@ impl Token {
     }
 }
 
-// We need a way to match tokens without their data for lookup purposes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
     // Symbols
@@ -67,21 +66,26 @@ pub enum TokenKind {
     Null,
     Struct,
     Static,
+    Fn,
+    Return,
 
     // Special
     Eof,
 }
 
+use TokenKind as T;
 lazy_static! {
     static ref RESERVED_KEYWORDS: HashMap<&'static str, TokenKind> = {
         let mut m = HashMap::new();
-        m.insert("true", TokenKind::True);
-        m.insert("false", TokenKind::False);
-        m.insert("null", TokenKind::Null);
-        m.insert("let", TokenKind::Let);
-        m.insert("const", TokenKind::Const);
-        m.insert("struct", TokenKind::Struct);
-        m.insert("static", TokenKind::Static);
+        m.insert("true", T::True);
+        m.insert("false", T::False);
+        m.insert("null", T::Null);
+        m.insert("let", T::Let);
+        m.insert("const", T::Const);
+        m.insert("struct", T::Struct);
+        m.insert("static", T::Static);
+        m.insert("fn", T::Fn);
+        m.insert("return", T::Return);
         m
     };
 }

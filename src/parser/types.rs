@@ -19,8 +19,8 @@ use super::{
     parser::Parser,
 };
 
-type TypeNudHandler = fn(&mut Parser) -> Box<dyn Type>;
-type TypeLedHandler = fn(&mut Parser, Box<dyn Type>, BindingPower) -> Box<dyn Type>;
+type TypeNudHandler = fn(&mut Parser) -> anyhow::Result<Type>;
+type TypeLedHandler = fn(&mut Parser, Type, BindingPower) -> anyhow::Result<Type>;
 
 type TypeNudLookup = HashMap<TokenKind, TypeNudHandler>;
 type TypeLedLookup = HashMap<TokenKind, TypeLedHandler>;
@@ -45,29 +45,38 @@ pub fn create_token_type_lookups() {
     type_nud(OpenBracket, parse_array_type)
 }
 
-fn parse_symbol_type(parser: &mut Parser) -> Box<dyn Type> {
-    Box::new(SymbolType {
-        name: parser.expect(Identifier).value,
-    })
+fn parse_symbol_type(parser: &mut Parser) -> anyhow::Result<Type> {
+    Ok(Type::Symbol(SymbolType {
+        name: parser.expect(Identifier)?.value,
+    }))
 }
 
-fn parse_array_type(parser: &mut Parser) -> Box<dyn Type> {
+fn parse_array_type(parser: &mut Parser) -> anyhow::Result<Type> {
     parser.advance();
 
     match parser.current_token_kind() {
         Number => {
-            let length = parser.current_token().value.parse::<usize>().unwrap();
+            let length = parser
+                .current_token()
+                .value
+                .parse::<usize>()
+                .map_err(|e| anyhow::anyhow!("Failed to parse array length: {}", e))?;
             parser.advance();
-            parser.expect(CloseBracket);
-            let underlying = parse_type(parser, DefaultBp);
-            Box::new(FixedArrayType { length, underlying })
+            parser.expect(CloseBracket)?;
+            let underlying = parse_type(parser, DefaultBp)?;
+            Ok(Type::FixedArray(FixedArrayType {
+                length,
+                underlying: Box::new(underlying),
+            }))
         }
         CloseBracket => {
             parser.advance();
-            let underlying = parse_type(parser, DefaultBp);
-            Box::new(VectorType { underlying })
+            let underlying = parse_type(parser, DefaultBp)?;
+            Ok(Type::Vector(VectorType {
+                underlying: Box::new(underlying),
+            }))
         }
-        _ => panic!(
+        _ => Err(anyhow::anyhow!(
             "{}",
             format!(
                 "Expected number or ']' in array type, got {:?}",
@@ -75,26 +84,26 @@ fn parse_array_type(parser: &mut Parser) -> Box<dyn Type> {
             )
             .red()
             .bold()
-        ),
+        )),
     }
 }
 
-pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Box<dyn Type> {
+pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> anyhow::Result<Type> {
     let token_kind = parser.current_token_kind();
 
     let nud_fn = {
         let nud_lu = TYPE_NUD_LU.lock().unwrap();
-        nud_lu.get(&token_kind).cloned().unwrap_or_else(|| {
-            panic!(
+        nud_lu.get(&token_kind).cloned().ok_or_else(|| {
+            anyhow::anyhow!(
                 "{}",
                 format!("Type nud handler expected for token {:?}", token_kind)
                     .red()
                     .bold()
             )
-        })
+        })?
     };
 
-    let mut left = nud_fn(parser);
+    let mut left = nud_fn(parser)?;
 
     loop {
         let current_bp = {
@@ -111,18 +120,18 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Box<dyn Type> {
         let token_kind = parser.current_token_kind();
         let led_fn = {
             let led_lu = TYPE_LED_LU.lock().unwrap();
-            led_lu.get(&token_kind).cloned().unwrap_or_else(|| {
-                panic!(
+            led_lu.get(&token_kind).cloned().ok_or_else(|| {
+                anyhow::anyhow!(
                     "{}",
                     format!("Type led handler expected for token {:?}", token_kind)
                         .red()
                         .bold()
                 )
-            })
+            })?
         };
 
-        left = led_fn(parser, left.clone(), current_bp);
+        left = led_fn(parser, left, current_bp)?;
     }
 
-    left
+    Ok(left)
 }

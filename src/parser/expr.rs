@@ -8,7 +8,8 @@ use crate::{
         ast::Expression,
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
-            NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
+            MemberAccessExpr, NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr,
+            SymbolExpr,
         },
     },
     lexer::token::TokenKind,
@@ -305,4 +306,19 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             .bold()
         )),
     }
+}
+
+pub fn parse_member_access_expr(
+    parser: &mut Parser,
+    base: Expression,
+    _bp: BindingPower,
+) -> Result<Expression> {
+    parser.expect(TokenKind::Dot)?;
+    let member = SymbolExpr {
+        value: parser.expect(TokenKind::Identifier)?.value,
+    };
+    Ok(Expression::MemberAccess(MemberAccessExpr {
+        base: Box::new(base),
+        member,
+    }))
 }

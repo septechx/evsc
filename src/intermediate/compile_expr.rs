@@ -1,15 +1,19 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
+    types::BasicType,
     values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum},
     AddressSpace,
 };
 
 use crate::{
     ast::ast::Expression,
-    intermediate::{builtin, compiler::SymbolTable},
+    intermediate::{
+        builtin::{self, slice::create_slice_struct},
+        compiler::SymbolTable,
+    },
     lexer::token::TokenKind,
 };
 
@@ -31,12 +35,22 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             global.set_initializer(&string_val);
             global.set_constant(true);
             global.set_linkage(inkwell::module::Linkage::Private);
-            let ptr = builder.build_pointer_cast(
+
+            let element_ty = context.i8_type().as_basic_type_enum();
+            let slice_struct = create_slice_struct(context, element_ty);
+            let slice_val = slice_struct.get_undef();
+
+            let ptr_val = builder.build_pointer_cast(
                 global.as_pointer_value(),
-                context.i8_type().ptr_type(AddressSpace::default()),
+                element_ty.ptr_type(AddressSpace::default()),
                 "string_ptr",
             )?;
-            ptr.as_basic_value_enum()
+            let len_val = context.i64_type().const_int(s.value.len() as u64, false);
+
+            let slice_val = builder.build_insert_value(slice_val, ptr_val, 0, "slice_ptr")?;
+            let slice_val = builder.build_insert_value(slice_val, len_val, 1, "slice_len")?;
+
+            slice_val.as_basic_value_enum()
         }
         Expression::Symbol(sym) => symbol_table
             .get(&sym.value)
@@ -119,6 +133,25 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             match function.get_type().get_return_type() {
                 Some(ret_ty) => call_site_value.try_as_basic_value().left().unwrap(),
                 _ => context.i32_type().const_int(0, false).as_basic_value_enum(),
+            }
+        }
+        Expression::MemberAccess(expr) => {
+            let base =
+                compile_expression_to_value(context, module, builder, &expr.base, symbol_table)?;
+            let base_ty = base.get_type();
+
+            if base_ty.is_struct_type() {
+                let struct_ty = base_ty.into_struct_type();
+                let field_name = expr.member.value.as_str();
+
+                match field_name {
+                    "ptr" => builder.build_extract_value(base.into_struct_value(), 0, "ptr")?,
+                    "len" => builder.build_extract_value(base.into_struct_value(), 1, "len")?,
+                    _ => bail!("No such field '{}' in slice", field_name),
+                }
+                .as_basic_value_enum()
+            } else {
+                bail!("Member access on non-struct type")
             }
         }
         expr => unimplemented!("{expr:#?}"),

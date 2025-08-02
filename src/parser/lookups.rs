@@ -4,8 +4,11 @@ use lazy_static::lazy_static;
 
 use crate::{
     ast::ast::{Expression, Statement},
-    lexer::token::TokenKind::{self, *},
-    parser::{expr::parse_function_call_expr, stmt::parse_return_stmt},
+    lexer::token::TokenKind::{self, self as TK},
+    parser::{
+        expr::{parse_function_call_expr, parse_member_access_expr},
+        stmt::parse_return_stmt,
+    },
 };
 
 use super::{
@@ -32,7 +35,7 @@ pub enum BindingPower {
     Member,
     Primary,
 }
-use BindingPower::*;
+use BindingPower as BP;
 
 type StmtHandler = fn(&mut Parser) -> anyhow::Result<Statement>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expression>;
@@ -66,52 +69,53 @@ fn stmt(kind: TokenKind, stmt_fn: StmtHandler) {
 
 pub fn create_token_lookups() {
     // Assignment
-    led(Equals, Assignment, parse_assignment_expr);
-    led(PlusEquals, Assignment, parse_assignment_expr);
-    led(MinusEquals, Assignment, parse_assignment_expr);
-    led(StarEquals, Assignment, parse_assignment_expr);
-    led(SlashEquals, Assignment, parse_assignment_expr);
-    led(PercentEquals, Assignment, parse_assignment_expr);
+    led(TK::Equals, BP::Assignment, parse_assignment_expr);
+    led(TK::PlusEquals, BP::Assignment, parse_assignment_expr);
+    led(TK::MinusEquals, BP::Assignment, parse_assignment_expr);
+    led(TK::StarEquals, BP::Assignment, parse_assignment_expr);
+    led(TK::SlashEquals, BP::Assignment, parse_assignment_expr);
+    led(TK::PercentEquals, BP::Assignment, parse_assignment_expr);
 
     // Logical
-    led(And, Logical, parse_binary_expr);
-    led(Or, Logical, parse_binary_expr);
-    led(DotDot, Logical, parse_binary_expr);
+    led(TK::And, BP::Logical, parse_binary_expr);
+    led(TK::Or, BP::Logical, parse_binary_expr);
+    led(TK::DotDot, BP::Logical, parse_binary_expr);
 
     // Relational
-    led(Less, Relational, parse_binary_expr);
-    led(More, Relational, parse_binary_expr);
-    led(LessEquals, Relational, parse_binary_expr);
-    led(MoreEquals, Relational, parse_binary_expr);
-    led(EqualsEquals, Relational, parse_binary_expr);
-    led(NotEquals, Relational, parse_binary_expr);
+    led(TK::Less, BP::Relational, parse_binary_expr);
+    led(TK::More, BP::Relational, parse_binary_expr);
+    led(TK::LessEquals, BP::Relational, parse_binary_expr);
+    led(TK::MoreEquals, BP::Relational, parse_binary_expr);
+    led(TK::EqualsEquals, BP::Relational, parse_binary_expr);
+    led(TK::NotEquals, BP::Relational, parse_binary_expr);
 
     // Additive
-    led(Plus, Additive, parse_binary_expr);
-    led(Dash, Additive, parse_binary_expr);
+    led(TK::Plus, BP::Additive, parse_binary_expr);
+    led(TK::Dash, BP::Additive, parse_binary_expr);
 
     // MUltiplicative
-    led(Star, Multiplicative, parse_binary_expr);
-    led(Slash, Multiplicative, parse_binary_expr);
-    led(Percent, Multiplicative, parse_binary_expr);
+    led(TK::Star, BP::Multiplicative, parse_binary_expr);
+    led(TK::Slash, BP::Multiplicative, parse_binary_expr);
+    led(TK::Percent, BP::Multiplicative, parse_binary_expr);
 
     // Literals & Symbols
-    nud(Number, parse_primary_expr);
-    nud(StringLiteral, parse_primary_expr);
-    nud(Identifier, parse_primary_expr);
-    nud(OpenParen, parse_grouping_expr);
-    nud(Dash, parse_prefix_expr);
-    nud(Reference, parse_prefix_expr);
+    nud(TK::Number, parse_primary_expr);
+    nud(TK::StringLiteral, parse_primary_expr);
+    nud(TK::Identifier, parse_primary_expr);
+    nud(TK::OpenParen, parse_grouping_expr);
+    nud(TK::Dash, parse_prefix_expr);
+    nud(TK::Reference, parse_prefix_expr);
 
     // Call & Member
-    led(OpenCurly, Call, parse_struct_instantiation_expr);
-    led(OpenParen, Call, parse_function_call_expr);
-    nud(OpenBracket, parse_array_literal_expr);
+    led(TK::OpenCurly, BP::Call, parse_struct_instantiation_expr);
+    led(TK::OpenParen, BP::Call, parse_function_call_expr);
+    led(TK::Dot, BP::Member, parse_member_access_expr);
+    nud(TK::OpenBracket, parse_array_literal_expr);
 
     // Statements
-    stmt(Const, parse_var_decl_statement);
-    stmt(Let, parse_var_decl_statement);
-    stmt(Struct, parse_struct_decl_stmt);
-    stmt(Fn, parse_fn_decl_stmt);
-    stmt(Return, parse_return_stmt);
+    stmt(TK::Const, parse_var_decl_statement);
+    stmt(TK::Let, parse_var_decl_statement);
+    stmt(TK::Struct, parse_struct_decl_stmt);
+    stmt(TK::Fn, parse_fn_decl_stmt);
+    stmt(TK::Return, parse_return_stmt);
 }

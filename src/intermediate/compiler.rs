@@ -15,7 +15,9 @@ use crate::{
         ast::{Statement, Type},
         statements::{BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt},
     },
-    intermediate::compile_expr::compile_expression_to_value,
+    intermediate::{
+        builtin::slice::create_slice_struct, compile_expr::compile_expression_to_value,
+    },
 };
 
 pub type SymbolTable<'ctx> = HashMap<String, BasicValueEnum<'ctx>>;
@@ -86,9 +88,7 @@ fn compile_type<'ctx>(context: &'ctx Context, ty: &Type) -> BasicTypeEnum<'ctx> 
         },
         Type::Slice(slice_ty) => {
             let element_ty = compile_type(context, &slice_ty.underlying);
-            element_ty
-                .ptr_type(AddressSpace::default())
-                .as_basic_type_enum()
+            create_slice_struct(context, element_ty).as_basic_type_enum()
         }
         ty => unimplemented!("{ty:#?}"),
     }

@@ -61,3 +61,9 @@ pub struct FunctionCallExpr {
     pub name: String,
     pub arguments: Vec<Expression>,
 }
+
+#[derive(Debug, Clone)]
+pub struct MemberAccessExpr {
+    pub base: Box<Expression>,
+    pub member: SymbolExpr,
+}

@@ -1,1 +1,6 @@
-pub extern fn @write(u64, []u8, u64) void;
+pub extern fn @write(usize, *u8, usize) void;
+
+pub extern struct Slice<T> {
+  ptr: *T,
+  len: usize,
+};

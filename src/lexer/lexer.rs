@@ -165,7 +165,7 @@ lazy_static! {
         regex_handler!(r"^->", T::Arrow, "->"),
         regex_handler!(r"^&&", T::And, "&&"),
         regex_handler!(r"^\|\|", T::Or, "||"),
-        regex_handler!(r"^\..", T::DotDot, ".."),
+        regex_handler!(r"^\.\.", T::DotDot, ".."),
         regex_handler!(r"^<=", T::LessEquals, "<="),
         regex_handler!(r"^>=", T::MoreEquals, ">="),
         regex_handler!(r"^==", T::EqualsEquals, "=="),

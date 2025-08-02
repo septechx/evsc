@@ -23,6 +23,7 @@ pub enum Expression {
     StructInstantiation(StructInstantiationExpr),
     ArrayLiteral(ArrayLiteralExpr),
     FixedArrayLiteral(FixedArrayLiteralExpr),
+    FunctionCall(FunctionCallExpr),
 }
 
 #[derive(Debug, Clone)]

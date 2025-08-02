@@ -36,7 +36,6 @@ pub enum TokenKind {
     OpenBracket,
     CloseBracket,
     Hash,
-    At,
     Comma,
     Plus,
     Dash,
@@ -52,6 +51,7 @@ pub enum TokenKind {
     More,
     LessEquals,
     MoreEquals,
+    Reference,
 
     // Literals
     Identifier,

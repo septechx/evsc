@@ -1,5 +1,5 @@
 use crate::lexer::token::{Token, TokenKind};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -96,6 +96,16 @@ fn literal_handler(kind: TokenKind) -> TokenHandler {
     Box::new(move |val| Ok(Some(Token::new(kind, val.to_string()))))
 }
 
+fn string_literal_handler() -> TokenHandler {
+    Box::new(|val: &str| {
+        let inner = &val[1..val.len() - 1];
+        Ok(Some(Token::new(
+            TokenKind::StringLiteral,
+            inner.to_string(),
+        )))
+    })
+}
+
 fn identifier_handler() -> TokenHandler {
     Box::new(|val| {
         if let Some(kind) = TokenKind::lookup_reserved(val) {
@@ -167,16 +177,17 @@ lazy_static! {
         regex_handler!(r"^%=", T::PercentEquals, "%="),
 
         // String literals
-        regex_handler!(r#"^"[^"]*""#, literal T::StringLiteral),
+        regex_handler!(r#"^"[^"]*""#, string_literal_handler()),
 
         // Numbers
         regex_handler!(r"^[0-9]+(\.[0-9]+)?", literal T::Number),
 
         // Identifiers (must come after keywords)
-        regex_handler!(r"^[a-zA-Z_][a-zA-Z0-9_]*", identifier_handler()),
+        regex_handler!(r"^[@]?[a-zA-Z_][a-zA-Z0-9_]*", identifier_handler()),
 
         // Single character tokens
         regex_handler!(r"^;", T::Semicolon, ";"),
+        regex_handler!(r"^&", T::Reference, "&"),
         regex_handler!(r"^\+", T::Plus, "+"),
         regex_handler!(r"^\-", T::Dash, "-"),
         regex_handler!(r"^\*", T::Star, "*"),
@@ -195,7 +206,6 @@ lazy_static! {
         regex_handler!(r"^\]", T::CloseBracket, "]"),
         regex_handler!(r"^,", T::Comma, ","),
         regex_handler!(r"^#", T::Hash, "#"),
-        regex_handler!(r"^@", T::At, "@"),
         regex_handler!(r"^>", T::More, ">"),
         regex_handler!(r"^<", T::Less, "<"),
     ];

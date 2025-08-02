@@ -55,3 +55,9 @@ pub struct FixedArrayLiteralExpr {
     pub length: usize,
     pub contents: Vec<Expression>,
 }
+
+#[derive(Debug, Clone)]
+pub struct FunctionCallExpr {
+    pub name: String,
+    pub arguments: Vec<Expression>,
+}

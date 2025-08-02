@@ -237,7 +237,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
         name,
         arguments,
         body,
-        explicit_type: Some(explicit_type),
+        explicit_type,
     }))
 }
 

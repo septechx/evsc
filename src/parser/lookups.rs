@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use crate::{
     ast::ast::{Expression, Statement},
     lexer::token::TokenKind::{self, *},
-    parser::stmt::parse_return_stmt,
+    parser::{expr::parse_function_call_expr, stmt::parse_return_stmt},
 };
 
 use super::{
@@ -101,9 +101,11 @@ pub fn create_token_lookups() {
     nud(Identifier, parse_primary_expr);
     nud(OpenParen, parse_grouping_expr);
     nud(Dash, parse_prefix_expr);
+    nud(Reference, parse_prefix_expr);
 
     // Call & Member
     led(OpenCurly, Call, parse_struct_instantiation_expr);
+    led(OpenParen, Call, parse_function_call_expr);
     nud(OpenBracket, parse_array_literal_expr);
 
     // Statements

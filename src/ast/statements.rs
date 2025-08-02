@@ -48,7 +48,7 @@ pub struct FnDeclStmt {
     pub name: String,
     pub arguments: HashMap<String, FnArgument>,
     pub body: Vec<Statement>,
-    pub explicit_type: Option<Type>,
+    pub explicit_type: Type,
 }
 
 #[derive(Debug, Clone)]

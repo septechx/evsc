@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 
 use crate::{
     ast::{
         ast::Expression,
         expressions::{
-            ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, NumberExpr,
-            PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
+            ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
+            NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
         },
     },
     lexer::token::TokenKind,
@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::{
-    lookups::{BP_LU, BindingPower, NUD_LU},
+    lookups::{BindingPower, BP_LU, NUD_LU},
     parser::Parser,
     types::parse_type,
 };
@@ -148,7 +148,7 @@ pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expression> {
 pub fn parse_struct_instantiation_expr(
     parser: &mut Parser,
     name_expr: Expression,
-    _bp: BindingPower, // Unused but kept for API consistency
+    _bp: BindingPower,
 ) -> Result<Expression> {
     parser.advance();
 
@@ -183,6 +183,44 @@ pub fn parse_struct_instantiation_expr(
     Ok(Expression::StructInstantiation(StructInstantiationExpr {
         name,
         properties,
+    }))
+}
+
+pub fn parse_function_call_expr(
+    parser: &mut Parser,
+    name_expr: Expression,
+    _bp: BindingPower,
+) -> Result<Expression> {
+    parser.advance();
+
+    let name = match name_expr {
+        Expression::Symbol(symbol_expr) => symbol_expr.value,
+        _ => return Err(anyhow!("Expected function name to be a symbol")),
+    };
+
+    let mut arguments: Vec<Expression> = Vec::new();
+
+    loop {
+        if parser.current_token_kind() == TokenKind::CloseParen {
+            parser.advance();
+            break;
+        }
+
+        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
+
+        arguments.push(expr);
+
+        if parser.current_token_kind() == TokenKind::CloseParen {
+            parser.advance();
+            break;
+        }
+
+        parser.expect(TokenKind::Comma)?;
+    }
+
+    Ok(Expression::FunctionCall(FunctionCallExpr {
+        name,
+        arguments,
     }))
 }
 

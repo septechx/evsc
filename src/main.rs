@@ -8,10 +8,12 @@ use parser::parser::parse;
 use std::fs;
 
 fn main() -> anyhow::Result<()> {
-    let file = fs::read_to_string("_test/01.evsc")?;
+    let file = fs::read_to_string("_test/test.evsc")?;
     let tokens = tokenize(file)?;
+    //println!("{tokens:#?}");
     let ast = parse(tokens)?;
-    intermediate::compile("01.evsc", ast)?;
+    //println!("{ast:#?}");
+    intermediate::compile("test.evsc", ast)?;
 
     Ok(())
 }

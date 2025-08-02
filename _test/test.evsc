@@ -1,0 +1,8 @@
+fn main() i32 {
+    println();
+    return 0;
+}
+
+fn println() void {
+    @write(1, &"Hello world\n", 12);
+}

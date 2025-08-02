@@ -6,7 +6,7 @@ pub struct SymbolType {
 }
 
 #[derive(Debug, Clone)]
-pub struct VectorType {
+pub struct SliceType {
     pub underlying: Box<Type>,
 }
 

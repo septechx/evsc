@@ -163,7 +163,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
 
 pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
     parser.expect(TokenKind::Fn)?;
-    let mut arguments: HashMap<String, FnArgument> = HashMap::new();
+    let mut arguments: Vec<FnArgument> = Vec::new();
     let mut body: Vec<Statement> = Vec::new();
     let name = parser.expect(TokenKind::Identifier)?.value;
 
@@ -188,23 +188,24 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
                 parser.expect(TokenKind::Comma)?;
             }
 
-            if let Some(_) = arguments.insert(
-                argument_name.clone(),
-                FnArgument {
-                    name: argument_name.clone(),
-                    explicit_type: Some(explicit_type),
-                },
-            ) {
+            if !arguments
+                .iter()
+                .filter(|arg| arg.name == argument_name)
+                .collect::<Vec<_>>()
+                .is_empty()
+            {
                 return Err(anyhow::anyhow!(
                     "{}",
-                    format!(
-                        "Argument {} has already been defined in function",
-                        argument_name
-                    )
-                    .red()
-                    .bold()
+                    format!("Argument {argument_name} has already been defined in function")
+                        .red()
+                        .bold()
                 ));
-            };
+            }
+
+            arguments.push(FnArgument {
+                name: argument_name,
+                explicit_type: Some(explicit_type),
+            });
 
             continue;
         }

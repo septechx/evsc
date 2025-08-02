@@ -5,8 +5,9 @@ use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    types::FunctionType,
+    types::{BasicType, BasicTypeEnum, FunctionType},
     values::{BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
@@ -17,11 +18,14 @@ use crate::{
     intermediate::compile_expr::compile_expression_to_value,
 };
 
+pub type SymbolTable<'ctx> = HashMap<String, BasicValueEnum<'ctx>>;
+
 pub fn compile<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
     ast: &BlockStmt,
+    symbol_table: &mut SymbolTable<'ctx>,
 ) -> Result<()> {
     let mut function_table: HashMap<String, FunctionValue> = HashMap::new();
 
@@ -30,7 +34,12 @@ pub fn compile<'a, 'ctx>(
     // Preprocess functions
     for stmt in body {
         if let Statement::FnDecl(fn_decl) = stmt {
-            let fn_type = compile_fn_type(context, &fn_decl.explicit_type.clone());
+            let param_types: Vec<Type> = fn_decl
+                .arguments
+                .iter()
+                .map(|arg| arg.explicit_type.clone().unwrap())
+                .collect();
+            let fn_type = compile_function_type(context, &fn_decl.explicit_type, &param_types);
 
             let function = module.add_function(&fn_decl.name, fn_type, None);
             function_table.insert(fn_decl.name.clone(), function);
@@ -46,10 +55,10 @@ pub fn compile<'a, 'ctx>(
                 }
             }
             Statement::Return(ret_stmt) => {
-                compile_return(context, module, builder, ret_stmt)?;
+                compile_return(context, module, builder, ret_stmt, symbol_table)?;
             }
             Statement::Expression(expr_stmt) => {
-                compile_expression(context, module, builder, expr_stmt)?;
+                compile_expression(context, module, builder, expr_stmt, symbol_table)?;
             }
             Statement::VarDecl(var_decl) => {
                 compile_var_decl(context, module, var_decl);
@@ -58,7 +67,8 @@ pub fn compile<'a, 'ctx>(
                 compile_struct_decl(context, module, struct_decl);
             }
             Statement::Block(block) => {
-                compile(context, module, builder, block)?;
+                let mut inner_symbol_table = symbol_table.clone();
+                compile(context, module, builder, block, &mut inner_symbol_table)?;
             }
         }
     }
@@ -66,14 +76,43 @@ pub fn compile<'a, 'ctx>(
     Ok(())
 }
 
-fn compile_fn_type<'ctx>(context: &'ctx Context, fn_type: &Type) -> FunctionType<'ctx> {
-    match fn_type {
-        Type::Symbol(symbol_type) => match symbol_type.name.as_str() {
-            "i32" => context.i32_type().fn_type(&[], false),
-            "void" => context.void_type().fn_type(&[], false),
-            _ => unimplemented!(),
+fn compile_type<'ctx>(context: &'ctx Context, ty: &Type) -> BasicTypeEnum<'ctx> {
+    match ty {
+        Type::Symbol(sym) => match sym.name.as_str() {
+            "i32" => context.i32_type().as_basic_type_enum(),
+            "u8" => context.i8_type().as_basic_type_enum(),
+            "usize" => context.i64_type().as_basic_type_enum(),
+            tyname => unimplemented!("{tyname}"),
         },
-        _ => unimplemented!(),
+        Type::Slice(slice_ty) => {
+            let element_ty = compile_type(context, &slice_ty.underlying);
+            element_ty
+                .ptr_type(AddressSpace::default())
+                .as_basic_type_enum()
+        }
+        ty => unimplemented!("{ty:#?}"),
+    }
+}
+
+fn compile_function_type<'ctx>(
+    context: &'ctx Context,
+    return_type: &Type,
+    param_types: &[Type],
+) -> FunctionType<'ctx> {
+    let return_llvm_type: Option<BasicTypeEnum> = match return_type {
+        Type::Symbol(sym) if sym.name == "void" => None,
+        _ => Some(compile_type(context, return_type)),
+    };
+
+    let param_llvm_types: Vec<_> = param_types
+        .iter()
+        .map(|ty| compile_type(context, ty).into())
+        .collect();
+
+    if let Some(ret_ty) = return_llvm_type {
+        ret_ty.fn_type(&param_llvm_types, false)
+    } else {
+        context.void_type().fn_type(&param_llvm_types, false)
     }
 }
 
@@ -83,6 +122,14 @@ fn compile_function<'ctx>(
     function: FunctionValue<'ctx>,
     fn_decl: &FnDeclStmt,
 ) -> Result<()> {
+    let mut symbol_table: HashMap<String, BasicValueEnum> = HashMap::new();
+    for (i, arg_decl) in fn_decl.arguments.iter().enumerate() {
+        if let Some(param) = function.get_nth_param(i as u32) {
+            param.set_name(&arg_decl.name);
+            symbol_table.insert(arg_decl.name.clone(), param);
+        }
+    }
+
     let entry_bb = context.append_basic_block(function, "entry");
     let builder = context.create_builder();
     builder.position_at_end(entry_bb);
@@ -90,7 +137,7 @@ fn compile_function<'ctx>(
     let body = BlockStmt {
         body: fn_decl.body.clone(),
     };
-    compile(context, module, &builder, &body)?;
+    compile(context, module, &builder, &body, &mut symbol_table)?;
 
     if function
         .get_last_basic_block()
@@ -109,9 +156,11 @@ fn compile_return<'ctx>(
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
     ret_stmt: &ReturnStmt,
+    symbol_table: &mut SymbolTable<'ctx>,
 ) -> Result<()> {
     if let Some(expr) = &ret_stmt.value {
-        let ret_val: BasicValueEnum = compile_expression_to_value(context, module, builder, expr)?;
+        let ret_val: BasicValueEnum =
+            compile_expression_to_value(context, module, builder, expr, symbol_table)?;
         builder.build_return(Some(&ret_val))?;
     } else {
         builder.build_return(None)?;
@@ -125,8 +174,15 @@ fn compile_expression<'a, 'ctx>(
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
     expr_stmt: &'a ExpressionStmt,
+    symbol_table: &mut SymbolTable<'ctx>,
 ) -> Result<()> {
-    compile_expression_to_value(context, module, builder, &expr_stmt.expression)?;
+    compile_expression_to_value(
+        context,
+        module,
+        builder,
+        &expr_stmt.expression,
+        symbol_table,
+    )?;
     Ok(())
 }
 

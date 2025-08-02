@@ -1,8 +1,8 @@
 fn main() i32 {
-    println();
+    print("Hello world", 11);
     return 0;
 }
 
-fn println() void {
-    @write(1, &"Hello world\n", 12);
+fn print(str: []u8, len: usize) void {
+    @write(1, str, len);
 }

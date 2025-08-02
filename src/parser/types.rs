@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::{
     ast::{
         ast::Type,
-        types::{FixedArrayType, SymbolType, VectorType},
+        types::{FixedArrayType, SliceType, SymbolType},
     },
     lexer::token::TokenKind::{self, *},
 };
@@ -72,7 +72,7 @@ fn parse_array_type(parser: &mut Parser) -> anyhow::Result<Type> {
         CloseBracket => {
             parser.advance();
             let underlying = parse_type(parser, DefaultBp)?;
-            Ok(Type::Vector(VectorType {
+            Ok(Type::Slice(SliceType {
                 underlying: Box::new(underlying),
             }))
         }

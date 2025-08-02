@@ -1,24 +1,29 @@
 use anyhow::{bail, Result};
 use inkwell::values::BasicValue;
-use inkwell::AddressSpace;
 use inkwell::{builder::Builder, context::Context, module::Module, values::BasicValueEnum};
+use inkwell::{AddressSpace, InlineAsmDialect};
 
 use crate::ast::expressions::FunctionCallExpr;
 use crate::intermediate::compile_expr::compile_expression_to_value;
+use crate::intermediate::compiler::SymbolTable;
 
 pub fn handle_write_call<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
     expr: &FunctionCallExpr,
+    symbol_table: &SymbolTable<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     if expr.arguments.len() != 3 {
         bail!("write requires exactly 3 arguments");
     }
 
-    let fd_val = compile_expression_to_value(context, module, builder, &expr.arguments[0])?;
-    let buf_val = compile_expression_to_value(context, module, builder, &expr.arguments[1])?;
-    let len_val = compile_expression_to_value(context, module, builder, &expr.arguments[2])?;
+    let fd_val =
+        compile_expression_to_value(context, module, builder, &expr.arguments[0], symbol_table)?;
+    let buf_val =
+        compile_expression_to_value(context, module, builder, &expr.arguments[1], symbol_table)?;
+    let len_val =
+        compile_expression_to_value(context, module, builder, &expr.arguments[2], symbol_table)?;
 
     let fd_ext =
         builder.build_int_z_extend(fd_val.into_int_value(), context.i64_type(), "fd_ext")?;
@@ -50,7 +55,7 @@ pub fn handle_write_call<'ctx>(
         constraint_str.to_string(),
         true,
         false,
-        Some(inkwell::InlineAsmDialect::Intel),
+        Some(InlineAsmDialect::Intel),
         false,
     );
 

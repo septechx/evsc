@@ -47,8 +47,7 @@ impl Parser {
 
         if kind != expected_kind {
             let err = err.unwrap_or(format!(
-                "Expected {:?} but recieved {:?} instead.",
-                expected_kind, kind
+                "Expected {expected_kind:?} but recieved {kind:?} instead."
             ));
 
             return Err(anyhow!("{}", err.red().bold()));

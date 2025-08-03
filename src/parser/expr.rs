@@ -30,7 +30,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
         nud_lu.get(&token_kind).cloned().ok_or_else(|| {
             anyhow!(
                 "{}",
-                format!("Nud handler expected for token {:?}", token_kind)
+                format!("Nud handler expected for token {token_kind:?}")
                     .red()
                     .bold()
             )
@@ -57,7 +57,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
             led_lu.get(&token_kind).cloned().ok_or_else(|| {
                 anyhow!(
                     "{}",
-                    format!("Led handler expected for token {:?}", token_kind)
+                    format!("Led handler expected for token {token_kind:?}")
                         .red()
                         .bold()
                 )

@@ -96,7 +96,7 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> anyhow::Result<Type>
         nud_lu.get(&token_kind).cloned().ok_or_else(|| {
             anyhow::anyhow!(
                 "{}",
-                format!("Type nud handler expected for token {:?}", token_kind)
+                format!("Type nud handler expected for token {token_kind:?}")
                     .red()
                     .bold()
             )
@@ -123,7 +123,7 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> anyhow::Result<Type>
             led_lu.get(&token_kind).cloned().ok_or_else(|| {
                 anyhow::anyhow!(
                     "{}",
-                    format!("Type led handler expected for token {:?}", token_kind)
+                    format!("Type led handler expected for token {token_kind:?}")
                         .red()
                         .bold()
                 )

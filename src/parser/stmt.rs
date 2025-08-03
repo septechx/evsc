@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 
 use colored::Colorize;
 
@@ -61,7 +60,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     } else if explicit_type.is_none() {
         return Err(anyhow::anyhow!(
             "{}",
-            format!("Missing type or value in variable declaration")
+            "Missing type or value in variable declaration".to_string()
                 .red()
                 .bold()
         ));
@@ -72,7 +71,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     if is_constant && assigned_value.is_none() {
         return Err(anyhow::anyhow!(
             "{}",
-            format!("Cannot define constant without providing a value")
+            "Cannot define constant without providing a value".to_string()
                 .red()
                 .bold()
         ));
@@ -89,7 +88,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
 pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
     parser.expect(TokenKind::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
-    let mut methods: Vec<StructMethod> = Vec::new();
+    let methods: Vec<StructMethod> = Vec::new();
     let name = parser.expect(TokenKind::Identifier)?.value;
 
     parser.expect(TokenKind::OpenCurly)?;

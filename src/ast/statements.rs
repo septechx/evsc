@@ -1,5 +1,4 @@
 use super::ast::{Expression, Statement, Type};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct BlockStmt {

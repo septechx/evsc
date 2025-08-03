@@ -6,11 +6,11 @@ mod emmiter;
 use std::collections::HashMap;
 
 use anyhow::Result;
-use inkwell::{context::Context, types::BasicType, AddressSpace};
+use inkwell::context::Context;
 
 use crate::{
     ast::statements::BlockStmt,
-    intermediate::compiler::{StructDef, SymbolTable, TypeContext},
+    intermediate::compiler::{SymbolTable, TypeContext},
 };
 
 pub fn compile(module_name: &str, ast: BlockStmt) -> Result<()> {

@@ -1,11 +1,11 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use inkwell::{
+    AddressSpace,
     builder::Builder,
     context::Context,
     module::Module,
     types::BasicType,
     values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum},
-    AddressSpace,
 };
 
 use crate::{

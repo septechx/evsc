@@ -113,7 +113,6 @@ pub fn create_token_lookups() {
     nud(TK::OpenBracket, parse_array_literal_expr);
 
     // Statements
-    stmt(TK::Const, parse_var_decl_statement);
     stmt(TK::Let, parse_var_decl_statement);
     stmt(TK::Struct, parse_struct_decl_stmt);
     stmt(TK::Fn, parse_fn_decl_stmt);

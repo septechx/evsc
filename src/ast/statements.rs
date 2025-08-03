@@ -21,14 +21,12 @@ pub struct VarDeclStmt {
 #[derive(Debug, Clone)]
 pub struct StructProperty {
     pub name: String,
-    pub is_static: bool,
     pub explicit_type: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructMethod {
     pub name: String,
-    pub is_static: bool,
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,8 @@
-pub extern fn @write(usize, *u8, usize) void;
+#[internal]
+pub extern fn @write(fd: usize, buf: *const u8, len: usize) void;
 
-pub extern struct Slice<T> {
-  ptr: *T,
+#[internal]
+pub struct Slice<T> {
+  ptr: *const T,
   len: usize,
 };

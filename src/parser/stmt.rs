@@ -1,4 +1,3 @@
-
 use colored::Colorize;
 
 use crate::{
@@ -39,7 +38,8 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     let mut explicit_type: Option<Type> = None;
     let mut assigned_value: Option<Expression> = None;
 
-    let is_constant = parser.advance().kind == TokenKind::Const;
+    // TODO: Implement checking for mutability qualifier
+    let is_constant = true;
     let variable_name = parser
         .expect_error(
             TokenKind::Identifier,
@@ -60,7 +60,8 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     } else if explicit_type.is_none() {
         return Err(anyhow::anyhow!(
             "{}",
-            "Missing type or value in variable declaration".to_string()
+            "Missing type or value in variable declaration"
+                .to_string()
                 .red()
                 .bold()
         ));
@@ -71,7 +72,8 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     if is_constant && assigned_value.is_none() {
         return Err(anyhow::anyhow!(
             "{}",
-            "Cannot define constant without providing a value".to_string()
+            "Cannot define constant without providing a value"
+                .to_string()
                 .red()
                 .bold()
         ));
@@ -96,13 +98,6 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
     loop {
         if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
             break;
-        }
-
-        let mut is_static: bool = false;
-
-        if parser.current_token_kind() == TokenKind::Static {
-            is_static = true;
-            parser.expect(TokenKind::Static)?;
         }
 
         if parser.current_token_kind() == TokenKind::Identifier {
@@ -135,7 +130,6 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
 
             properties.push(StructProperty {
                 name: property_name,
-                is_static,
                 explicit_type,
             });
 

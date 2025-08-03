@@ -59,13 +59,10 @@ pub enum TokenKind {
     Number,
 
     // Reserved
-    Const,
     Let,
     True,
     False,
-    Null,
     Struct,
-    Static,
     Fn,
     Return,
 
@@ -79,11 +76,8 @@ lazy_static! {
         let mut m = HashMap::new();
         m.insert("true", T::True);
         m.insert("false", T::False);
-        m.insert("null", T::Null);
         m.insert("let", T::Let);
-        m.insert("const", T::Const);
         m.insert("struct", T::Struct);
-        m.insert("static", T::Static);
         m.insert("fn", T::Fn);
         m.insert("return", T::Return);
         m

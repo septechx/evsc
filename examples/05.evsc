@@ -1,4 +1,0 @@
-const foo: f32 = 10;
-let bar: String;
-
-bar = "Hello world";

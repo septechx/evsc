@@ -1,4 +1,0 @@
-const square = Rect{
-  width: 10,
-  height: 10
-};

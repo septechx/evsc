@@ -1,8 +1,0 @@
-let foo = -45.5;
-let bar = foo * 10 + (45 / 10 - -5);
-
-foo = foo + 10;
-foo += 10;
-
-const isGreater = foo > 10;
-

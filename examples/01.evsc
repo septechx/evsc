@@ -1,6 +1,0 @@
-//@include discord;
-//@decl name = "ping";
-//
-//#on discord::command::call |ctx: discord::command::Context| -> {
-//  ctx.message.reply("Pong!");
-//}

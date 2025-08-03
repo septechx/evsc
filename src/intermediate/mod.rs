@@ -1,5 +1,6 @@
 mod builtin;
 mod compile_expr;
+mod compile_type;
 mod compiler;
 mod emmiter;
 

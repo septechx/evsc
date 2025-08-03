@@ -1,17 +1,21 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
-    module::Module,
-    types::BasicType,
+    module::{Linkage, Module},
+    types::{BasicType, BasicTypeEnum},
     values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum},
+    AddressSpace,
 };
 
 use crate::{
-    ast::ast::Expression,
+    ast::{
+        ast::{Expression, Type},
+        types::{SliceType, SymbolType},
+    },
     intermediate::{
         builtin::{self, slice::create_slice_struct},
+        compile_type::compile_type,
         compiler::{SymbolTable, TypeContext},
     },
     lexer::token::TokenKind,
@@ -23,7 +27,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
     builder: &'a Builder<'ctx>,
     expr: &Expression,
     symbol_table: &SymbolTable<'ctx>,
-    type_context: &TypeContext<'ctx>,
+    type_context: &mut TypeContext<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     Ok(match expr {
         Expression::Number(n) => context
@@ -35,15 +39,26 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let global = module.add_global(string_val.get_type(), None, "str");
             global.set_initializer(&string_val);
             global.set_constant(true);
-            global.set_linkage(inkwell::module::Linkage::Private);
+            global.set_linkage(Linkage::Private);
 
-            let element_ty = context.i8_type().as_basic_type_enum();
-            let slice_struct = create_slice_struct(context, element_ty, "Slice_u8");
+            let u8_type = Type::Symbol(SymbolType {
+                name: "u8".to_string(),
+            });
+            let slice_type = Type::Slice(SliceType {
+                underlying: Box::new(u8_type),
+            });
+
+            let slice_llvm_type = compile_type(context, &slice_type, type_context);
+            let slice_struct = match slice_llvm_type {
+                BasicTypeEnum::StructType(ty) => ty,
+                _ => bail!("Slice type did not compile to a struct"),
+            };
+
             let slice_val = slice_struct.get_undef();
 
             let ptr_val = builder.build_pointer_cast(
                 global.as_pointer_value(),
-                element_ty.ptr_type(AddressSpace::default()),
+                context.i8_type().ptr_type(AddressSpace::default()),
                 "string_ptr",
             )?;
             let len_val = context.i64_type().const_int(s.value.len() as u64, false);

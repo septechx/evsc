@@ -13,7 +13,7 @@ pub fn handle_write_call<'ctx>(
     builder: &Builder<'ctx>,
     expr: &FunctionCallExpr,
     symbol_table: &SymbolTable<'ctx>,
-    type_context: &TypeContext<'ctx>,
+    type_context: &mut TypeContext<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     if expr.arguments.len() != 3 {
         bail!("write requires exactly 3 arguments");

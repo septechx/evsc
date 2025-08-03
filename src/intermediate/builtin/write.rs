@@ -5,7 +5,7 @@ use inkwell::{AddressSpace, InlineAsmDialect};
 
 use crate::ast::expressions::FunctionCallExpr;
 use crate::intermediate::compile_expr::compile_expression_to_value;
-use crate::intermediate::compiler::SymbolTable;
+use crate::intermediate::compiler::{SymbolTable, TypeContext};
 
 pub fn handle_write_call<'ctx>(
     context: &'ctx Context,
@@ -13,17 +13,36 @@ pub fn handle_write_call<'ctx>(
     builder: &Builder<'ctx>,
     expr: &FunctionCallExpr,
     symbol_table: &SymbolTable<'ctx>,
+    type_context: &TypeContext<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     if expr.arguments.len() != 3 {
         bail!("write requires exactly 3 arguments");
     }
 
-    let fd_val =
-        compile_expression_to_value(context, module, builder, &expr.arguments[0], symbol_table)?;
-    let buf_val =
-        compile_expression_to_value(context, module, builder, &expr.arguments[1], symbol_table)?;
-    let len_val =
-        compile_expression_to_value(context, module, builder, &expr.arguments[2], symbol_table)?;
+    let fd_val = compile_expression_to_value(
+        context,
+        module,
+        builder,
+        &expr.arguments[0],
+        symbol_table,
+        type_context,
+    )?;
+    let buf_val = compile_expression_to_value(
+        context,
+        module,
+        builder,
+        &expr.arguments[1],
+        symbol_table,
+        type_context,
+    )?;
+    let len_val = compile_expression_to_value(
+        context,
+        module,
+        builder,
+        &expr.arguments[2],
+        symbol_table,
+        type_context,
+    )?;
 
     let fd_ext =
         builder.build_int_z_extend(fd_val.into_int_value(), context.i64_type(), "fd_ext")?;

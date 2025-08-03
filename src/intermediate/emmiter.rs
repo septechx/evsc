@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use inkwell::module::Module;
 
 pub fn emit_to_file(file_name: &str, module: &Module) -> Result<()> {

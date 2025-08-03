@@ -88,8 +88,8 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
 
 pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
     parser.expect(TokenKind::Struct)?;
-    let mut properties: HashMap<String, StructProperty> = HashMap::new();
-    let mut methods: HashMap<String, StructMethod> = HashMap::new();
+    let mut properties: Vec<StructProperty> = Vec::new();
+    let mut methods: Vec<StructMethod> = Vec::new();
     let name = parser.expect(TokenKind::Identifier)?.value;
 
     parser.expect(TokenKind::OpenCurly)?;
@@ -120,23 +120,25 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
                 parser.expect(TokenKind::Comma)?;
             }
 
-            if let Some(_) = properties.insert(
-                property_name.clone(),
-                StructProperty {
-                    is_static,
-                    explicit_type,
-                },
-            ) {
+            if !properties
+                .iter()
+                .filter(|arg| arg.name == property_name)
+                .collect::<Vec<_>>()
+                .is_empty()
+            {
                 return Err(anyhow::anyhow!(
                     "{}",
-                    format!(
-                        "Property {} has already been defined in struct",
-                        property_name
-                    )
-                    .red()
-                    .bold()
+                    format!("Property {property_name} has already been defined in struct")
+                        .red()
+                        .bold()
                 ));
             }
+
+            properties.push(StructProperty {
+                name: property_name,
+                is_static,
+                explicit_type,
+            });
 
             continue;
         }

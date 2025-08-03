@@ -21,20 +21,22 @@ pub struct VarDeclStmt {
 
 #[derive(Debug, Clone)]
 pub struct StructProperty {
+    pub name: String,
     pub is_static: bool,
     pub explicit_type: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructMethod {
+    pub name: String,
     pub is_static: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructDeclStmt {
     pub name: String,
-    pub properties: HashMap<String, StructProperty>,
-    pub methods: HashMap<String, StructMethod>,
+    pub properties: Vec<StructProperty>,
+    pub methods: Vec<StructMethod>,
 }
 
 #[derive(Debug, Clone)]

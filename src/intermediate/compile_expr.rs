@@ -12,7 +12,7 @@ use crate::{
     ast::ast::Expression,
     intermediate::{
         builtin::{self, slice::create_slice_struct},
-        compiler::SymbolTable,
+        compiler::{SymbolTable, TypeContext},
     },
     lexer::token::TokenKind,
 };
@@ -23,6 +23,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
     builder: &'a Builder<'ctx>,
     expr: &Expression,
     symbol_table: &SymbolTable<'ctx>,
+    type_context: &TypeContext<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     Ok(match expr {
         Expression::Number(n) => context
@@ -37,7 +38,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             global.set_linkage(inkwell::module::Linkage::Private);
 
             let element_ty = context.i8_type().as_basic_type_enum();
-            let slice_struct = create_slice_struct(context, element_ty);
+            let slice_struct = create_slice_struct(context, element_ty, "Slice_u8");
             let slice_val = slice_struct.get_undef();
 
             let ptr_val = builder.build_pointer_cast(
@@ -57,8 +58,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             .cloned()
             .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?,
         Expression::Prefix(expr) => {
-            let right =
-                compile_expression_to_value(context, module, builder, &expr.right, symbol_table)?;
+            let right = compile_expression_to_value(
+                context,
+                module,
+                builder,
+                &expr.right,
+                symbol_table,
+                type_context,
+            )?;
 
             match &expr.operator.kind {
                 TokenKind::Reference => {
@@ -70,10 +77,22 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             }
         }
         Expression::Binary(expr) => {
-            let left =
-                compile_expression_to_value(context, module, builder, &expr.left, symbol_table)?;
-            let right =
-                compile_expression_to_value(context, module, builder, &expr.right, symbol_table)?;
+            let left = compile_expression_to_value(
+                context,
+                module,
+                builder,
+                &expr.left,
+                symbol_table,
+                type_context,
+            )?;
+            let right = compile_expression_to_value(
+                context,
+                module,
+                builder,
+                &expr.right,
+                symbol_table,
+                type_context,
+            )?;
 
             let left = left.into_int_value();
             let right = right.into_int_value();
@@ -111,6 +130,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         builder,
                         expr,
                         symbol_table,
+                        type_context,
                     );
                 }
                 _ => (),
@@ -122,8 +142,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             let mut args: Vec<BasicMetadataValueEnum> = Vec::with_capacity(expr.arguments.len());
             for arg_expr in &expr.arguments {
-                let arg_val =
-                    compile_expression_to_value(context, module, builder, arg_expr, symbol_table)?;
+                let arg_val = compile_expression_to_value(
+                    context,
+                    module,
+                    builder,
+                    arg_expr,
+                    symbol_table,
+                    type_context,
+                )?;
                 let arg_meta = arg_val.into();
                 args.push(arg_meta)
             }
@@ -131,27 +157,39 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let call_site_value = builder.build_call(function, &args, "calltmp")?;
 
             match function.get_type().get_return_type() {
-                Some(ret_ty) => call_site_value.try_as_basic_value().left().unwrap(),
+                Some(_) => call_site_value.try_as_basic_value().left().unwrap(),
                 _ => context.i32_type().const_int(0, false).as_basic_value_enum(),
             }
         }
         Expression::MemberAccess(expr) => {
-            let base =
-                compile_expression_to_value(context, module, builder, &expr.base, symbol_table)?;
-            let base_ty = base.get_type();
+            let base = compile_expression_to_value(
+                context,
+                module,
+                builder,
+                &expr.base,
+                symbol_table,
+                type_context,
+            )?;
+            let base_type = base.get_type();
 
-            if base_ty.is_struct_type() {
-                let struct_ty = base_ty.into_struct_type();
-                let field_name = expr.member.value.as_str();
+            if base_type.is_struct_type() {
+                let struct_ty = base_type.into_struct_type();
+                let struct_name = struct_ty
+                    .get_name()
+                    .ok_or_else(|| anyhow!("Struct type has no name: {struct_ty:#?}"))?
+                    .to_str()?;
+                let struct_def = type_context
+                    .struct_defs
+                    .get(struct_name)
+                    .ok_or_else(|| anyhow!("Unknown struct: {}", struct_name))?;
+                let field_index = struct_def
+                    .field_indices
+                    .get(&expr.member.value)
+                    .ok_or_else(|| anyhow!("No such field: {}", &expr.member.value))?;
 
-                match field_name {
-                    "ptr" => builder.build_extract_value(base.into_struct_value(), 0, "ptr")?,
-                    "len" => builder.build_extract_value(base.into_struct_value(), 1, "len")?,
-                    _ => bail!("No such field '{}' in slice", field_name),
-                }
-                .as_basic_value_enum()
+                builder.build_extract_value(base.into_struct_value(), *field_index, "field")?
             } else {
-                bail!("Member access on non-struct type")
+                bail!("Member access on non-struct type");
             }
         }
         expr => unimplemented!("{expr:#?}"),

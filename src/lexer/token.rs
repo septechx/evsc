@@ -22,7 +22,6 @@ pub enum TokenKind {
     Arrow,
     OpenCurly,
     CloseCurly,
-    DoubleColon,
     OpenParen,
     CloseParen,
     Dot,

@@ -1,6 +1,21 @@
-#import "std"
+//let std = @import("std.evsc");
+
+fn std_print(str: []const u8) void {}
+
+//struct Std {
+//    print: ([]const u8) -> void,
+//}
 
 fn main() void {
-    std::print("Hello world");
+    //let std = Std {
+    //    print: std_print,
+    //};
+
+    let a = 1;
+    let b = 2;
+    let c = a + b;
+    a = c;
+
+    //std.print("Hello world");
 }
 

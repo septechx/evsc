@@ -161,7 +161,6 @@ lazy_static! {
         regex_handler!(r"^//[^\n]*", comment_handler()),
 
         // Multi-character operators (must come before single chars)
-        regex_handler!(r"^::", T::DoubleColon, "::"),
         regex_handler!(r"^->", T::Arrow, "->"),
         regex_handler!(r"^&&", T::And, "&&"),
         regex_handler!(r"^\|\|", T::Or, "||"),

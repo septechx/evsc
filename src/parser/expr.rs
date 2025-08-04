@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use colored::Colorize;
 
 use crate::{
@@ -189,15 +189,10 @@ pub fn parse_struct_instantiation_expr(
 
 pub fn parse_function_call_expr(
     parser: &mut Parser,
-    name_expr: Expression,
+    callee: Expression,
     _bp: BindingPower,
 ) -> Result<Expression> {
     parser.advance();
-
-    let name = match name_expr {
-        Expression::Symbol(symbol_expr) => symbol_expr.value,
-        _ => return Err(anyhow!("Expected function name to be a symbol")),
-    };
 
     let mut arguments: Vec<Expression> = Vec::new();
 
@@ -220,7 +215,7 @@ pub fn parse_function_call_expr(
     }
 
     Ok(Expression::FunctionCall(FunctionCallExpr {
-        name,
+        callee: Box::new(callee),
         arguments,
     }))
 }

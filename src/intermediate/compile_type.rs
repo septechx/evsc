@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use inkwell::{
     context::Context,
-    types::{BasicType, BasicTypeEnum, FunctionType},
+    types::{AnyType, BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
+    AddressSpace,
 };
 
 use crate::{
@@ -58,6 +59,35 @@ pub fn compile_type<'ctx>(
                 .unwrap()
                 .llvm_type
                 .as_basic_type_enum()
+        }
+        Type::Function(func_ty) => {
+            let param_types: Vec<BasicTypeEnum> = func_ty
+                .parameters
+                .iter()
+                .map(|param| compile_type(context, param, compilation_context))
+                .collect();
+
+            let param_types: Vec<BasicMetadataTypeEnum> =
+                param_types.iter().map(|&t| t.into()).collect();
+
+            match &*func_ty.return_type {
+                Type::Symbol(sym) if sym.name == "void" => {
+                    let return_type = context.void_type();
+                    return_type
+                        .fn_type(&param_types, false)
+                        .ptr_type(AddressSpace::default())
+                        .as_basic_type_enum()
+                }
+                _ => {
+                    let return_type =
+                        compile_type(context, &func_ty.return_type, compilation_context);
+
+                    return_type
+                        .fn_type(&param_types, false)
+                        .ptr_type(AddressSpace::default())
+                        .as_basic_type_enum()
+                }
+            }
         }
         ty => unimplemented!("{ty:#?}"),
     }

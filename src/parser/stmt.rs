@@ -38,6 +38,8 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     let mut explicit_type: Option<Type> = None;
     let mut assigned_value: Option<Expression> = None;
 
+    parser.advance();
+
     // TODO: Implement checking for mutability qualifier
     let is_constant = true;
     let variable_name = parser
@@ -97,6 +99,13 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
         }
 
         if parser.current_token_kind() == TokenKind::Identifier {
+            let is_public = if parser.current_token_kind() == TokenKind::Hash {
+                parser.advance();
+                true
+            } else {
+                false
+            };
+
             let property_name = parser.expect(TokenKind::Identifier)?.value;
             parser.expect_error(
                 TokenKind::Colon,
@@ -127,6 +136,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
             properties.push(StructProperty {
                 name: property_name,
                 explicit_type,
+                is_public,
             });
 
             continue;

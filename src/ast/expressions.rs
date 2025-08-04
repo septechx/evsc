@@ -58,7 +58,7 @@ pub struct FixedArrayLiteralExpr {
 
 #[derive(Debug, Clone)]
 pub struct FunctionCallExpr {
-    pub name: String,
+    pub callee: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
 

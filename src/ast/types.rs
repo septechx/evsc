@@ -20,3 +20,9 @@ pub struct FixedArrayType {
 pub struct ConstType {
     pub underlying: Box<Type>,
 }
+
+#[derive(Debug, Clone)]
+pub struct FunctionType {
+    pub parameters: Vec<Type>,
+    pub return_type: Box<Type>,
+}

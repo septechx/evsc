@@ -33,4 +33,5 @@ pub enum Type {
     Slice(SliceType),
     FixedArray(FixedArrayType),
     Const(ConstType),
+    Function(FunctionType),
 }

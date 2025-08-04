@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::{
     ast::{
         ast::Type,
-        types::{ConstType, FixedArrayType, SliceType, SymbolType},
+        types::{ConstType, FixedArrayType, FunctionType, SliceType, SymbolType},
     },
     lexer::token::TokenKind::{self, self as TK},
 };
@@ -44,6 +44,7 @@ pub fn create_token_type_lookups() {
     type_nud(TK::Identifier, parse_symbol_type);
     type_nud(TK::OpenBracket, parse_array_type);
     type_nud(TK::Const, parse_const_type);
+    type_nud(TK::OpenParen, parse_function_type);
 }
 
 fn parse_symbol_type(parser: &mut Parser) -> anyhow::Result<Type> {
@@ -142,5 +143,34 @@ fn parse_const_type(parser: &mut Parser) -> anyhow::Result<Type> {
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
     Ok(Type::Const(ConstType {
         underlying: Box::new(underlying),
+    }))
+}
+
+fn parse_function_type(parser: &mut Parser) -> anyhow::Result<Type> {
+    parser.expect(TokenKind::OpenParen)?;
+
+    let mut parameters = Vec::new();
+    while parser.current_token_kind() != TokenKind::CloseParen {
+        parameters.push(parse_type(parser, BindingPower::DefaultBp)?);
+
+        if parser.current_token_kind() == TokenKind::Comma {
+            parser.advance();
+        } else if parser.current_token_kind() != TokenKind::CloseParen {
+            return Err(anyhow::anyhow!(
+                "{}",
+                "Expected comma or closing parenthesis in function type"
+                    .red()
+                    .bold()
+            ));
+        }
+    }
+    parser.expect(TokenKind::CloseParen)?;
+
+    parser.expect(TokenKind::Arrow)?;
+    let return_type = parse_type(parser, BindingPower::DefaultBp)?;
+
+    Ok(Type::Function(FunctionType {
+        parameters,
+        return_type: Box::new(return_type),
     }))
 }

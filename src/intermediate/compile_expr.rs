@@ -134,22 +134,32 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             }
         }
         Expression::FunctionCall(expr) => {
-            match expr.name.as_str() {
-                "@asm" => {
-                    return builtin::asm::handle_asm_call(
-                        context,
-                        module,
-                        builder,
-                        expr,
-                        compilation_context,
-                    );
+            if let Expression::Symbol(sym) = &*expr.callee {
+                match sym.value.as_str() {
+                    "@asm" => {
+                        return builtin::asm::handle_asm_call(
+                            context,
+                            module,
+                            builder,
+                            expr,
+                            compilation_context,
+                        );
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
 
-            let function = module
-                .get_function(&expr.name)
-                .ok_or(anyhow!("unknown function `{}`", &expr.name))?;
+            let callee_val = compile_expression_to_value(
+                context,
+                module,
+                builder,
+                &expr.callee,
+                compilation_context,
+            )?;
+
+            let function_ptr = callee_val.into_pointer_value();
+
+            let function_ty = context.void_type().fn_type(&[], false);
 
             let mut args: Vec<BasicMetadataValueEnum> = Vec::with_capacity(expr.arguments.len());
             for arg_expr in &expr.arguments {
@@ -164,9 +174,10 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 args.push(arg_meta)
             }
 
-            let call_site_value = builder.build_call(function, &args, "calltmp")?;
+            let call_site_value =
+                builder.build_indirect_call(function_ty, function_ptr, &args, "calltmp")?;
 
-            match function.get_type().get_return_type() {
+            match function_ty.get_return_type() {
                 Some(_) => call_site_value.try_as_basic_value().left().unwrap(),
                 _ => context.i32_type().const_int(0, false).as_basic_value_enum(),
             }
@@ -192,12 +203,18 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .struct_defs
                     .get(struct_name)
                     .ok_or_else(|| anyhow!("Unknown struct: {}", struct_name))?;
-                let field_index = struct_def
-                    .field_indices
-                    .get(&expr.member.value)
-                    .ok_or_else(|| anyhow!("No such field: {}", &expr.member.value))?;
 
-                builder.build_extract_value(base.into_struct_value(), *field_index, "field")?
+                if let Some(field_index) = struct_def.field_indices.get(&expr.member.value) {
+                    builder.build_extract_value(base.into_struct_value(), *field_index, "field")?
+                } else if let Some(func) =
+                    module.get_function(&format!("{}_{}", struct_name, expr.member.value))
+                {
+                    func.as_global_value()
+                        .as_pointer_value()
+                        .as_basic_value_enum()
+                } else {
+                    bail!("No such field or function: {}", expr.member.value);
+                }
             } else {
                 bail!("Member access on non-struct type");
             }

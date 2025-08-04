@@ -28,24 +28,15 @@ pub fn compile_type<'ctx>(
             "usize" => context.i64_type().as_basic_type_enum(),
             tyname => unimplemented!("{tyname}"),
         },
-        Type::Slice(slice_ty) => {
-            let element_ty = compile_type(context, &slice_ty.underlying, compilation_context);
-            let name = format!(
-                "Slice_{}",
-                match &*slice_ty.underlying {
-                    Type::Symbol(s) => &s.name,
-                    _ => "unknown",
-                }
-            );
-
-            if let Some(def) = compilation_context.type_context.struct_defs.get(&name) {
+        Type::Slice(_) => {
+            if let Some(def) = compilation_context.type_context.struct_defs.get("Slice") {
                 return def.llvm_type.as_basic_type_enum();
             }
 
-            let slice_struct = create_slice_struct(context, element_ty, &name);
+            let slice_struct = create_slice_struct(context);
 
             compilation_context.type_context.struct_defs.insert(
-                name.clone(),
+                "Slice".to_string(),
                 StructDef {
                     llvm_type: slice_struct,
                     field_indices: HashMap::from([("ptr".to_string(), 0), ("len".to_string(), 1)]),
@@ -55,7 +46,7 @@ pub fn compile_type<'ctx>(
             compilation_context
                 .type_context
                 .struct_defs
-                .get(&name)
+                .get("Slice")
                 .unwrap()
                 .llvm_type
                 .as_basic_type_enum()

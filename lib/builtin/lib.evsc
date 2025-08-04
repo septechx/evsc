@@ -1,6 +1,7 @@
 #[internal]
-pub extern fn @asm(asm: []const u8, constraints: []const u8, ...params: *any) void;
+pub extern fn @asm(asm: []const u8, constraints: []const u8, ...params: *const any) void;
 
+// Implementation detail: Slices aren't actually generic, ptr is *const any
 #[internal]
 pub struct Slice<T> {
   ptr: *const T,

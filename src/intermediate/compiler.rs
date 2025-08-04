@@ -1,17 +1,21 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    values::{BasicValueEnum, FunctionValue},
+    types::{BasicType, BasicTypeEnum, PointerType},
+    values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
     ast::{
         ast::{Statement, Type},
-        statements::{BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt},
+        statements::{
+            BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt,
+        },
     },
     intermediate::{
         compile_expr::compile_expression_to_value,
@@ -19,7 +23,35 @@ use crate::{
     },
 };
 
-pub type SymbolTable<'ctx> = HashMap<String, BasicValueEnum<'ctx>>;
+pub type SymbolTable<'ctx> = HashMap<String, SymbolTableEntry<'ctx>>;
+
+#[derive(Clone, Debug)]
+pub struct SymbolTableEntry<'ctx> {
+    pub value: SmartValue<'ctx>,
+    pub ty: BasicTypeEnum<'ctx>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SmartValue<'ctx> {
+    pub value: BasicValueEnum<'ctx>,
+    pub pointee_ty: Option<BasicTypeEnum<'ctx>>,
+}
+
+impl<'ctx> SmartValue<'ctx> {
+    pub fn from_value(value: BasicValueEnum<'ctx>) -> Self {
+        Self {
+            value,
+            pointee_ty: None,
+        }
+    }
+
+    pub fn from_pointer(value: BasicValueEnum<'ctx>, pointee_ty: BasicTypeEnum<'ctx>) -> Self {
+        Self {
+            value,
+            pointee_ty: Some(pointee_ty),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct TypeContext<'ctx> {
@@ -107,7 +139,7 @@ pub fn compile<'a, 'ctx>(
                 compile_expression(context, module, builder, expr_stmt, compilation_context)?;
             }
             Statement::VarDecl(var_decl) => {
-                compile_var_decl(context, module, var_decl);
+                compile_var_decl(context, module, builder, var_decl, compilation_context)?;
             }
             Statement::StructDecl(struct_decl) => {
                 compile_struct_decl(context, struct_decl, compilation_context);
@@ -136,16 +168,21 @@ fn compile_function<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let mut symbol_table: HashMap<String, BasicValueEnum> = HashMap::new();
-    for (i, arg_decl) in fn_decl.arguments.iter().enumerate() {
-        if let Some(param) = function.get_nth_param(i as u32) {
-            param.set_name(&arg_decl.name);
-            symbol_table.insert(arg_decl.name.clone(), param);
-        }
-    }
 
     let entry_bb = context.append_basic_block(function, "entry");
     let builder = context.create_builder();
     builder.position_at_end(entry_bb);
+
+    for (i, arg_decl) in fn_decl.arguments.iter().enumerate() {
+        if let Some(param) = function.get_nth_param(i as u32) {
+            param.set_name(&arg_decl.name);
+
+            let alloca = builder.build_alloca(param.get_type(), &arg_decl.name)?;
+            builder.build_store(alloca, param)?;
+
+            symbol_table.insert(arg_decl.name.clone(), alloca.as_basic_value_enum());
+        }
+    }
 
     let body = BlockStmt {
         body: fn_decl.body.clone(),
@@ -172,8 +209,10 @@ fn compile_return<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     if let Some(expr) = &ret_stmt.value {
-        let ret_val: BasicValueEnum =
-            compile_expression_to_value(context, module, builder, expr, compilation_context)?;
+        let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
+        let ret_ptr = ret.value.into_pointer_value();
+        let ret_val = builder.build_load(ret.pointee_ty.unwrap(), ret_ptr, "ret")?;
+
         builder.build_return(Some(&ret_val))?;
     } else {
         builder.build_return(None)?;
@@ -199,12 +238,33 @@ fn compile_expression<'a, 'ctx>(
     Ok(())
 }
 
-fn compile_var_decl(
-    context: &Context,
-    module: &Module,
-    var_decl: &crate::ast::statements::VarDeclStmt,
-) {
-    // TODO: Implement variable declaration compilation
+fn compile_var_decl<'a, 'ctx>(
+    context: &'ctx Context,
+    module: &'a Module<'ctx>,
+    builder: &'a Builder<'ctx>,
+    var_decl: &VarDeclStmt,
+    compilation_context: &mut CompilationContext<'ctx>,
+) -> Result<()> {
+    let value = if let Some(expr) = &var_decl.assigned_value {
+        compile_expression_to_value(context, module, builder, expr, compilation_context)?
+    } else {
+        bail!("Variable must have an initial value");
+    };
+
+    let alloca = builder.build_alloca(value.value.get_type(), &var_decl.variable_name)?;
+    builder.build_store(alloca, value.value)?;
+
+    compilation_context.symbol_table.insert(
+        var_decl.variable_name.clone(),
+        SymbolTableEntry {
+            value: SmartValue::from_pointer(alloca.as_basic_value_enum(), value.value.get_type()),
+            ty: context
+                .ptr_type(AddressSpace::default())
+                .as_basic_type_enum(),
+        },
+    );
+
+    Ok(())
 }
 
 fn compile_struct_decl<'ctx>(

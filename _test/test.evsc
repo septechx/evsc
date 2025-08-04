@@ -6,7 +6,7 @@ fn std_print(str: []const u8) void {}
 //    print: ([]const u8) -> void,
 //}
 
-fn main() void {
+fn main() i32 {
     //let std = Std {
     //    print: std_print,
     //};
@@ -14,7 +14,8 @@ fn main() void {
     let a = 1;
     let b = 2;
     let c = a + b;
-    a = c;
+
+    return c;
 
     //std.print("Hello world");
 }

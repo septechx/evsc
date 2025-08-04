@@ -16,7 +16,7 @@ use crate::{
     intermediate::{
         builtin::{self, slice::create_slice_struct},
         compile_type::compile_type,
-        compiler::CompilationContext,
+        compiler::{CompilationContext, SmartValue},
     },
     lexer::token::TokenKind,
 };
@@ -27,12 +27,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
     builder: &'a Builder<'ctx>,
     expr: &Expression,
     compilation_context: &mut CompilationContext<'ctx>,
-) -> Result<BasicValueEnum<'ctx>> {
+) -> Result<SmartValue<'ctx>> {
     Ok(match expr {
-        Expression::Number(n) => context
-            .i32_type()
-            .const_int(n.value as u64, false)
-            .as_basic_value_enum(),
+        Expression::Number(n) => SmartValue::from_value(
+            context
+                .i32_type()
+                .const_int(n.value as u64, false)
+                .as_basic_value_enum(),
+        ),
         Expression::String(s) => {
             let string_val = context.const_string(s.value.as_bytes(), false);
             let global = module.add_global(string_val.get_type(), None, "str");
@@ -65,13 +67,17 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let slice_val = builder.build_insert_value(slice_val, ptr_val, 0, "slice_ptr")?;
             let slice_val = builder.build_insert_value(slice_val, len_val, 1, "slice_len")?;
 
-            slice_val.as_basic_value_enum()
+            SmartValue::from_value(slice_val.as_basic_value_enum())
         }
-        Expression::Symbol(sym) => compilation_context
-            .symbol_table
-            .get(&sym.value)
-            .cloned()
-            .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?,
+        // Returns a pointer
+        Expression::Symbol(sym) => {
+            compilation_context
+                .symbol_table
+                .get(&sym.value)
+                .cloned()
+                .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?
+                .value
+        }
         Expression::Prefix(expr) => {
             let right = compile_expression_to_value(
                 context,
@@ -83,9 +89,10 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             match &expr.operator.kind {
                 TokenKind::Reference => {
-                    let ptr = builder.build_alloca(right.get_type(), "ptr")?;
-                    builder.build_store(ptr, right)?;
-                    ptr.as_basic_value_enum()
+                    let ptr = builder.build_alloca(right.value.get_type(), "ptr")?;
+                    builder.build_store(ptr, right.value)?;
+
+                    SmartValue::from_pointer(ptr.as_basic_value_enum(), right.value.get_type())
                 }
                 _ => unimplemented!(),
             }
@@ -106,29 +113,42 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let left = left.into_int_value();
-            let right = right.into_int_value();
+            let left_ptr = left.value.into_pointer_value();
+            let right_ptr = right.value.into_pointer_value();
+
+            let left = builder.build_load(left.pointee_ty.unwrap(), left_ptr, "left")?;
+            let right = builder.build_load(right.pointee_ty.unwrap(), right_ptr, "right")?;
 
             match &expr.operator.kind {
                 TokenKind::Plus => {
+                    let left = left.into_int_value();
+                    let right = right.into_int_value();
                     let sum = builder.build_int_add(left, right, "sumtmp")?;
-                    sum.as_basic_value_enum()
+                    SmartValue::from_value(sum.as_basic_value_enum())
                 }
                 TokenKind::Dash => {
+                    let left = left.into_int_value();
+                    let right = right.into_int_value();
                     let sub = builder.build_int_sub(left, right, "subtmp")?;
-                    sub.as_basic_value_enum()
+                    SmartValue::from_value(sub.as_basic_value_enum())
                 }
                 TokenKind::Star => {
+                    let left = left.into_int_value();
+                    let right = right.into_int_value();
                     let mul = builder.build_int_mul(left, right, "multmp")?;
-                    mul.as_basic_value_enum()
+                    SmartValue::from_value(mul.as_basic_value_enum())
                 }
                 TokenKind::Slash => {
+                    let left = left.into_int_value();
+                    let right = right.into_int_value();
                     let div = builder.build_int_signed_div(left, right, "divtmp")?;
-                    div.as_basic_value_enum()
+                    SmartValue::from_value(div.as_basic_value_enum())
                 }
                 TokenKind::Percent => {
+                    let left = left.into_int_value();
+                    let right = right.into_int_value();
                     let rem = builder.build_int_signed_rem(left, right, "remtmp")?;
-                    rem.as_basic_value_enum()
+                    SmartValue::from_value(rem.as_basic_value_enum())
                 }
                 _ => unimplemented!(),
             }
@@ -157,9 +177,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let function_ptr = callee_val.into_pointer_value();
-
-            let function_ty = context.void_type().fn_type(&[], false);
+            let function_ptr = callee_val.value.into_pointer_value();
 
             let mut args: Vec<BasicMetadataValueEnum> = Vec::with_capacity(expr.arguments.len());
             for arg_expr in &expr.arguments {
@@ -170,16 +188,22 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     arg_expr,
                     compilation_context,
                 )?;
-                let arg_meta = arg_val.into();
+                let arg_meta = arg_val.value.into();
                 args.push(arg_meta)
             }
+
+            let function_ty = callee_val.pointee_ty.unwrap().fn_type(&[], false);
 
             let call_site_value =
                 builder.build_indirect_call(function_ty, function_ptr, &args, "calltmp")?;
 
             match function_ty.get_return_type() {
-                Some(_) => call_site_value.try_as_basic_value().left().unwrap(),
-                _ => context.i32_type().const_int(0, false).as_basic_value_enum(),
+                Some(_) => {
+                    SmartValue::from_value(call_site_value.try_as_basic_value().left().unwrap())
+                }
+                _ => SmartValue::from_value(
+                    context.i32_type().const_int(0, false).as_basic_value_enum(),
+                ),
             }
         }
         Expression::MemberAccess(expr) => {
@@ -190,7 +214,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 &expr.base,
                 compilation_context,
             )?;
-            let base_type = base.get_type();
+            let base_type = base.value.get_type();
 
             if base_type.is_struct_type() {
                 let struct_ty = base_type.into_struct_type();
@@ -205,13 +229,22 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .ok_or_else(|| anyhow!("Unknown struct: {}", struct_name))?;
 
                 if let Some(field_index) = struct_def.field_indices.get(&expr.member.value) {
-                    builder.build_extract_value(base.into_struct_value(), *field_index, "field")?
+                    SmartValue::from_value(builder.build_extract_value(
+                        base.value.into_struct_value(),
+                        *field_index,
+                        "field",
+                    )?)
                 } else if let Some(func) =
                     module.get_function(&format!("{}_{}", struct_name, expr.member.value))
                 {
-                    func.as_global_value()
-                        .as_pointer_value()
-                        .as_basic_value_enum()
+                    SmartValue::from_pointer(
+                        func.as_global_value()
+                            .as_pointer_value()
+                            .as_basic_value_enum(),
+                        func.get_type()
+                            .ptr_type(AddressSpace::default())
+                            .as_basic_type_enum(),
+                    )
                 } else {
                     bail!("No such field or function: {}", expr.member.value);
                 }

@@ -6,14 +6,14 @@ use lazy_static::lazy_static;
 use crate::{
     ast::{
         ast::Type,
-        types::{FixedArrayType, SliceType, SymbolType},
+        types::{ConstType, FixedArrayType, SliceType, SymbolType},
     },
-    lexer::token::TokenKind::{self, *},
+    lexer::token::TokenKind::{self, self as TK},
 };
 
 use super::{
     lookups::{
-        BindingPower::{self, *},
+        BindingPower::{self, self as BP},
         BpLookup,
     },
     parser::Parser,
@@ -41,13 +41,14 @@ fn type_nud(kind: TokenKind, nud_fn: TypeNudHandler) {
 }
 
 pub fn create_token_type_lookups() {
-    type_nud(Identifier, parse_symbol_type);
-    type_nud(OpenBracket, parse_array_type)
+    type_nud(TK::Identifier, parse_symbol_type);
+    type_nud(TK::OpenBracket, parse_array_type);
+    type_nud(TK::Const, parse_const_type);
 }
 
 fn parse_symbol_type(parser: &mut Parser) -> anyhow::Result<Type> {
     Ok(Type::Symbol(SymbolType {
-        name: parser.expect(Identifier)?.value,
+        name: parser.expect(TK::Identifier)?.value,
     }))
 }
 
@@ -55,23 +56,23 @@ fn parse_array_type(parser: &mut Parser) -> anyhow::Result<Type> {
     parser.advance();
 
     match parser.current_token_kind() {
-        Number => {
+        TK::Number => {
             let length = parser
                 .current_token()
                 .value
                 .parse::<usize>()
                 .map_err(|e| anyhow::anyhow!("Failed to parse array length: {}", e))?;
             parser.advance();
-            parser.expect(CloseBracket)?;
-            let underlying = parse_type(parser, DefaultBp)?;
+            parser.expect(TK::CloseBracket)?;
+            let underlying = parse_type(parser, BP::DefaultBp)?;
             Ok(Type::FixedArray(FixedArrayType {
                 length,
                 underlying: Box::new(underlying),
             }))
         }
-        CloseBracket => {
+        TK::CloseBracket => {
             parser.advance();
-            let underlying = parse_type(parser, DefaultBp)?;
+            let underlying = parse_type(parser, BP::DefaultBp)?;
             Ok(Type::Slice(SliceType {
                 underlying: Box::new(underlying),
             }))
@@ -134,4 +135,12 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> anyhow::Result<Type>
     }
 
     Ok(left)
+}
+
+fn parse_const_type(parser: &mut Parser) -> anyhow::Result<Type> {
+    parser.expect(TokenKind::Const)?;
+    let underlying = parse_type(parser, BindingPower::DefaultBp)?;
+    Ok(Type::Const(ConstType {
+        underlying: Box::new(underlying),
+    }))
 }

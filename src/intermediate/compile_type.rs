@@ -19,6 +19,8 @@ pub fn compile_type<'ctx>(
     type_context: &mut TypeContext<'ctx>,
 ) -> BasicTypeEnum<'ctx> {
     match ty {
+        // Skip const as LLVM does not support it
+        Type::Const(inner) => compile_type(context, &inner.underlying, type_context),
         Type::Symbol(sym) => match sym.name.as_str() {
             "i32" => context.i32_type().as_basic_type_enum(),
             "u8" => context.i8_type().as_basic_type_enum(),

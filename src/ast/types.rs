@@ -15,3 +15,8 @@ pub struct FixedArrayType {
     pub length: usize,
     pub underlying: Box<Type>,
 }
+
+#[derive(Debug, Clone)]
+pub struct ConstType {
+    pub underlying: Box<Type>,
+}

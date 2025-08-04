@@ -32,4 +32,5 @@ pub enum Type {
     Symbol(SymbolType),
     Slice(SliceType),
     FixedArray(FixedArrayType),
+    Const(ConstType),
 }

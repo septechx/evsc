@@ -1,5 +1,5 @@
 #[internal]
-pub extern fn @write(fd: usize, buf: *const u8, len: usize) void;
+pub extern fn @asm(asm: []const u8, constraints: []const u8, ...params: *any) void;
 
 #[internal]
 pub struct Slice<T> {

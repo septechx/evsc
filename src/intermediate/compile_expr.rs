@@ -138,8 +138,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         }
         Expression::FunctionCall(expr) => {
             match expr.name.as_str() {
-                "@write" => {
-                    return builtin::write::handle_write_call(
+                "@asm" => {
+                    return builtin::asm::handle_asm_call(
                         context,
                         module,
                         builder,

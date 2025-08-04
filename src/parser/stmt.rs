@@ -60,10 +60,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     } else if explicit_type.is_none() {
         return Err(anyhow::anyhow!(
             "{}",
-            "Missing type or value in variable declaration"
-                .to_string()
-                .red()
-                .bold()
+            "Missing type or value in variable declaration".red().bold()
         ));
     }
 
@@ -73,7 +70,6 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
         return Err(anyhow::anyhow!(
             "{}",
             "Cannot define constant without providing a value"
-                .to_string()
                 .red()
                 .bold()
         ));

@@ -1,2 +1,2 @@
+pub mod asm;
 pub mod slice;
-pub mod write;

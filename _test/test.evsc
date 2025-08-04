@@ -1,8 +1,6 @@
-fn main() i32 {
-    print("Hello world");
-    return 0;
+#import "std"
+
+fn main() void {
+    std::print("Hello world");
 }
 
-fn print(str: []u8) void {
-    @write(1, str.ptr, str.len);
-}

@@ -21,13 +21,38 @@ use crate::{
 
 pub type SymbolTable<'ctx> = HashMap<String, BasicValueEnum<'ctx>>;
 
+#[derive(Clone, Debug)]
 pub struct TypeContext<'ctx> {
     pub struct_defs: HashMap<String, StructDef<'ctx>>,
 }
 
+impl Default for TypeContext<'_> {
+    fn default() -> Self {
+        Self {
+            struct_defs: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct StructDef<'ctx> {
     pub llvm_type: inkwell::types::StructType<'ctx>,
     pub field_indices: HashMap<String, u32>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CompilationContext<'ctx> {
+    pub symbol_table: SymbolTable<'ctx>,
+    pub type_context: TypeContext<'ctx>,
+}
+
+impl Default for CompilationContext<'_> {
+    fn default() -> Self {
+        Self {
+            symbol_table: SymbolTable::new(),
+            type_context: TypeContext::default(),
+        }
+    }
 }
 
 pub fn compile<'a, 'ctx>(
@@ -35,8 +60,7 @@ pub fn compile<'a, 'ctx>(
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
     ast: &BlockStmt,
-    symbol_table: &mut SymbolTable<'ctx>,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let mut function_table: HashMap<String, FunctionValue> = HashMap::new();
 
@@ -55,14 +79,14 @@ pub fn compile<'a, 'ctx>(
                     context,
                     &fn_decl.explicit_type,
                     &param_types,
-                    type_context,
+                    compilation_context,
                 );
 
                 let function = module.add_function(&fn_decl.name, fn_type, None);
                 function_table.insert(fn_decl.name.clone(), function);
             }
             Statement::StructDecl(struct_decl) => {
-                compile_struct_decl(context, struct_decl, type_context);
+                compile_struct_decl(context, struct_decl, compilation_context);
             }
             _ => (),
         }
@@ -73,44 +97,29 @@ pub fn compile<'a, 'ctx>(
         match stmt {
             Statement::FnDecl(fn_decl) => {
                 if let Some(function) = function_table.get(&fn_decl.name) {
-                    compile_function(context, module, *function, fn_decl, type_context)?;
+                    compile_function(context, module, *function, fn_decl, compilation_context)?;
                 }
             }
             Statement::Return(ret_stmt) => {
-                compile_return(
-                    context,
-                    module,
-                    builder,
-                    ret_stmt,
-                    symbol_table,
-                    type_context,
-                )?;
+                compile_return(context, module, builder, ret_stmt, compilation_context)?;
             }
             Statement::Expression(expr_stmt) => {
-                compile_expression(
-                    context,
-                    module,
-                    builder,
-                    expr_stmt,
-                    symbol_table,
-                    type_context,
-                )?;
+                compile_expression(context, module, builder, expr_stmt, compilation_context)?;
             }
             Statement::VarDecl(var_decl) => {
                 compile_var_decl(context, module, var_decl);
             }
             Statement::StructDecl(struct_decl) => {
-                compile_struct_decl(context, struct_decl, type_context);
+                compile_struct_decl(context, struct_decl, compilation_context);
             }
             Statement::Block(block) => {
-                let mut inner_symbol_table = symbol_table.clone();
+                let mut inner_compilation_context = compilation_context.clone();
                 compile(
                     context,
                     module,
                     builder,
                     block,
-                    &mut inner_symbol_table,
-                    type_context,
+                    &mut inner_compilation_context,
                 )?;
             }
         }
@@ -124,7 +133,7 @@ fn compile_function<'ctx>(
     module: &Module<'ctx>,
     function: FunctionValue<'ctx>,
     fn_decl: &FnDeclStmt,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let mut symbol_table: HashMap<String, BasicValueEnum> = HashMap::new();
     for (i, arg_decl) in fn_decl.arguments.iter().enumerate() {
@@ -141,14 +150,7 @@ fn compile_function<'ctx>(
     let body = BlockStmt {
         body: fn_decl.body.clone(),
     };
-    compile(
-        context,
-        module,
-        &builder,
-        &body,
-        &mut symbol_table,
-        type_context,
-    )?;
+    compile(context, module, &builder, &body, compilation_context)?;
 
     if function
         .get_last_basic_block()
@@ -167,18 +169,11 @@ fn compile_return<'ctx>(
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
     ret_stmt: &ReturnStmt,
-    symbol_table: &mut SymbolTable<'ctx>,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     if let Some(expr) = &ret_stmt.value {
-        let ret_val: BasicValueEnum = compile_expression_to_value(
-            context,
-            module,
-            builder,
-            expr,
-            symbol_table,
-            type_context,
-        )?;
+        let ret_val: BasicValueEnum =
+            compile_expression_to_value(context, module, builder, expr, compilation_context)?;
         builder.build_return(Some(&ret_val))?;
     } else {
         builder.build_return(None)?;
@@ -192,16 +187,14 @@ fn compile_expression<'a, 'ctx>(
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
     expr_stmt: &'a ExpressionStmt,
-    symbol_table: &mut SymbolTable<'ctx>,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     compile_expression_to_value(
         context,
         module,
         builder,
         &expr_stmt.expression,
-        symbol_table,
-        type_context,
+        compilation_context,
     )?;
     Ok(())
 }
@@ -217,13 +210,13 @@ fn compile_var_decl(
 fn compile_struct_decl<'ctx>(
     context: &'ctx Context,
     struct_decl: &StructDeclStmt,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) {
     let mut field_types = Vec::new();
     let mut field_indices = HashMap::new();
 
     for (index, property) in struct_decl.properties.iter().enumerate() {
-        let field_ty = compile_type(context, &property.explicit_type, type_context);
+        let field_ty = compile_type(context, &property.explicit_type, compilation_context);
         field_types.push(field_ty);
         field_indices.insert(property.name.clone(), index as u32);
     }
@@ -231,7 +224,7 @@ fn compile_struct_decl<'ctx>(
     let struct_ty = context.opaque_struct_type(&struct_decl.name);
     struct_ty.set_body(&field_types, false);
 
-    type_context.struct_defs.insert(
+    compilation_context.type_context.struct_defs.insert(
         struct_decl.name.clone(),
         StructDef {
             llvm_type: struct_ty,

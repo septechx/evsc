@@ -16,7 +16,7 @@ use crate::{
     intermediate::{
         builtin::{self, slice::create_slice_struct},
         compile_type::compile_type,
-        compiler::{SymbolTable, TypeContext},
+        compiler::CompilationContext,
     },
     lexer::token::TokenKind,
 };
@@ -26,8 +26,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
     expr: &Expression,
-    symbol_table: &SymbolTable<'ctx>,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     Ok(match expr {
         Expression::Number(n) => context
@@ -48,7 +47,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 underlying: Box::new(u8_type),
             });
 
-            let slice_llvm_type = compile_type(context, &slice_type, type_context);
+            let slice_llvm_type = compile_type(context, &slice_type, compilation_context);
             let slice_struct = match slice_llvm_type {
                 BasicTypeEnum::StructType(ty) => ty,
                 _ => bail!("Slice type did not compile to a struct"),
@@ -68,7 +67,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             slice_val.as_basic_value_enum()
         }
-        Expression::Symbol(sym) => symbol_table
+        Expression::Symbol(sym) => compilation_context
+            .symbol_table
             .get(&sym.value)
             .cloned()
             .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?,
@@ -78,8 +78,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 module,
                 builder,
                 &expr.right,
-                symbol_table,
-                type_context,
+                compilation_context,
             )?;
 
             match &expr.operator.kind {
@@ -97,16 +96,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 module,
                 builder,
                 &expr.left,
-                symbol_table,
-                type_context,
+                compilation_context,
             )?;
             let right = compile_expression_to_value(
                 context,
                 module,
                 builder,
                 &expr.right,
-                symbol_table,
-                type_context,
+                compilation_context,
             )?;
 
             let left = left.into_int_value();
@@ -144,8 +141,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         module,
                         builder,
                         expr,
-                        symbol_table,
-                        type_context,
+                        compilation_context,
                     );
                 }
                 _ => (),
@@ -162,8 +158,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     module,
                     builder,
                     arg_expr,
-                    symbol_table,
-                    type_context,
+                    compilation_context,
                 )?;
                 let arg_meta = arg_val.into();
                 args.push(arg_meta)
@@ -182,8 +177,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 module,
                 builder,
                 &expr.base,
-                symbol_table,
-                type_context,
+                compilation_context,
             )?;
             let base_type = base.get_type();
 
@@ -193,7 +187,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .get_name()
                     .ok_or_else(|| anyhow!("Struct type has no name: {struct_ty:#?}"))?
                     .to_str()?;
-                let struct_def = type_context
+                let struct_def = compilation_context
+                    .type_context
                     .struct_defs
                     .get(struct_name)
                     .ok_or_else(|| anyhow!("Unknown struct: {}", struct_name))?;

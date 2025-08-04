@@ -1,21 +1,20 @@
 use anyhow::{bail, Result};
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::values::{BasicMetadataValueEnum, BasicValue};
+use inkwell::InlineAsmDialect;
 use inkwell::{builder::Builder, context::Context, module::Module, values::BasicValueEnum};
-use inkwell::{AddressSpace, InlineAsmDialect};
 
 use crate::ast::ast::Expression;
 use crate::ast::expressions::FunctionCallExpr;
 use crate::intermediate::compile_expr::compile_expression_to_value;
-use crate::intermediate::compiler::{SymbolTable, TypeContext};
+use crate::intermediate::compiler::CompilationContext;
 
 pub fn handle_asm_call<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
     expr: &FunctionCallExpr,
-    symbol_table: &SymbolTable<'ctx>,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<BasicValueEnum<'ctx>> {
     let (asm_str, constraints) = match (&expr.arguments[0], &expr.arguments[1]) {
         (Expression::String(asm), Expression::String(cons)) => (asm, cons),
@@ -26,8 +25,7 @@ pub fn handle_asm_call<'ctx>(
     let mut metadata_types: Vec<BasicMetadataTypeEnum> = Vec::new();
 
     for arg in &expr.arguments[2..] {
-        let val =
-            compile_expression_to_value(context, module, builder, arg, symbol_table, type_context)?;
+        let val = compile_expression_to_value(context, module, builder, arg, compilation_context)?;
         metadata_types.push(val.get_type().into());
         operands.push(val.into());
     }

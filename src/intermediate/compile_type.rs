@@ -9,18 +9,18 @@ use crate::{
     ast::ast::Type,
     intermediate::{
         builtin::slice::create_slice_struct,
-        compiler::{StructDef, TypeContext},
+        compiler::{CompilationContext, StructDef},
     },
 };
 
 pub fn compile_type<'ctx>(
     context: &'ctx Context,
     ty: &Type,
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> BasicTypeEnum<'ctx> {
     match ty {
         // Skip const as LLVM does not support it
-        Type::Const(inner) => compile_type(context, &inner.underlying, type_context),
+        Type::Const(inner) => compile_type(context, &inner.underlying, compilation_context),
         Type::Symbol(sym) => match sym.name.as_str() {
             "i32" => context.i32_type().as_basic_type_enum(),
             "u8" => context.i8_type().as_basic_type_enum(),
@@ -28,7 +28,7 @@ pub fn compile_type<'ctx>(
             tyname => unimplemented!("{tyname}"),
         },
         Type::Slice(slice_ty) => {
-            let element_ty = compile_type(context, &slice_ty.underlying, type_context);
+            let element_ty = compile_type(context, &slice_ty.underlying, compilation_context);
             let name = format!(
                 "Slice_{}",
                 match &*slice_ty.underlying {
@@ -37,13 +37,13 @@ pub fn compile_type<'ctx>(
                 }
             );
 
-            if let Some(def) = type_context.struct_defs.get(&name) {
+            if let Some(def) = compilation_context.type_context.struct_defs.get(&name) {
                 return def.llvm_type.as_basic_type_enum();
             }
 
             let slice_struct = create_slice_struct(context, element_ty, &name);
 
-            type_context.struct_defs.insert(
+            compilation_context.type_context.struct_defs.insert(
                 name.clone(),
                 StructDef {
                     llvm_type: slice_struct,
@@ -51,7 +51,11 @@ pub fn compile_type<'ctx>(
                 },
             );
 
-            type_context.struct_defs[&name]
+            compilation_context
+                .type_context
+                .struct_defs
+                .get(&name)
+                .unwrap()
                 .llvm_type
                 .as_basic_type_enum()
         }
@@ -63,16 +67,16 @@ pub fn compile_function_type<'ctx>(
     context: &'ctx Context,
     return_type: &Type,
     param_types: &[Type],
-    type_context: &mut TypeContext<'ctx>,
+    compilation_context: &mut CompilationContext<'ctx>,
 ) -> FunctionType<'ctx> {
     let return_llvm_type: Option<BasicTypeEnum> = match return_type {
         Type::Symbol(sym) if sym.name == "void" => None,
-        _ => Some(compile_type(context, return_type, type_context)),
+        _ => Some(compile_type(context, return_type, compilation_context)),
     };
 
     let param_llvm_types: Vec<_> = param_types
         .iter()
-        .map(|ty| compile_type(context, ty, type_context).into())
+        .map(|ty| compile_type(context, ty, compilation_context).into())
         .collect();
 
     if let Some(ret_ty) = return_llvm_type {

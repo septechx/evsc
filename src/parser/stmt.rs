@@ -159,7 +159,23 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
         name,
         properties,
         methods,
+        is_public: false,
     }))
+}
+
+pub fn parse_pub_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
+    parser.expect(TokenKind::Pub)?;
+    let mut stmt = parse_stmt(parser)?;
+    match &mut stmt {
+        Statement::StructDecl(struct_decl_stmt) => {
+            struct_decl_stmt.is_public = true;
+        }
+        Statement::FnDecl(fn_decl_stmt) => {
+            fn_decl_stmt.is_public = true;
+        }
+        _ => return Err(anyhow::anyhow!("Expected function or struct declaration")),
+    }
+    Ok(stmt)
 }
 
 pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
@@ -240,6 +256,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
         arguments,
         body,
         explicit_type,
+        is_public: false,
     }))
 }
 

@@ -36,6 +36,7 @@ pub struct StructDeclStmt {
     pub name: String,
     pub properties: Vec<StructProperty>,
     pub methods: Vec<StructMethod>,
+    pub is_public: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -50,6 +51,7 @@ pub struct FnDeclStmt {
     pub arguments: Vec<FnArgument>,
     pub body: Vec<Statement>,
     pub explicit_type: Type,
+    pub is_public: bool,
 }
 
 #[derive(Debug, Clone)]

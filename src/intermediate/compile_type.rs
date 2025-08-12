@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use inkwell::{
     context::Context,
-    types::{AnyType, BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
+    types::{BasicType, BasicTypeEnum, FunctionType},
     AddressSpace,
 };
 
@@ -26,6 +26,8 @@ pub fn compile_type<'ctx>(
             "i32" => context.i32_type().as_basic_type_enum(),
             "u8" => context.i8_type().as_basic_type_enum(),
             "usize" => context.i64_type().as_basic_type_enum(),
+            // Programs should only use *const any, anything else is for a builtin function
+            "any" => context.i8_type().as_basic_type_enum(),
             tyname => unimplemented!("{tyname}"),
         },
         Type::Slice(_) => {
@@ -51,34 +53,25 @@ pub fn compile_type<'ctx>(
                 .llvm_type
                 .as_basic_type_enum()
         }
-        Type::Function(func_ty) => {
+
+        Type::Function(_func_ty) => {
+            /*
             let param_types: Vec<BasicTypeEnum> = func_ty
                 .parameters
                 .iter()
-                .map(|param| compile_type(context, param, compilation_context))
+                .map(|ty| compile_type(context, ty, compilation_context))
                 .collect();
+            let return_type = compile_type(context, &func_ty.return_type, compilation_context);
 
-            let param_types: Vec<BasicMetadataTypeEnum> =
-                param_types.iter().map(|&t| t.into()).collect();
+            let fn_type = return_type.fn_type(
+                &param_types.iter().map(|&ty| ty.into()).collect::<Vec<_>>(),
+                false,
+            );
+            */
 
-            match &*func_ty.return_type {
-                Type::Symbol(sym) if sym.name == "void" => {
-                    let return_type = context.void_type();
-                    return_type
-                        .fn_type(&param_types, false)
-                        .ptr_type(AddressSpace::default())
-                        .as_basic_type_enum()
-                }
-                _ => {
-                    let return_type =
-                        compile_type(context, &func_ty.return_type, compilation_context);
-
-                    return_type
-                        .fn_type(&param_types, false)
-                        .ptr_type(AddressSpace::default())
-                        .as_basic_type_enum()
-                }
-            }
+            context
+                .ptr_type(AddressSpace::default())
+                .as_basic_type_enum()
         }
         ty => unimplemented!("{ty:#?}"),
     }

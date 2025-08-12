@@ -1,13 +1,21 @@
 use anyhow::{bail, Result};
-use inkwell::types::BasicMetadataTypeEnum;
-use inkwell::values::{BasicMetadataValueEnum, BasicValue};
-use inkwell::InlineAsmDialect;
-use inkwell::{builder::Builder, context::Context, module::Module, values::BasicValueEnum};
+use inkwell::{
+    builder::Builder,
+    context::Context,
+    module::Module,
+    types::BasicMetadataTypeEnum,
+    values::{BasicMetadataValueEnum, BasicValue},
+    InlineAsmDialect,
+};
 
-use crate::ast::ast::Expression;
-use crate::ast::expressions::FunctionCallExpr;
-use crate::intermediate::compile_expr::compile_expression_to_value;
-use crate::intermediate::compiler::{CompilationContext, SmartValue};
+use crate::{
+    ast::{ast::Expression, expressions::FunctionCallExpr},
+    intermediate::{
+        compile_expr::compile_expression_to_value,
+        compiler::CompilationContext,
+        pointer::{get_value, SmartValue},
+    },
+};
 
 pub fn handle_asm_call<'ctx>(
     context: &'ctx Context,
@@ -26,8 +34,9 @@ pub fn handle_asm_call<'ctx>(
 
     for arg in &expr.arguments[2..] {
         let val = compile_expression_to_value(context, module, builder, arg, compilation_context)?;
-        metadata_types.push(val.value.get_type().into());
-        operands.push(val.value.into());
+        let val = get_value(builder, &val)?;
+        metadata_types.push(val.get_type().into());
+        operands.push(val.into());
     }
 
     let fn_type = context.void_type().fn_type(&metadata_types, false);

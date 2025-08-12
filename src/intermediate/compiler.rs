@@ -5,7 +5,7 @@ use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    types::{BasicType, BasicTypeEnum, PointerType},
+    types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
     AddressSpace,
 };
@@ -20,6 +20,7 @@ use crate::{
     intermediate::{
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
+        pointer::{get_value, SmartValue},
     },
 };
 
@@ -31,39 +32,9 @@ pub struct SymbolTableEntry<'ctx> {
     pub ty: BasicTypeEnum<'ctx>,
 }
 
-#[derive(Clone, Debug)]
-pub struct SmartValue<'ctx> {
-    pub value: BasicValueEnum<'ctx>,
-    pub pointee_ty: Option<BasicTypeEnum<'ctx>>,
-}
-
-impl<'ctx> SmartValue<'ctx> {
-    pub fn from_value(value: BasicValueEnum<'ctx>) -> Self {
-        Self {
-            value,
-            pointee_ty: None,
-        }
-    }
-
-    pub fn from_pointer(value: BasicValueEnum<'ctx>, pointee_ty: BasicTypeEnum<'ctx>) -> Self {
-        Self {
-            value,
-            pointee_ty: Some(pointee_ty),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct TypeContext<'ctx> {
     pub struct_defs: HashMap<String, StructDef<'ctx>>,
-}
-
-impl Default for TypeContext<'_> {
-    fn default() -> Self {
-        Self {
-            struct_defs: HashMap::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -72,19 +43,10 @@ pub struct StructDef<'ctx> {
     pub field_indices: HashMap<String, u32>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct CompilationContext<'ctx> {
     pub symbol_table: SymbolTable<'ctx>,
     pub type_context: TypeContext<'ctx>,
-}
-
-impl Default for CompilationContext<'_> {
-    fn default() -> Self {
-        Self {
-            symbol_table: SymbolTable::new(),
-            type_context: TypeContext::default(),
-        }
-    }
 }
 
 pub fn compile<'a, 'ctx>(
@@ -98,7 +60,7 @@ pub fn compile<'a, 'ctx>(
 
     let body = &ast.body;
 
-    // Preprocess functions
+    // 1st pass: Declare functions and structs
     for stmt in body {
         match stmt {
             Statement::FnDecl(fn_decl) => {
@@ -124,7 +86,7 @@ pub fn compile<'a, 'ctx>(
         }
     }
 
-    // Compile block
+    // 2nd pass: Compile block
     for stmt in body {
         match stmt {
             Statement::FnDecl(fn_decl) => {
@@ -167,7 +129,7 @@ fn compile_function<'ctx>(
     fn_decl: &FnDeclStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let mut symbol_table: HashMap<String, BasicValueEnum> = HashMap::new();
+    let mut symbol_table: HashMap<String, SymbolTableEntry> = HashMap::new();
 
     let entry_bb = context.append_basic_block(function, "entry");
     let builder = context.create_builder();
@@ -180,14 +142,34 @@ fn compile_function<'ctx>(
             let alloca = builder.build_alloca(param.get_type(), &arg_decl.name)?;
             builder.build_store(alloca, param)?;
 
-            symbol_table.insert(arg_decl.name.clone(), alloca.as_basic_value_enum());
+            let param_ty = compile_type(
+                context,
+                &arg_decl.explicit_type.clone().unwrap(),
+                compilation_context,
+            );
+
+            let entry = SymbolTableEntry {
+                value: SmartValue::from_pointer(alloca.as_basic_value_enum(), param.get_type()),
+                ty: param_ty,
+            };
+            symbol_table.insert(arg_decl.name.clone(), entry);
         }
     }
 
     let body = BlockStmt {
         body: fn_decl.body.clone(),
     };
-    compile(context, module, &builder, &body, compilation_context)?;
+
+    let mut inner_compilation_context = compilation_context.clone();
+    inner_compilation_context.symbol_table.extend(symbol_table);
+
+    compile(
+        context,
+        module,
+        &builder,
+        &body,
+        &mut inner_compilation_context,
+    )?;
 
     if function
         .get_last_basic_block()
@@ -197,6 +179,18 @@ fn compile_function<'ctx>(
     {
         builder.build_return(None)?;
     }
+
+    compilation_context.symbol_table.insert(
+        fn_decl.name.clone(),
+        SymbolTableEntry {
+            value: SmartValue::from_value(function.as_global_value().as_basic_value_enum()),
+            ty: function
+                .as_global_value()
+                .as_pointer_value()
+                .get_type()
+                .as_basic_type_enum(),
+        },
+    );
 
     Ok(())
 }
@@ -210,8 +204,8 @@ fn compile_return<'ctx>(
 ) -> Result<()> {
     if let Some(expr) = &ret_stmt.value {
         let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
-        let ret_ptr = ret.value.into_pointer_value();
-        let ret_val = builder.build_load(ret.pointee_ty.unwrap(), ret_ptr, "ret")?;
+
+        let ret_val = get_value(builder, &ret)?;
 
         builder.build_return(Some(&ret_val))?;
     } else {

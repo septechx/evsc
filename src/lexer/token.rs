@@ -65,6 +65,7 @@ pub enum TokenKind {
     Fn,
     Return,
     Const,
+    Pub,
 
     // Special
     Eof,
@@ -81,6 +82,7 @@ lazy_static! {
         m.insert("fn", T::Fn);
         m.insert("return", T::Return);
         m.insert("const", T::Const);
+        m.insert("pub", T::Pub);
         m
     };
 }

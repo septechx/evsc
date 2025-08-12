@@ -7,7 +7,7 @@ use crate::{
     lexer::token::TokenKind::{self, self as TK},
     parser::{
         expr::{parse_function_call_expr, parse_member_access_expr},
-        stmt::parse_return_stmt,
+        stmt::{parse_pub_stmt, parse_return_stmt},
     },
 };
 
@@ -117,4 +117,5 @@ pub fn create_token_lookups() {
     stmt(TK::Struct, parse_struct_decl_stmt);
     stmt(TK::Fn, parse_fn_decl_stmt);
     stmt(TK::Return, parse_return_stmt);
+    stmt(TK::Pub, parse_pub_stmt);
 }

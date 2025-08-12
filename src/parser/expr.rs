@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 
 use crate::{
@@ -126,7 +126,7 @@ pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expression> {
 pub fn parse_assignment_expr(
     parser: &mut Parser,
     assigne: Expression,
-    bp: BindingPower,
+    _bp: BindingPower,
 ) -> Result<Expression> {
     let operator = parser.advance();
     let value = parse_expr(parser, BindingPower::Assignment)?;

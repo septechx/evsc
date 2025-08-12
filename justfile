@@ -4,6 +4,9 @@ run:
     cargo run
     lli-18 _test/test.ll
 
+test:
+    cargo test
+
 check:
     cargo check
 

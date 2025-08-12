@@ -22,14 +22,18 @@ pub fn compile_type<'ctx>(
     match ty {
         // Skip const as LLVM does not support it
         Type::Const(inner) => compile_type(context, &inner.underlying, compilation_context),
-        Type::Symbol(sym) => match sym.name.as_str() {
-            "i32" => context.i32_type().as_basic_type_enum(),
-            "u8" => context.i8_type().as_basic_type_enum(),
-            "usize" => context.i64_type().as_basic_type_enum(),
-            // Programs should only use *const any, anything else is for a builtin function
-            "any" => context.i8_type().as_basic_type_enum(),
-            tyname => unimplemented!("{tyname}"),
-        },
+        Type::Symbol(sym) => {
+            match sym.name.as_str() {
+                "i32" => context.i32_type(),
+                "i64" => context.i64_type(),
+                "u8" => context.i8_type(),
+                "usize" => context.i64_type(),
+                // Programs should only use *const any, anything else is for a builtin function
+                "any" => context.i8_type(),
+                tyname => unimplemented!("{tyname}"),
+            }
+            .as_basic_type_enum()
+        }
         Type::Slice(_) => {
             if let Some(def) = compilation_context.type_context.struct_defs.get("Slice") {
                 return def.llvm_type.as_basic_type_enum();

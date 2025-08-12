@@ -255,13 +255,15 @@ fn compile_var_decl<'a, 'ctx>(
         bail!("Variable must have an initial value");
     };
 
-    let alloca = builder.build_alloca(value.value.get_type(), &var_decl.variable_name)?;
-    builder.build_store(alloca, value.value)?;
+    let value = get_value(builder, &value)?;
+
+    let alloca = builder.build_alloca(value.get_type(), &var_decl.variable_name)?;
+    builder.build_store(alloca, value)?;
 
     compilation_context.symbol_table.insert(
         var_decl.variable_name.clone(),
         SymbolTableEntry {
-            value: SmartValue::from_pointer(alloca.as_basic_value_enum(), value.value.get_type()),
+            value: SmartValue::from_pointer(alloca.as_basic_value_enum(), value.get_type()),
             ty: context
                 .ptr_type(AddressSpace::default())
                 .as_basic_type_enum(),

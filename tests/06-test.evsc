@@ -1,5 +1,5 @@
-pub fn main() i32 {
-    let s = "Hello world";
+pub fn main() i64 {
+    let s = "Hello world!";
     let ptr = s.ptr;
     let len = s.len;
     return len;

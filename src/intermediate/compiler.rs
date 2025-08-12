@@ -6,7 +6,7 @@ use inkwell::{
     context::Context,
     module::Module,
     types::{BasicType, BasicTypeEnum},
-    values::{BasicValue, FunctionValue},
+    values::{BasicValue, BasicValueEnum, FunctionValue},
     AddressSpace,
 };
 
@@ -31,6 +31,27 @@ pub type SymbolTable<'ctx> = HashMap<String, SymbolTableEntry<'ctx>>;
 pub struct SymbolTableEntry<'ctx> {
     pub value: SmartValue<'ctx>,
     pub ty: BasicTypeEnum<'ctx>,
+}
+
+impl<'ctx> SymbolTableEntry<'ctx> {
+    pub fn from_pointer(
+        context: &'ctx Context,
+        value: BasicValueEnum<'ctx>,
+        ty: BasicTypeEnum<'ctx>,
+    ) -> Self {
+        let value = SmartValue::from_pointer(value, ty);
+        Self {
+            value,
+            ty: context
+                .ptr_type(AddressSpace::default())
+                .as_basic_type_enum(),
+        }
+    }
+
+    pub fn from_value(value: BasicValueEnum<'ctx>, ty: BasicTypeEnum<'ctx>) -> Self {
+        let value = SmartValue::from_value(value);
+        Self { value, ty }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -152,17 +173,14 @@ fn compile_function<'ctx>(
             let alloca = builder.build_alloca(param.get_type(), &arg_decl.name)?;
             builder.build_store(alloca, param)?;
 
-            let param_ty = compile_type(
-                context,
-                &arg_decl.explicit_type.clone().unwrap(),
-                compilation_context,
+            symbol_table.insert(
+                arg_decl.name.clone(),
+                SymbolTableEntry::from_pointer(
+                    context,
+                    alloca.as_basic_value_enum(),
+                    param.get_type(),
+                ),
             );
-
-            let entry = SymbolTableEntry {
-                value: SmartValue::from_pointer(alloca.as_basic_value_enum(), param.get_type()),
-                ty: param_ty,
-            };
-            symbol_table.insert(arg_decl.name.clone(), entry);
         }
     }
 
@@ -192,14 +210,14 @@ fn compile_function<'ctx>(
 
     compilation_context.symbol_table.insert(
         fn_decl.name.clone(),
-        SymbolTableEntry {
-            value: SmartValue::from_value(function.as_global_value().as_basic_value_enum()),
-            ty: function
+        SymbolTableEntry::from_value(
+            function.as_global_value().as_basic_value_enum(),
+            function
                 .as_global_value()
                 .as_pointer_value()
                 .get_type()
                 .as_basic_type_enum(),
-        },
+        ),
     );
 
     Ok(())
@@ -262,12 +280,7 @@ fn compile_var_decl<'a, 'ctx>(
 
     compilation_context.symbol_table.insert(
         var_decl.variable_name.clone(),
-        SymbolTableEntry {
-            value: SmartValue::from_pointer(alloca.as_basic_value_enum(), value.get_type()),
-            ty: context
-                .ptr_type(AddressSpace::default())
-                .as_basic_type_enum(),
-        },
+        SymbolTableEntry::from_pointer(context, alloca.as_basic_value_enum(), value.get_type()),
     );
 
     Ok(())

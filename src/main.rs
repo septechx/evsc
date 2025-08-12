@@ -14,7 +14,10 @@ fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() == 2 && args[1] == "gen_tests" {
+        gentests::clean_tests()?;
+        println!("Cleaned tests");
         gentests::gen_tests()?;
+        println!("Generated tests");
         return Ok(());
     }
 
@@ -55,10 +58,11 @@ mod tests {
     #[test]
     fn run_tests() {
         let test_path = "tests";
+        let test_count = 7;
 
         let mut failed = false;
 
-        for i in 1..=6 {
+        for i in 1..=test_count {
             {
                 let name = format!("{i:02}-test.evsc");
                 let path = format!("{test_path}/{name}");

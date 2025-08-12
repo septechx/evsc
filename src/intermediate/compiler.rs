@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
-    module::Module,
+    module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
     AddressSpace,
@@ -272,6 +272,27 @@ fn compile_var_decl<'a, 'ctx>(
     } else {
         bail!("Variable must have an initial value");
     };
+
+    if var_decl.is_static {
+        let value = get_value(builder, &value)?;
+
+        let gv = module.add_global(value.get_type(), None, &var_decl.variable_name);
+        gv.set_initializer(&value.get_type().const_zero());
+        gv.set_linkage(Linkage::Private);
+
+        builder.build_store(gv.as_pointer_value(), value)?;
+
+        compilation_context.symbol_table.insert(
+            var_decl.variable_name.clone(),
+            SymbolTableEntry::from_pointer(
+                context,
+                gv.as_pointer_value().as_basic_value_enum(),
+                value.get_type(),
+            ),
+        );
+
+        return Ok(());
+    }
 
     let value = get_value(builder, &value)?;
 

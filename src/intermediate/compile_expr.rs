@@ -11,11 +11,14 @@ use inkwell::{
 use crate::{
     ast::{
         ast::{Expression, Type},
-        types::{SliceType, SymbolType},
+        types::SliceType,
     },
     intermediate::{
-        builtin, compile_type::compile_type, compiler::CompilationContext, import::import_module,
-        pointer::SmartValue,
+        builtin,
+        compile_type::compile_type,
+        compiler::CompilationContext,
+        import::import_module,
+        pointer::{get_value, SmartValue},
     },
     lexer::token::TokenKind,
 };
@@ -41,20 +44,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             global.set_constant(true);
             global.set_linkage(Linkage::Private);
 
-            let u8_type = Type::Symbol(SymbolType {
-                name: "u8".to_string(),
-            });
-            let slice_type = Type::Slice(SliceType {
-                underlying: Box::new(u8_type),
-            });
+            let slice_ty = compilation_context
+                .type_context
+                .struct_defs
+                .get("Slice")
+                .unwrap()
+                .llvm_type;
 
-            let slice_llvm_type = compile_type(context, &slice_type, compilation_context);
-            let slice_struct = match slice_llvm_type {
-                BasicTypeEnum::StructType(ty) => ty,
-                _ => bail!("Slice type did not compile to a struct"),
-            };
-
-            let slice_val = slice_struct.get_undef();
+            let slice_val = slice_ty.get_undef();
 
             let ptr_val = builder.build_pointer_cast(
                 global.as_pointer_value(),
@@ -157,7 +154,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             if let Expression::Symbol(sym) = expr.callee.as_ref() {
                 match sym.value.as_str() {
                     "@asm" => {
-                        return builtin::asm::handle_asm_call(
+                        return builtin::handle_asm_call(
                             context,
                             module,
                             builder,
@@ -166,7 +163,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         );
                     }
                     "@import" => {
-                        return import_module(context, expr, compilation_context);
+                        return import_module(context, module, builder, expr, compilation_context);
                     }
                     _ => (),
                 }
@@ -233,14 +230,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let base_type = base.value.get_type();
-            let base_type = if base_type.is_struct_type() {
-                base_type
-            } else if base_type.is_pointer_type() {
-                base.pointee_ty.unwrap()
-            } else {
-                bail!("Member access on non-struct type, got {:?}", base_type);
-            };
+            let base_type = get_value(builder, &base)?.get_type();
 
             let struct_ty = base_type.into_struct_type();
             let struct_name = struct_ty

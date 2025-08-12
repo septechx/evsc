@@ -1,10 +1,13 @@
 LLVM_SYS_181_PREFIX := "/usr/lib/llvm18/bin"
 
 run: build-include
-    cargo run
+    env EVSC_STD_LIB_PATH="$(pwd)/lib/std" cargo run
+
+gen-tests: build-include
+    env EVSC_STD_LIB_PATH="$(pwd)/lib/std" cargo run gen_tests
 
 test: build-include
-    cargo test
+    env EVSC_STD_LIB_PATH="$(pwd)/lib/std" cargo test
 
 check: build-include
     cargo check

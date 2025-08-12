@@ -1,18 +1,10 @@
-use std::collections::HashMap;
-
 use inkwell::{
     context::Context,
     types::{BasicType, BasicTypeEnum, FunctionType},
     AddressSpace,
 };
 
-use crate::{
-    ast::ast::Type,
-    intermediate::{
-        builtin::slice::create_slice_struct,
-        compiler::{CompilationContext, StructDef},
-    },
-};
+use crate::{ast::ast::Type, intermediate::compiler::CompilationContext};
 
 pub fn compile_type<'ctx>(
     context: &'ctx Context,
@@ -34,29 +26,13 @@ pub fn compile_type<'ctx>(
             }
             .as_basic_type_enum()
         }
-        Type::Slice(_) => {
-            if let Some(def) = compilation_context.type_context.struct_defs.get("Slice") {
-                return def.llvm_type.as_basic_type_enum();
-            }
-
-            let slice_struct = create_slice_struct(context);
-
-            compilation_context.type_context.struct_defs.insert(
-                "Slice".to_string(),
-                StructDef {
-                    llvm_type: slice_struct,
-                    field_indices: HashMap::from([("ptr".to_string(), 0), ("len".to_string(), 1)]),
-                },
-            );
-
-            compilation_context
-                .type_context
-                .struct_defs
-                .get("Slice")
-                .unwrap()
-                .llvm_type
-                .as_basic_type_enum()
-        }
+        Type::Slice(_) => compilation_context
+            .type_context
+            .struct_defs
+            .get("Slice")
+            .unwrap()
+            .llvm_type
+            .as_basic_type_enum(),
 
         Type::Function(_func_ty) => {
             /*

@@ -3,7 +3,10 @@ mod compile_expr;
 mod compile_type;
 mod compiler;
 mod emmiter;
+mod import;
 mod pointer;
+
+use std::{env, fs};
 
 use anyhow::Result;
 use inkwell::context::Context;
@@ -15,7 +18,9 @@ pub fn compile(module_name: &str, ast: BlockStmt, path: &str) -> Result<()> {
     let module = context.create_module(module_name);
     let builder = context.create_builder();
 
-    let mut compilation_context = CompilationContext::default();
+    let absolute_path = fs::canonicalize(env::current_dir()?.join(path).join(module_name))?;
+
+    let mut compilation_context = CompilationContext::new(absolute_path);
 
     compiler::compile(&context, &module, &builder, &ast, &mut compilation_context)?;
 

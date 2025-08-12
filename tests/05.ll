@@ -1,13 +1,11 @@
-; ModuleID = '05.evsc'
-source_filename = "05.evsc"
+; ModuleID = '05-test.evsc'
+source_filename = "05-test.evsc"
 
-%Foo = type { i32, i32 }
+%Foo = type { i32 }
 
 define void @main() {
 entry:
-  %inst_Foo = alloca %Foo.0, align 8
-  %b_ptr = getelementptr inbounds %Foo, ptr %inst_Foo, i32 0, i32 1
-  store i32 2, ptr %b_ptr, align 4
+  %inst_Foo = alloca %Foo, align 8
   %a_ptr = getelementptr inbounds %Foo, ptr %inst_Foo, i32 0, i32 0
   store i32 1, ptr %a_ptr, align 4
   %load_inst = load %Foo, ptr %inst_Foo, align 4

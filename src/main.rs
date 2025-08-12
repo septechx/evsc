@@ -1,4 +1,5 @@
 mod ast;
+mod bindings;
 mod intermediate;
 mod lexer;
 mod parser;
@@ -59,23 +60,26 @@ mod tests {
 
         for i in 1..=6 {
             {
-                let name = format!("{i:02}.evsc");
+                let name = format!("{i:02}-test.evsc");
                 let path = format!("{test_path}/{name}");
                 let file = fs::read_to_string(path).unwrap();
                 let tokens = tokenize(file);
                 if status("Tokenizing", &name, tokens.is_ok()) {
                     failed = true;
+                    eprintln!("{}", tokens.err().unwrap());
                     continue;
                 };
                 let ast = parse(tokens.unwrap());
                 if status("Parsing", &name, ast.is_ok()) {
                     failed = true;
+                    eprintln!("{}", ast.err().unwrap());
                     continue;
                 };
                 let res =
                     intermediate::compile(&format!("{i:02}-test.evsc"), ast.unwrap(), test_path);
                 if status("Compiling", &name, res.is_ok()) {
                     failed = true;
+                    eprintln!("{}", res.err().unwrap());
                     continue;
                 };
             }
@@ -89,8 +93,12 @@ mod tests {
                 let test_name = format!("{i:02}-test.ll");
                 let test_path = format!("{test_path}/{test_name}");
                 let test_file = fs::read_to_string(test_path).unwrap();
+
+                // Not sure why the first two lines are different, but the tests fail without this
+                // code
                 let test_file = test_file.split('\n').collect::<Vec<_>>();
                 let test_file = test_file[2..].join("\n");
+
                 if status("Checking", &name, file == test_file) {
                     failed = true;
                 };

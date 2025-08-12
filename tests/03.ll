@@ -1,5 +1,5 @@
-; ModuleID = '03.evsc'
-source_filename = "03.evsc"
+; ModuleID = '03-test.evsc'
+source_filename = "03-test.evsc"
 
 define void @main() {
 entry:

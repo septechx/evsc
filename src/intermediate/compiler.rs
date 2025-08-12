@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{bail, Result};
 use inkwell::{
@@ -6,7 +6,7 @@ use inkwell::{
     context::Context,
     module::Module,
     types::{BasicType, BasicTypeEnum},
-    values::{BasicValue, BasicValueEnum, FunctionValue},
+    values::{BasicValue, FunctionValue},
     AddressSpace,
 };
 
@@ -17,6 +17,7 @@ use crate::{
             BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt,
         },
     },
+    bindings::llvm_bindings::create_named_struct,
     intermediate::{
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
@@ -47,6 +48,17 @@ pub struct StructDef<'ctx> {
 pub struct CompilationContext<'ctx> {
     pub symbol_table: SymbolTable<'ctx>,
     pub type_context: TypeContext<'ctx>,
+    pub module_path: PathBuf,
+}
+
+impl<'ctx> CompilationContext<'ctx> {
+    pub fn new(path: PathBuf) -> Self {
+        CompilationContext {
+            symbol_table: HashMap::new(),
+            type_context: TypeContext::default(),
+            module_path: path,
+        }
+    }
 }
 
 pub fn compile<'a, 'ctx>(
@@ -80,7 +92,7 @@ pub fn compile<'a, 'ctx>(
                 function_table.insert(fn_decl.name.clone(), function);
             }
             Statement::StructDecl(struct_decl) => {
-                compile_struct_decl(context, struct_decl, compilation_context);
+                compile_struct_decl(context, struct_decl, compilation_context)?;
             }
             _ => (),
         }
@@ -103,9 +115,6 @@ pub fn compile<'a, 'ctx>(
             Statement::VarDecl(var_decl) => {
                 compile_var_decl(context, module, builder, var_decl, compilation_context)?;
             }
-            Statement::StructDecl(struct_decl) => {
-                compile_struct_decl(context, struct_decl, compilation_context);
-            }
             Statement::Block(block) => {
                 let mut inner_compilation_context = compilation_context.clone();
                 compile(
@@ -116,6 +125,7 @@ pub fn compile<'a, 'ctx>(
                     &mut inner_compilation_context,
                 )?;
             }
+            Statement::StructDecl(_) => (), // Structs are compiled during the first pass
         }
     }
 
@@ -265,7 +275,7 @@ fn compile_struct_decl<'ctx>(
     context: &'ctx Context,
     struct_decl: &StructDeclStmt,
     compilation_context: &mut CompilationContext<'ctx>,
-) {
+) -> Result<()> {
     let mut field_types = Vec::new();
     let mut field_indices = HashMap::new();
 
@@ -275,8 +285,7 @@ fn compile_struct_decl<'ctx>(
         field_indices.insert(property.name.clone(), index as u32);
     }
 
-    let struct_ty = context.opaque_struct_type(&struct_decl.name);
-    struct_ty.set_body(&field_types, false);
+    let struct_ty = create_named_struct(context, &field_types, &struct_decl.name, false)?;
 
     compilation_context.type_context.struct_defs.insert(
         struct_decl.name.clone(),
@@ -285,4 +294,6 @@ fn compile_struct_decl<'ctx>(
             field_indices,
         },
     );
+
+    Ok(())
 }

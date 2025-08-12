@@ -114,8 +114,11 @@ pub fn create_token_lookups() {
 
     // Statements
     stmt(TK::Let, parse_var_decl_statement);
+    stmt(TK::Static, parse_var_decl_statement);
+
     stmt(TK::Struct, parse_struct_decl_stmt);
     stmt(TK::Fn, parse_fn_decl_stmt);
     stmt(TK::Return, parse_return_stmt);
+
     stmt(TK::Pub, parse_pub_stmt);
 }

@@ -1,5 +1,5 @@
-; ModuleID = '04.evsc'
-source_filename = "04.evsc"
+; ModuleID = '04-test.evsc'
+source_filename = "04-test.evsc"
 
 define i32 @main() {
 entry:
@@ -12,6 +12,6 @@ entry:
   %sumtmp = add i32 %left, %right
   %c = alloca i32, align 4
   store i32 %sumtmp, ptr %c, align 4
-  %ret = load i32, ptr %c, align 4
-  ret i32 %ret
+  %load_ptr = load i32, ptr %c, align 4
+  ret i32 %load_ptr
 }

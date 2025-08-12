@@ -38,10 +38,27 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     let mut explicit_type: Option<Type> = None;
     let mut assigned_value: Option<Expression> = None;
 
+    let is_static = match parser.current_token_kind() {
+        TokenKind::Static => true,
+        TokenKind::Let => false,
+        _ => anyhow::bail!(
+            "Expected 'let' or 'static' keyword, recieved {:?}",
+            parser.current_token_kind()
+        ),
+    };
+
     parser.advance();
 
-    // TODO: Implement checking for mutability qualifier
-    let is_constant = true;
+    let is_constant = parser.current_token_kind() != TokenKind::Mut;
+
+    if !is_constant {
+        parser.advance();
+    }
+
+    if is_static && !is_constant {
+        anyhow::bail!("Static variables must be constant");
+    }
+
     let variable_name = parser
         .expect_error(
             TokenKind::Identifier,
@@ -60,26 +77,21 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
         parser.expect(TokenKind::Equals)?;
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
     } else if explicit_type.is_none() {
-        return Err(anyhow::anyhow!(
-            "{}",
-            "Missing type or value in variable declaration".red().bold()
-        ));
+        anyhow::bail!("Missing type or value in variable declaration".red().bold());
     }
 
     parser.expect(TokenKind::Semicolon)?;
 
     if is_constant && assigned_value.is_none() {
-        return Err(anyhow::anyhow!(
-            "{}",
-            "Cannot define constant without providing a value"
-                .red()
-                .bold()
-        ));
+        anyhow::bail!("Cannot define constant without providing a value"
+            .red()
+            .bold());
     }
 
     Ok(Statement::VarDecl(VarDeclStmt {
         explicit_type,
         is_constant,
+        is_static,
         variable_name,
         assigned_value,
     }))

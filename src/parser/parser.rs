@@ -7,7 +7,7 @@ use crate::{
 
 use super::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups};
 
-use anyhow::{Result, anyhow};
+use anyhow::{bail, Result};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -46,11 +46,12 @@ impl Parser {
         let kind = token.kind;
 
         if kind != expected_kind {
-            let err = err.unwrap_or(format!(
-                "Expected {expected_kind:?} but recieved {kind:?} instead."
-            ));
-
-            return Err(anyhow!("{}", err.red().bold()));
+            bail!(err
+                .unwrap_or(format!(
+                    "Expected {expected_kind:?} but recieved {kind:?} instead.",
+                ))
+                .red()
+                .bold());
         }
 
         Ok(self.advance())

@@ -14,7 +14,8 @@ use crate::{
         types::{SliceType, SymbolType},
     },
     intermediate::{
-        builtin, compile_type::compile_type, compiler::CompilationContext, pointer::SmartValue,
+        builtin, compile_type::compile_type, compiler::CompilationContext, import::import_module,
+        pointer::SmartValue,
     },
     lexer::token::TokenKind,
 };
@@ -153,8 +154,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             }
         }
         Expression::FunctionCall(expr) => {
-            if let Expression::Symbol(sym) = &*expr.callee {
-                #[allow(clippy::single_match)]
+            if let Expression::Symbol(sym) = expr.callee.as_ref() {
                 match sym.value.as_str() {
                     "@asm" => {
                         return builtin::asm::handle_asm_call(
@@ -164,6 +164,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                             expr,
                             compilation_context,
                         );
+                    }
+                    "@import" => {
+                        return import_module(context, expr, compilation_context);
                     }
                     _ => (),
                 }

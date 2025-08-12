@@ -16,6 +16,7 @@ pub struct VarDeclStmt {
     pub is_constant: bool,
     pub assigned_value: Option<Expression>,
     pub explicit_type: Option<Type>,
+    pub is_static: bool,
 }
 
 #[derive(Debug, Clone)]

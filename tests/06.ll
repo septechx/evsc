@@ -1,5 +1,5 @@
-; ModuleID = '06.evsc'
-source_filename = "06.evsc"
+; ModuleID = '06-test.evsc'
+source_filename = "06-test.evsc"
 
 %Slice = type { ptr, i64 }
 
@@ -15,6 +15,6 @@ entry:
   %field_ptr1 = getelementptr inbounds %Slice, ptr %s, i32 0, i32 1
   %len = alloca ptr, align 8
   store ptr %field_ptr1, ptr %len, align 8
-  %ret = load ptr, ptr %len, align 8
-  ret ptr %ret
+  %load_ptr = load ptr, ptr %len, align 8
+  ret ptr %load_ptr
 }

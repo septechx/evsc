@@ -1,5 +1,6 @@
 mod ast;
 mod bindings;
+mod cli;
 mod intermediate;
 mod lexer;
 mod parser;
@@ -8,37 +9,59 @@ mod gentests;
 
 use std::fs;
 
-use crate::{lexer::lexer::tokenize, parser::parser::parse};
+use clap::Parser;
+
+use crate::{
+    cli::Cli, intermediate::CompileOptions, lexer::lexer::tokenize, parser::parser::parse,
+};
 
 fn main() -> anyhow::Result<()> {
-    let args: Vec<String> = std::env::args().collect();
+    if std::env::var("IS_DEV").is_ok() {
+        let args: Vec<String> = std::env::args().collect();
 
-    if args.len() == 2 && args[1] == "gen_tests" {
-        gentests::clean_tests()?;
-        println!("Cleaned tests");
-        gentests::gen_tests()?;
-        println!("Generated tests");
+        if args.len() == 2 && args[1] == "gen_tests" {
+            gentests::clean_tests()?;
+            println!("Cleaned tests");
+            gentests::gen_tests()?;
+            println!("Generated tests");
+            return Ok(());
+        }
+
         return Ok(());
     }
 
-    let path = "_test";
-    let name = "test.evsc";
+    let cli = Cli::parse();
 
-    let file = fs::read_to_string(format!("{path}/{name}"))?;
+    // TODO: Handle multiple files and link them together
+
+    let file = cli.files[0].clone(); // $1/$2.evsc
+    let output = cli.output.unwrap_or(file.with_extension("ll")); // $3 or $1/$2.ll
+    let path = file.parent().unwrap(); // $1/
+    let name = file.file_name().unwrap().to_str().unwrap(); // $2
+
+    let opts = CompileOptions {
+        module_name: name,
+        source_dir: path,
+        output_file: &output,
+    };
+
+    let file = fs::read_to_string(&file)?;
     let tokens = tokenize(file)?;
-    //println!("{tokens:#?}");
     let ast = parse(tokens)?;
-    //println!("{ast:#?}");
-    intermediate::compile(name, ast, path)?;
+    intermediate::compile(ast, &opts)?;
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, path::Path};
 
-    use crate::{intermediate, lexer::lexer::tokenize, parser::parser::parse};
+    use crate::{
+        intermediate::{self, CompileOptions},
+        lexer::lexer::tokenize,
+        parser::parser::parse,
+    };
 
     fn status(task: &str, file: &str, ok: bool) -> bool {
         let color_ok = "\x1b[1;32m";
@@ -57,7 +80,7 @@ mod tests {
 
     #[test]
     fn run_tests() {
-        let test_path = "tests";
+        let test_path = Path::new("./tests");
         let test_count = 7;
 
         let mut failed = false;
@@ -65,7 +88,7 @@ mod tests {
         for i in 1..=test_count {
             {
                 let name = format!("{i:02}-test.evsc");
-                let path = format!("{test_path}/{name}");
+                let path = test_path.join(&name);
                 let file = fs::read_to_string(path).unwrap();
                 let tokens = tokenize(file);
                 if status("Tokenizing", &name, tokens.is_ok()) {
@@ -79,8 +102,12 @@ mod tests {
                     eprintln!("{}", ast.err().unwrap());
                     continue;
                 };
-                let res =
-                    intermediate::compile(&format!("{i:02}-test.evsc"), ast.unwrap(), test_path);
+                let opts = CompileOptions {
+                    module_name: &format!("{i:02}-test"),
+                    source_dir: test_path,
+                    output_file: &test_path.join(format!("{i:02}-test.ll")),
+                };
+                let res = intermediate::compile(ast.unwrap(), &opts);
                 if status("Compiling", &name, res.is_ok()) {
                     failed = true;
                     eprintln!("{}", res.err().unwrap());
@@ -90,12 +117,12 @@ mod tests {
 
             {
                 let name = format!("{i:02}.ll");
-                let path = format!("{test_path}/{name}");
+                let path = test_path.join(&name);
                 let file = fs::read_to_string(path).unwrap();
                 let file = file.split('\n').collect::<Vec<_>>();
                 let file = file[2..].join("\n");
                 let test_name = format!("{i:02}-test.ll");
-                let test_path = format!("{test_path}/{test_name}");
+                let test_path = test_path.join(test_name);
                 let test_file = fs::read_to_string(test_path).unwrap();
 
                 // Not sure why the first two lines are different, but the tests fail without this

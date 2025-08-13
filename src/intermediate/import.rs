@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use anyhow::{bail, Result};
 use inkwell::{
@@ -13,9 +13,9 @@ use crate::{
     ast::{ast::Expression, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
     intermediate::{
-        builtin,
         compiler::{self, CompilationContext},
         pointer::SmartValue,
+        resolve_lib::resolve_std_lib,
     },
     lexer::lexer::tokenize,
     parser::parser::parse,
@@ -38,12 +38,9 @@ pub fn import_module<'ctx>(
     };
 
     let module_path = if module_name == "std" {
-        &PathBuf::from(env::var("EVSC_STD_LIB_PATH")?)
-            .join("std.evsc")
-            .display()
-            .to_string()
+        resolve_std_lib()?
     } else {
-        &module_name
+        PathBuf::from(&module_name)
     };
 
     let module_path = compilation_context

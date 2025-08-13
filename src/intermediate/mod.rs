@@ -5,42 +5,72 @@ mod compiler;
 mod emmiter;
 mod import;
 mod pointer;
+mod resolve_lib;
 
-use std::{env, fs};
+use std::path::Path;
 
 use anyhow::Result;
 use inkwell::{
+    builder::Builder,
     context::Context,
     llvm_sys::{
         core::{LLVMConstArray2, LLVMSetInitializer},
         prelude::LLVMValueRef,
     },
-    module::Linkage,
+    module::{Linkage, Module},
     types::AsTypeRef,
-    values::{AsValueRef, BasicValue},
+    values::{AsValueRef, BasicValue, FunctionValue},
     AddressSpace,
 };
 
 use crate::{ast::statements::BlockStmt, intermediate::compiler::CompilationContext};
 
-pub fn compile(module_name: &str, ast: BlockStmt, path: &str) -> Result<()> {
+pub struct CompileOptions<'a> {
+    pub module_name: &'a str,
+    pub source_dir: &'a Path,
+    pub output_file: &'a Path,
+}
+
+pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     let context = Context::create();
-    let module = context.create_module(module_name);
+    let module = context.create_module(opts.module_name);
     let builder = context.create_builder();
 
-    let absolute_path = fs::canonicalize(env::current_dir()?.join(path).join(module_name))?;
+    let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
+    inject_builtins(&context, &mut cc);
 
-    let mut compilation_context = CompilationContext::new(absolute_path);
+    let init_fn = setup_module(&context, &module, &builder);
+    compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
+    emit_global_ctors(&context, &module, &builder, init_fn)?;
 
-    builtin::create_slice_struct(&context, &mut compilation_context);
+    write_output(opts.output_file, &module)?;
 
+    Ok(())
+}
+
+fn inject_builtins<'ctx>(context: &'ctx Context, cc: &mut CompilationContext<'ctx>) {
+    builtin::create_slice_struct(context, cc);
+}
+
+fn setup_module<'ctx>(
+    context: &'ctx Context,
+    module: &Module<'ctx>,
+    builder: &Builder<'ctx>,
+) -> FunctionValue<'ctx> {
     let init_fn_type = context.void_type().fn_type(&[], false);
     let init_fn = module.add_function("__module_init", init_fn_type, None);
     let init_bb = context.append_basic_block(init_fn, "entry");
     builder.position_at_end(init_bb);
 
-    compiler::compile(&context, &module, &builder, &ast, &mut compilation_context)?;
+    init_fn
+}
 
+fn emit_global_ctors<'ctx>(
+    context: &'ctx Context,
+    module: &Module<'ctx>,
+    builder: &Builder<'ctx>,
+    init_fn: FunctionValue<'ctx>,
+) -> Result<()> {
     if init_fn
         .get_last_basic_block()
         .unwrap()
@@ -92,8 +122,11 @@ pub fn compile(module_name: &str, ast: BlockStmt, path: &str) -> Result<()> {
     }
     gv.set_linkage(Linkage::Appending);
 
-    let output_name = module_name.strip_suffix(".evsc").unwrap_or(module_name);
-    emmiter::emit_to_file(&format!("{path}/{output_name}.ll"), &module)?;
+    Ok(())
+}
+
+fn write_output(path: &Path, module: &Module) -> Result<()> {
+    emmiter::emit_to_file(path, module)?;
 
     Ok(())
 }

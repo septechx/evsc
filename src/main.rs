@@ -71,17 +71,16 @@ mod tests {
         let dots = ".".repeat(30usize.saturating_sub(task.len() + file.len()));
         if ok {
             println!("{task} {file}{dots}{color_ok}OK{reset}");
-            false
         } else {
             println!("{task} {file}{dots}{color_err}ER{reset}");
-            true
         }
+        !ok
     }
 
     #[test]
     fn run_tests() {
         let test_path = Path::new("./tests");
-        let test_count = 7;
+        let test_count = 8;
 
         let mut failed = false;
 

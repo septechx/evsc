@@ -114,23 +114,27 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             break;
         }
 
+        let is_public = parser.current_token() == Token::Pub;
+
+        if is_public {
+            parser.advance();
+        }
+
         if parser.current_token() == Token::Fn {
             let fn_decl = parse_fn_decl_stmt(parser)?;
             match fn_decl {
-                Statement::FnDecl(fn_decl) => methods.push(StructMethod { fn_decl }),
+                Statement::FnDecl(fn_decl) => methods.push(StructMethod {
+                    fn_decl: FnDeclStmt {
+                        is_public,
+                        ..fn_decl
+                    },
+                }),
                 _ => unreachable!(),
             }
             continue;
         }
 
         if parser.current_token().eq(&Token::identifier()) {
-            let is_public = if parser.current_token() == Token::Hash {
-                parser.advance();
-                true
-            } else {
-                false
-            };
-
             let property_name = parser.expect(Token::identifier())?.unwrap_identifier();
             parser.expect_error(
                 Token::Colon,

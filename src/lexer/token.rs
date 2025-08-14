@@ -84,20 +84,6 @@ impl Token {
         RESERVED_KEYWORDS.get(ident).cloned()
     }
 
-    pub fn unwrap_number(self) -> i32 {
-        match self {
-            Token::Number(value) => value,
-            _ => panic!("Expected number, got {self:?}"),
-        }
-    }
-
-    pub fn unwrap_string(self) -> String {
-        match self {
-            Token::StringLiteral(value) => value,
-            _ => panic!("Expected string, got {self:?}"),
-        }
-    }
-
     pub fn unwrap_identifier(self) -> String {
         match self {
             Token::Identifier(value) => value,

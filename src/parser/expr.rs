@@ -29,12 +29,9 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
             .get(&mem::discriminant(&token_kind))
             .cloned()
             .ok_or_else(|| {
-                anyhow!(
-                    "{}",
-                    format!("Nud handler expected for token {token_kind:?}")
-                        .red()
-                        .bold()
-                )
+                anyhow!(format!("Nud handler expected for token {token_kind:?}")
+                    .red()
+                    .bold())
             })?
     };
 

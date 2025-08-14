@@ -1,8 +1,9 @@
-use crate::lexer::token::{Token, TokenKind};
+use crate::lexer::token::Token;
 use anyhow::{anyhow, Result};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use regex::Regex;
+
 type TokenHandler = Box<dyn Fn(&str) -> Result<Option<Token>> + Send + Sync>;
 
 #[derive(Debug, Clone)]
@@ -84,40 +85,33 @@ pub fn tokenize(file: String) -> Result<Vec<Token>> {
     lexer.tokenize()
 }
 
-fn default_handler(kind: TokenKind, value: &'static str) -> TokenHandler {
-    Box::new(move |_| Ok(Some(Token::new(kind, value.to_string()))))
+fn default_handler(tok: Token) -> TokenHandler {
+    Box::new(move |_| Ok(Some(tok.clone())))
+}
+
+fn number_handler() -> TokenHandler {
+    Box::new(move |val| Ok(Some(Token::Number(val.parse::<i32>()?))))
 }
 
 fn skip_handler() -> TokenHandler {
     Box::new(|_| Ok(None))
 }
 
-fn literal_handler(kind: TokenKind) -> TokenHandler {
-    Box::new(move |val| Ok(Some(Token::new(kind, val.to_string()))))
-}
-
 fn string_literal_handler() -> TokenHandler {
     Box::new(|val: &str| {
         let inner = &val[1..val.len() - 1];
-        Ok(Some(Token::new(
-            TokenKind::StringLiteral,
-            inner.to_string(),
-        )))
+        Ok(Some(Token::StringLiteral(inner.to_string())))
     })
 }
 
 fn identifier_handler() -> TokenHandler {
     Box::new(|val| {
-        if let Some(kind) = TokenKind::lookup_reserved(val) {
-            Ok(Some(Token::new(kind, val.to_string())))
+        if let Some(tok) = Token::lookup_reserved(val) {
+            Ok(Some(tok))
         } else {
-            Ok(Some(Token::new(TokenKind::Identifier, val.to_string())))
+            Ok(Some(Token::Identifier(val.to_string())))
         }
     })
-}
-
-fn comment_handler() -> TokenHandler {
-    Box::new(|_| Ok(None))
 }
 
 struct RegexHandler {
@@ -132,80 +126,61 @@ impl RegexHandler {
 }
 
 macro_rules! regex_handler {
-    // For special handlers like skip_handler(), comment_handler(), identifier_handler()
     ($pattern:expr, $handler:expr) => {
         RegexHandler::new(Regex::new($pattern).unwrap(), $handler)
     };
 
-    // For literal handlers with a TokenKind
-    ($pattern:expr, literal $kind:expr) => {
-        RegexHandler::new(Regex::new($pattern).unwrap(), literal_handler($kind))
-    };
-
-    // For default handlers with TokenKind and literal value
-    ($pattern:expr, $kind:expr, $value:expr) => {
-        RegexHandler::new(
-            Regex::new($pattern).unwrap(),
-            default_handler($kind, $value),
-        )
+    ($pattern:expr, def $kind:expr) => {
+        RegexHandler::new(Regex::new($pattern).unwrap(), default_handler($kind))
     };
 }
 
-use TokenKind as T;
+use Token as T;
 lazy_static! {
     static ref REGEXES: Vec<RegexHandler> = vec![
-        // Whitespace (check first to skip efficiently)
+        // Skip
         regex_handler!(r"^\s+", skip_handler()),
-
-        // Comments (must come after whitespace but before other tokens)
-        regex_handler!(r"^//[^\n]*", comment_handler()),
-
-        // Multi-character operators (must come before single chars)
-        regex_handler!(r"^->", T::Arrow, "->"),
-        regex_handler!(r"^&&", T::And, "&&"),
-        regex_handler!(r"^\|\|", T::Or, "||"),
-        regex_handler!(r"^\.\.", T::DotDot, ".."),
-        regex_handler!(r"^<=", T::LessEquals, "<="),
-        regex_handler!(r"^>=", T::MoreEquals, ">="),
-        regex_handler!(r"^==", T::EqualsEquals, "=="),
-        regex_handler!(r"^!=", T::NotEquals, "!="),
-        regex_handler!(r"^\+=", T::PlusEquals, "+="),
-        regex_handler!(r"^-=", T::MinusEquals, "-="),
-        regex_handler!(r"^\*=", T::StarEquals, "*="),
-        regex_handler!(r"^/=", T::SlashEquals, "/="),
-        regex_handler!(r"^%=", T::PercentEquals, "%="),
-
-        // String literals
+        regex_handler!(r"^//[^\n]*", skip_handler()),
+        // Multi-char
+        regex_handler!(r"^->", def T::Arrow),
+        regex_handler!(r"^&&", def T::And),
+        regex_handler!(r"^\|\|", def T::Or),
+        regex_handler!(r"^\.\.", def T::DotDot),
+        regex_handler!(r"^<=", def T::LessEquals),
+        regex_handler!(r"^>=", def T::MoreEquals),
+        regex_handler!(r"^==", def T::EqualsEquals),
+        regex_handler!(r"^!=", def T::NotEquals),
+        regex_handler!(r"^\+=", def T::PlusEquals),
+        regex_handler!(r"^-=", def T::MinusEquals),
+        regex_handler!(r"^\*=", def T::StarEquals),
+        regex_handler!(r"^/=", def T::SlashEquals),
+        regex_handler!(r"^%=", def T::PercentEquals),
+        // Lit & Ident
         regex_handler!(r#"^"[^"]*""#, string_literal_handler()),
-
-        // Numbers
-        regex_handler!(r"^[0-9]+(\.[0-9]+)?", literal T::Number),
-
-        // Identifiers (must come after keywords)
+        regex_handler!(r"^[0-9]+(\.[0-9]+)?", number_handler()),
         regex_handler!(r"^[@]?[a-zA-Z_][a-zA-Z0-9_]*", identifier_handler()),
-
-        // Single character tokens
-        regex_handler!(r"^;", T::Semicolon, ";"),
-        regex_handler!(r"^&", T::Reference, "&"),
-        regex_handler!(r"^\+", T::Plus, "+"),
-        regex_handler!(r"^\-", T::Dash, "-"),
-        regex_handler!(r"^\*", T::Star, "*"),
-        regex_handler!(r"^/", T::Slash, "/"),
-        regex_handler!(r"^%", T::Percent, "%"),
-        regex_handler!(r"^\|", T::Pipe, "|"),
-        regex_handler!(r"^:", T::Colon, ":"),
-        regex_handler!(r"^\{", T::OpenCurly, "{"),
-        regex_handler!(r"^\}", T::CloseCurly, "}"),
-        regex_handler!(r"^\(", T::OpenParen, "("),
-        regex_handler!(r"^\)", T::CloseParen, ")"),
-        regex_handler!(r"^\.", T::Dot, "."),
-        regex_handler!(r"^=", T::Equals, "="),
-        regex_handler!(r"^_", T::Underscore, "_"),
-        regex_handler!(r"^\[", T::OpenBracket, "["),
-        regex_handler!(r"^\]", T::CloseBracket, "]"),
-        regex_handler!(r"^,", T::Comma, ","),
-        regex_handler!(r"^#", T::Hash, "#"),
-        regex_handler!(r"^>", T::More, ">"),
-        regex_handler!(r"^<", T::Less, "<"),
+        // Single-char
+        regex_handler!(r"^;", def T::Semicolon),
+        regex_handler!(r"^&", def T::Reference),
+        regex_handler!(r"^\+", def T::Plus),
+        regex_handler!(r"^\-", def T::Dash),
+        regex_handler!(r"^\*", def T::Star),
+        regex_handler!(r"^/", def T::Slash),
+        regex_handler!(r"^%", def T::Percent),
+        regex_handler!(r"^\|", def T::Pipe),
+        regex_handler!(r"^:", def T::Colon),
+        regex_handler!(r"^\{", def T::OpenCurly),
+        regex_handler!(r"^\}", def T::CloseCurly),
+        regex_handler!(r"^\(", def T::OpenParen),
+        regex_handler!(r"^\)", def T::CloseParen),
+        regex_handler!(r"^\.", def T::Dot),
+        regex_handler!(r"^=", def T::Equals),
+        regex_handler!(r"^_", def T::Underscore),
+        regex_handler!(r"^\[", def T::OpenBracket),
+        regex_handler!(r"^\]", def T::CloseBracket),
+        regex_handler!(r"^,", def T::Comma),
+        regex_handler!(r"^#", def T::Hash),
+        regex_handler!(r"^>", def T::More),
+        regex_handler!(r"^<", def T::Less),
     ];
 }

@@ -1,11 +1,12 @@
+use std::mem;
+
 use colored::Colorize;
 
 use crate::{
     ast::{ast::Statement, statements::BlockStmt},
-    lexer::token::{Token, TokenKind},
+    lexer::token::Token,
+    parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
 };
-
-use super::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups};
 
 use anyhow::{bail, Result};
 
@@ -23,12 +24,8 @@ impl Parser {
         if self.pos < self.tokens.len() {
             self.tokens[self.pos].clone()
         } else {
-            Token::new(TokenKind::Eof, "".to_string())
+            Token::Eof
         }
-    }
-
-    pub fn current_token_kind(&self) -> TokenKind {
-        self.current_token().kind
     }
 
     pub fn advance(&mut self) -> Token {
@@ -41,14 +38,13 @@ impl Parser {
         self.pos < self.tokens.len()
     }
 
-    pub fn expect_error(&mut self, expected_kind: TokenKind, err: Option<String>) -> Result<Token> {
+    pub fn expect_error(&mut self, expected_kind: Token, err: Option<String>) -> Result<Token> {
         let token = self.current_token();
-        let kind = token.kind;
 
-        if kind != expected_kind {
+        if mem::discriminant(&token) != mem::discriminant(&expected_kind) {
             bail!(err
                 .unwrap_or(format!(
-                    "Expected {expected_kind:?} but recieved {kind:?} instead.",
+                    "Expected {expected_kind:?} but recieved {token:?} instead.",
                 ))
                 .red()
                 .bold());
@@ -57,7 +53,7 @@ impl Parser {
         Ok(self.advance())
     }
 
-    pub fn expect(&mut self, expected_kind: TokenKind) -> Result<Token> {
+    pub fn expect(&mut self, expected_kind: Token) -> Result<Token> {
         self.expect_error(expected_kind, None)
     }
 }

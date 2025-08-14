@@ -1,20 +1,8 @@
 use lazy_static::lazy_static;
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token {
-    pub value: String,
-    pub kind: TokenKind,
-}
-
-impl Token {
-    pub fn new(kind: TokenKind, value: String) -> Self {
-        Self { value, kind }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TokenKind {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Token {
     // Symbols
     Semicolon,
     Pipe,
@@ -53,9 +41,9 @@ pub enum TokenKind {
     Reference,
 
     // Literals
-    Identifier,
-    StringLiteral,
-    Number,
+    Identifier(String),
+    StringLiteral(String),
+    Number(i32),
 
     // Reserved
     Let,
@@ -73,9 +61,9 @@ pub enum TokenKind {
     Eof,
 }
 
-use TokenKind as T;
+use Token as T;
 lazy_static! {
-    static ref RESERVED_KEYWORDS: HashMap<&'static str, TokenKind> = {
+    static ref RESERVED_KEYWORDS: HashMap<&'static str, Token> = {
         let mut m = HashMap::new();
         m.insert("true", T::True);
         m.insert("false", T::False);
@@ -91,8 +79,45 @@ lazy_static! {
     };
 }
 
-impl TokenKind {
-    pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
-        RESERVED_KEYWORDS.get(ident).copied()
+impl Token {
+    pub fn lookup_reserved(ident: &str) -> Option<Token> {
+        RESERVED_KEYWORDS.get(ident).cloned()
+    }
+
+    pub fn unwrap_number(self) -> i32 {
+        match self {
+            Token::Number(value) => value,
+            _ => panic!("Expected number, got {self:?}"),
+        }
+    }
+
+    pub fn unwrap_string(self) -> String {
+        match self {
+            Token::StringLiteral(value) => value,
+            _ => panic!("Expected string, got {self:?}"),
+        }
+    }
+
+    pub fn unwrap_identifier(self) -> String {
+        match self {
+            Token::Identifier(value) => value,
+            _ => panic!("Expected identifier, got {self:?}"),
+        }
+    }
+
+    pub fn eq(&self, other: &Token) -> bool {
+        mem::discriminant(self) == mem::discriminant(other)
+    }
+
+    pub fn identifier() -> Token {
+        Token::Identifier("".to_string())
+    }
+
+    pub fn string_literal() -> Token {
+        Token::StringLiteral("".to_string())
+    }
+
+    pub fn number() -> Token {
+        Token::Number(0)
     }
 }

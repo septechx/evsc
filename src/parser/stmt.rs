@@ -1,3 +1,6 @@
+use std::mem;
+
+use anyhow::{bail, Result};
 use colored::Colorize;
 
 use crate::{
@@ -8,48 +11,49 @@ use crate::{
             StructProperty, VarDeclStmt,
         },
     },
-    lexer::token::TokenKind,
+    lexer::token::Token,
+    parser::{
+        expr::parse_expr,
+        lookups::{BindingPower, STMT_LU},
+        parser::Parser,
+        types::parse_type,
+    },
 };
 
-use super::{
-    expr::parse_expr,
-    lookups::{BindingPower, STMT_LU},
-    parser::Parser,
-    types::parse_type,
-};
-
-pub fn parse_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
+pub fn parse_stmt(parser: &mut Parser) -> Result<Statement> {
     let stmt_fn = {
         let stmt_lu = STMT_LU.lock().unwrap();
-        stmt_lu.get(&parser.current_token_kind()).cloned()
+        stmt_lu
+            .get(&mem::discriminant(&parser.current_token()))
+            .cloned()
     };
 
     if let Some(stmt_fn) = stmt_fn {
         stmt_fn(parser)
     } else {
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
-        parser.expect(TokenKind::Semicolon)?;
+        parser.expect(Token::Semicolon)?;
 
         Ok(Statement::Expression(ExpressionStmt { expression }))
     }
 }
 
-pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement> {
+pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
     let mut explicit_type: Option<Type> = None;
     let mut assigned_value: Option<Expression> = None;
 
-    let is_static = match parser.current_token_kind() {
-        TokenKind::Static => true,
-        TokenKind::Let => false,
-        _ => anyhow::bail!(
+    let is_static = match parser.current_token() {
+        Token::Static => true,
+        Token::Let => false,
+        _ => bail!(
             "Expected 'let' or 'static' keyword, recieved {:?}",
-            parser.current_token_kind()
+            parser.current_token()
         ),
     };
 
     parser.advance();
 
-    let is_constant = parser.current_token_kind() != TokenKind::Mut;
+    let is_constant = parser.current_token() != Token::Mut;
 
     if !is_constant {
         parser.advance();
@@ -61,26 +65,26 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
 
     let variable_name = parser
         .expect_error(
-            TokenKind::Identifier,
+            Token::identifier(),
             Some(String::from(
                 "Expected variable name inside variable declaration",
             )),
         )?
-        .value;
+        .unwrap_identifier();
 
-    if parser.current_token_kind() == TokenKind::Colon {
+    if parser.current_token() == Token::Colon {
         parser.advance();
         explicit_type = Some(parse_type(parser, BindingPower::DefaultBp)?);
     }
 
-    if parser.current_token_kind() != TokenKind::Semicolon {
-        parser.expect(TokenKind::Equals)?;
+    if parser.current_token() != Token::Semicolon {
+        parser.expect(Token::Equals)?;
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
     } else if explicit_type.is_none() {
         anyhow::bail!("Missing type or value in variable declaration".red().bold());
     }
 
-    parser.expect(TokenKind::Semicolon)?;
+    parser.expect(Token::Semicolon)?;
 
     if is_constant && assigned_value.is_none() {
         anyhow::bail!("Cannot define constant without providing a value"
@@ -97,38 +101,38 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> anyhow::Result<Statement
     }))
 }
 
-pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
-    parser.expect(TokenKind::Struct)?;
+pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
+    parser.expect(Token::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
     let methods: Vec<StructMethod> = Vec::new();
-    let name = parser.expect(TokenKind::Identifier)?.value;
+    let name = parser.expect(Token::identifier())?.unwrap_identifier();
 
-    parser.expect(TokenKind::OpenCurly)?;
+    parser.expect(Token::OpenCurly)?;
 
     loop {
-        if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseCurly {
+        if !parser.has_tokens() || parser.current_token() == Token::CloseCurly {
             break;
         }
 
-        if parser.current_token_kind() == TokenKind::Identifier {
-            let is_public = if parser.current_token_kind() == TokenKind::Hash {
+        if parser.current_token().eq(&Token::identifier()) {
+            let is_public = if parser.current_token() == Token::Hash {
                 parser.advance();
                 true
             } else {
                 false
             };
 
-            let property_name = parser.expect(TokenKind::Identifier)?.value;
+            let property_name = parser.expect(Token::identifier())?.unwrap_identifier();
             parser.expect_error(
-                TokenKind::Colon,
+                Token::Colon,
                 Some(String::from(
                     "Expected colon after property name in struct property declaration",
                 )),
             )?;
             let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
 
-            if parser.current_token_kind() != TokenKind::CloseCurly {
-                parser.expect(TokenKind::Comma)?;
+            if parser.current_token() != Token::CloseCurly {
+                parser.expect(Token::Comma)?;
             }
 
             if !properties
@@ -137,12 +141,11 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                return Err(anyhow::anyhow!(
-                    "{}",
+                bail!(
                     format!("Property {property_name} has already been defined in struct")
                         .red()
                         .bold()
-                ));
+                );
             }
 
             properties.push(StructProperty {
@@ -154,18 +157,15 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
             continue;
         }
 
-        return Err(anyhow::anyhow!(
-            "{}",
-            format!(
-                "Unexpected token in struct declaration: {:?}",
-                parser.current_token_kind()
-            )
-            .red()
-            .bold()
-        ));
+        bail!(format!(
+            "Unexpected token in struct declaration: {:?}",
+            parser.current_token()
+        )
+        .red()
+        .bold());
     }
 
-    parser.expect(TokenKind::CloseCurly)?;
+    parser.expect(Token::CloseCurly)?;
 
     Ok(Statement::StructDecl(StructDeclStmt {
         name,
@@ -175,8 +175,8 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> 
     }))
 }
 
-pub fn parse_pub_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
-    parser.expect(TokenKind::Pub)?;
+pub fn parse_pub_stmt(parser: &mut Parser) -> Result<Statement> {
+    parser.expect(Token::Pub)?;
     let mut stmt = parse_stmt(parser)?;
     match &mut stmt {
         Statement::StructDecl(struct_decl_stmt) => {
@@ -190,31 +190,31 @@ pub fn parse_pub_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
     Ok(stmt)
 }
 
-pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
-    parser.expect(TokenKind::Fn)?;
+pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
+    parser.expect(Token::Fn)?;
     let mut arguments: Vec<FnArgument> = Vec::new();
     let mut body: Vec<Statement> = Vec::new();
-    let name = parser.expect(TokenKind::Identifier)?.value;
+    let name = parser.expect(Token::identifier())?.unwrap_identifier();
 
-    parser.expect(TokenKind::OpenParen)?;
+    parser.expect(Token::OpenParen)?;
 
     loop {
-        if !parser.has_tokens() || parser.current_token_kind() == TokenKind::CloseParen {
+        if !parser.has_tokens() || parser.current_token() == Token::CloseParen {
             break;
         }
 
-        if parser.current_token_kind() == TokenKind::Identifier {
-            let argument_name = parser.expect(TokenKind::Identifier)?.value;
+        if parser.current_token().eq(&Token::identifier()) {
+            let argument_name = parser.expect(Token::identifier())?.unwrap_identifier();
             parser.expect_error(
-                TokenKind::Colon,
+                Token::Colon,
                 Some(String::from(
                     "Expected colon after property name in function argument declaration",
                 )),
             )?;
             let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
 
-            if parser.current_token_kind() != TokenKind::CloseParen {
-                parser.expect(TokenKind::Comma)?;
+            if parser.current_token() != Token::CloseParen {
+                parser.expect(Token::Comma)?;
             }
 
             if !arguments
@@ -223,12 +223,11 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                return Err(anyhow::anyhow!(
-                    "{}",
+                bail!(
                     format!("Argument {argument_name} has already been defined in function")
                         .red()
                         .bold()
-                ));
+                );
             }
 
             arguments.push(FnArgument {
@@ -239,29 +238,26 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
             continue;
         }
 
-        return Err(anyhow::anyhow!(
-            "{}",
-            format!(
-                "Unexpected token in function declaration: {:?}",
-                parser.current_token_kind()
-            )
-            .red()
-            .bold()
-        ));
+        bail!(format!(
+            "Unexpected token in function declaration: {:?}",
+            parser.current_token()
+        )
+        .red()
+        .bold());
     }
 
-    parser.expect(TokenKind::CloseParen)?;
+    parser.expect(Token::CloseParen)?;
 
     let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
 
-    parser.expect(TokenKind::OpenCurly)?;
+    parser.expect(Token::OpenCurly)?;
 
-    while parser.has_tokens() && parser.current_token_kind() != TokenKind::CloseCurly {
+    while parser.has_tokens() && parser.current_token() != Token::CloseCurly {
         let stmt = parse_stmt(parser)?;
         body.push(stmt);
     }
 
-    parser.expect(TokenKind::CloseCurly)?;
+    parser.expect(Token::CloseCurly)?;
 
     Ok(Statement::FnDecl(FnDeclStmt {
         name,
@@ -272,16 +268,16 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
     }))
 }
 
-pub fn parse_return_stmt(parser: &mut Parser) -> anyhow::Result<Statement> {
-    parser.expect(TokenKind::Return)?;
+pub fn parse_return_stmt(parser: &mut Parser) -> Result<Statement> {
+    parser.expect(Token::Return)?;
 
-    let expression = if parser.current_token_kind() != TokenKind::Semicolon {
+    let expression = if parser.current_token() != Token::Semicolon {
         Some(parse_expr(parser, BindingPower::DefaultBp)?)
     } else {
         None
     };
 
-    parser.expect(TokenKind::Semicolon)?;
+    parser.expect(Token::Semicolon)?;
 
     Ok(Statement::Return(ReturnStmt { value: expression }))
 }

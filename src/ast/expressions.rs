@@ -1,5 +1,7 @@
-use super::ast::{Expression, Type};
-use crate::lexer::token::Token;
+use crate::{
+    ast::ast::{Expression, Type},
+    lexer::token::Token,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

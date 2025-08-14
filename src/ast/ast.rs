@@ -1,6 +1,4 @@
-use super::expressions::*;
-use super::statements::*;
-use super::types::*;
+use crate::ast::{expressions::*, statements::*, types::*};
 
 #[derive(Debug, Clone)]
 pub enum Statement {

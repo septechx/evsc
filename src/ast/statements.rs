@@ -1,4 +1,4 @@
-use super::ast::{Expression, Statement, Type};
+use crate::ast::ast::{Expression, Statement, Type};
 
 #[derive(Debug, Clone)]
 pub struct BlockStmt {

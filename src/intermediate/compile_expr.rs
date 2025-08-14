@@ -20,7 +20,7 @@ use crate::{
         import::import_module,
         pointer::{get_value, SmartValue},
     },
-    lexer::token::TokenKind,
+    lexer::token::Token,
 };
 
 pub fn compile_expression_to_value<'a, 'ctx>(
@@ -84,8 +84,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            match &expr.operator.kind {
-                TokenKind::Reference => {
+            match &expr.operator {
+                Token::Reference => {
                     let ptr = builder.build_alloca(right.value.get_type(), "ptr")?;
                     builder.build_store(ptr, right.value)?;
 
@@ -116,32 +116,32 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let left = builder.build_load(left.pointee_ty.unwrap(), left_ptr, "left")?;
             let right = builder.build_load(right.pointee_ty.unwrap(), right_ptr, "right")?;
 
-            match &expr.operator.kind {
-                TokenKind::Plus => {
+            match &expr.operator {
+                Token::Plus => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
                     let sum = builder.build_int_add(left, right, "sumtmp")?;
                     SmartValue::from_value(sum.as_basic_value_enum())
                 }
-                TokenKind::Dash => {
+                Token::Dash => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
                     let sub = builder.build_int_sub(left, right, "subtmp")?;
                     SmartValue::from_value(sub.as_basic_value_enum())
                 }
-                TokenKind::Star => {
+                Token::Star => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
                     let mul = builder.build_int_mul(left, right, "multmp")?;
                     SmartValue::from_value(mul.as_basic_value_enum())
                 }
-                TokenKind::Slash => {
+                Token::Slash => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
                     let div = builder.build_int_signed_div(left, right, "divtmp")?;
                     SmartValue::from_value(div.as_basic_value_enum())
                 }
-                TokenKind::Percent => {
+                Token::Percent => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
                     let rem = builder.build_int_signed_rem(left, right, "remtmp")?;

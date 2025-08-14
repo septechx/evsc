@@ -25,6 +25,7 @@ use crate::{
     },
 };
 
+pub type FunctionTable<'ctx> = HashMap<String, FunctionValue<'ctx>>;
 pub type SymbolTable<'ctx> = HashMap<String, SymbolTableEntry<'ctx>>;
 
 #[derive(Clone, Debug)]
@@ -68,6 +69,7 @@ pub struct StructDef<'ctx> {
 #[derive(Clone, Debug, Default)]
 pub struct CompilationContext<'ctx> {
     pub symbol_table: SymbolTable<'ctx>,
+    pub function_table: FunctionTable<'ctx>,
     pub type_context: TypeContext<'ctx>,
     pub module_path: PathBuf,
 }
@@ -76,6 +78,7 @@ impl<'ctx> CompilationContext<'ctx> {
     pub fn new(path: PathBuf) -> Self {
         CompilationContext {
             symbol_table: HashMap::new(),
+            function_table: HashMap::new(),
             type_context: TypeContext::default(),
             module_path: path,
         }
@@ -89,8 +92,6 @@ pub fn compile<'a, 'ctx>(
     ast: &BlockStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let mut function_table: HashMap<String, FunctionValue> = HashMap::new();
-
     let body = &ast.body;
 
     // 1st pass: Declare functions and structs
@@ -110,10 +111,12 @@ pub fn compile<'a, 'ctx>(
                 );
 
                 let function = module.add_function(&fn_decl.name, fn_type, None);
-                function_table.insert(fn_decl.name.clone(), function);
+                compilation_context
+                    .function_table
+                    .insert(fn_decl.name.clone(), function);
             }
             Statement::StructDecl(struct_decl) => {
-                compile_struct_decl(context, struct_decl, compilation_context)?;
+                compile_struct_decl(context, module, builder, struct_decl, compilation_context)?;
             }
             _ => (),
         }
@@ -123,7 +126,7 @@ pub fn compile<'a, 'ctx>(
     for stmt in body {
         match stmt {
             Statement::FnDecl(fn_decl) => {
-                if let Some(function) = function_table.get(&fn_decl.name) {
+                if let Some(function) = compilation_context.function_table.get(&fn_decl.name) {
                     compile_function(context, module, *function, fn_decl, compilation_context)?;
                 }
             }
@@ -309,6 +312,8 @@ fn compile_var_decl<'a, 'ctx>(
 
 fn compile_struct_decl<'ctx>(
     context: &'ctx Context,
+    module: &Module<'ctx>,
+    builder: &Builder<'ctx>,
     struct_decl: &StructDeclStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
@@ -319,6 +324,30 @@ fn compile_struct_decl<'ctx>(
         let field_ty = compile_type(context, &property.explicit_type, compilation_context);
         field_types.push(field_ty);
         field_indices.insert(property.name.clone(), index as u32);
+    }
+
+    for method in &struct_decl.methods {
+        let mut method = method.fn_decl.clone();
+        method.name = format!("{}_{}", struct_decl.name, method.name);
+
+        let param_types: Vec<Type> = method
+            .arguments
+            .iter()
+            .map(|arg| arg.explicit_type.clone().unwrap())
+            .collect();
+        let fn_type = compile_function_type(
+            context,
+            &method.explicit_type,
+            &param_types,
+            compilation_context,
+        );
+
+        let function = module.add_function(&method.name, fn_type, None);
+        compilation_context
+            .function_table
+            .insert(method.name.clone(), function);
+
+        compile_function(context, module, function, &method, compilation_context)?;
     }
 
     let struct_ty = create_named_struct(context, &field_types, &struct_decl.name, false)?;

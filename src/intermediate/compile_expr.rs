@@ -110,11 +110,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let left_ptr = left.value.into_pointer_value();
-            let right_ptr = right.value.into_pointer_value();
-
-            let left = builder.build_load(left.pointee_ty.unwrap(), left_ptr, "left")?;
-            let right = builder.build_load(right.pointee_ty.unwrap(), right_ptr, "right")?;
+            let left = get_value(builder, &left)?;
+            let right = get_value(builder, &right)?;
 
             match &expr.operator {
                 Token::Plus => {
@@ -178,12 +175,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             )?;
 
             let (function_ptr, function_ty) = if let Some(pointee_ty) = callee_val.pointee_ty {
-                let loaded = builder.build_load(
-                    pointee_ty,
-                    callee_val.value.into_pointer_value(),
-                    "load_func_ptr",
-                )?;
-                (loaded.into_pointer_value(), pointee_ty)
+                (callee_val.value.into_pointer_value(), pointee_ty)
             } else {
                 (
                     callee_val.value.into_pointer_value(),
@@ -218,7 +210,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 call_site_value
                     .try_as_basic_value()
                     .left()
-                    .unwrap_or(context.i32_type().const_int(0, false).as_basic_value_enum()),
+                    .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
             )
         }
         Expression::MemberAccess(expr) => {
@@ -237,11 +229,6 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .get_name()
                 .ok_or_else(|| anyhow!("Struct type has no name: {struct_ty:#?}"))?
                 .to_str()?;
-            let struct_name = if struct_name.contains(".") {
-                struct_name.split(".").collect::<Vec<_>>()[0]
-            } else {
-                struct_name
-            };
             let struct_def = compilation_context
                 .type_context
                 .struct_defs
@@ -272,10 +259,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             } else if let Some(func) =
                 module.get_function(&format!("{}_{}", struct_name, expr.member.value))
             {
-                SmartValue::from_value(
-                    func.as_global_value()
-                        .as_pointer_value()
-                        .as_basic_value_enum(),
+                SmartValue::from_pointer(
+                    func.as_global_value().as_basic_value_enum(),
+                    func.get_type().get_return_type().unwrap(),
                 )
             } else {
                 bail!("No such field or function: {}", expr.member.value);

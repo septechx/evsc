@@ -1,0 +1,16 @@
+struct Foo {
+    a: i32,
+
+    fn bar(a: i32, b: i32) i32 {
+        return a - b;
+    }
+}
+
+pub fn main() i32 {
+    let foo = Foo {
+        a: 1,
+    };
+
+    return foo.a - foo.bar(2, 1);
+}
+

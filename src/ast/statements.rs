@@ -28,8 +28,7 @@ pub struct StructProperty {
 
 #[derive(Debug, Clone)]
 pub struct StructMethod {
-    pub name: String,
-    pub is_public: bool,
+    pub fn_decl: FnDeclStmt,
 }
 
 #[derive(Debug, Clone)]

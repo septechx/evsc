@@ -19,8 +19,7 @@ entry:
 define i32 @main() {
 entry:
   %load_ptr = load %Module_std, ptr @std, align 8
-  %load_func_ptr = load ptr, ptr @std, align 8
-  %calltmp = call ptr %load_func_ptr(%Slice { ptr @str, i64 11 })
+  %calltmp = call ptr @std(%Slice { ptr @str, i64 11 })
   ret i32 0
 }
 

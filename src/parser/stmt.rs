@@ -104,7 +104,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
 pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
     parser.expect(Token::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
-    let methods: Vec<StructMethod> = Vec::new();
+    let mut methods: Vec<StructMethod> = Vec::new();
     let name = parser.expect(Token::identifier())?.unwrap_identifier();
 
     parser.expect(Token::OpenCurly)?;
@@ -112,6 +112,15 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
     loop {
         if !parser.has_tokens() || parser.current_token() == Token::CloseCurly {
             break;
+        }
+
+        if parser.current_token() == Token::Fn {
+            let fn_decl = parse_fn_decl_stmt(parser)?;
+            match fn_decl {
+                Statement::FnDecl(fn_decl) => methods.push(StructMethod { fn_decl }),
+                _ => unreachable!(),
+            }
+            continue;
         }
 
         if parser.current_token().eq(&Token::identifier()) {

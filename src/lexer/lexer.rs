@@ -1,5 +1,5 @@
 use crate::lexer::token::Token;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -183,4 +183,55 @@ lazy_static! {
         regex_handler!(r"^>", def T::More),
         regex_handler!(r"^<", def T::Less),
     ];
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tokenize() {
+        let input = r#"
+        let five = 5;
+        let ten = 10;
+        let add = (a, b) -> a + b;
+        let result = add(five, ten);
+        "#;
+        let expected = vec![
+            Token::Let,
+            Token::Identifier("five".to_string()),
+            Token::Equals,
+            Token::Number(5),
+            Token::Semicolon,
+            Token::Let,
+            Token::Identifier("ten".to_string()),
+            Token::Equals,
+            Token::Number(10),
+            Token::Semicolon,
+            Token::Let,
+            Token::Identifier("add".to_string()),
+            Token::Equals,
+            Token::OpenParen,
+            Token::Identifier("a".to_string()),
+            Token::Comma,
+            Token::Identifier("b".to_string()),
+            Token::CloseParen,
+            Token::Arrow,
+            Token::Identifier("a".to_string()),
+            Token::Plus,
+            Token::Identifier("b".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Identifier("result".to_string()),
+            Token::Equals,
+            Token::Identifier("add".to_string()),
+            Token::OpenParen,
+            Token::Identifier("five".to_string()),
+            Token::Comma,
+            Token::Identifier("ten".to_string()),
+            Token::CloseParen,
+            Token::Semicolon,
+        ];
+        assert_eq!(tokenize(input.to_string()).unwrap(), expected);
+    }
 }

@@ -23,12 +23,19 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::{ast::statements::BlockStmt, intermediate::compiler::CompilationContext};
+use crate::{
+    ast::statements::BlockStmt,
+    backend::{build_object_file, BackendOptions},
+    intermediate::compiler::CompilationContext,
+};
 
+#[derive(Debug)]
 pub struct CompileOptions<'a> {
     pub module_name: &'a str,
     pub source_dir: &'a Path,
     pub output_file: &'a Path,
+    pub emit_llvm: bool,
+    pub backend_options: &'a BackendOptions,
 }
 
 pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
@@ -43,7 +50,11 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
-    write_output(opts.output_file, &module)?;
+    if opts.emit_llvm {
+        write_output(opts.output_file, &module)?;
+    } else {
+        build_object_file(opts.output_file, &module, opts.backend_options)?;
+    }
 
     Ok(())
 }

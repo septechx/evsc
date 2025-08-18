@@ -1,6 +1,7 @@
 use std::{fs, path::Path};
 
 use crate::{
+    backend::BackendOptions,
     intermediate::{self, CompileOptions},
     lexer::lexer::tokenize,
     parser::parser::parse,
@@ -42,6 +43,8 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     module_name: name,
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{name}.ll")),
+                    emit_llvm: true,
+                    backend_options: &BackendOptions::default(),
                 };
                 intermediate::compile(ast, &opts)?;
                 let name_old = format!("{name}.ll");

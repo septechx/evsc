@@ -1,4 +1,5 @@
 mod ast;
+mod backend;
 mod bindings;
 mod cli;
 mod intermediate;
@@ -10,9 +11,14 @@ mod gentests;
 use std::fs;
 
 use clap::Parser;
+use inkwell::targets::{CodeModel, RelocMode};
 
 use crate::{
-    cli::Cli, intermediate::CompileOptions, lexer::lexer::tokenize, parser::parser::parse,
+    backend::BackendOptions,
+    cli::{Cli, OptLevel},
+    intermediate::CompileOptions,
+    lexer::lexer::tokenize,
+    parser::parser::parse,
 };
 
 fn main() -> anyhow::Result<()> {
@@ -35,14 +41,40 @@ fn main() -> anyhow::Result<()> {
     // TODO: Handle multiple files and link them together
 
     let file = cli.files[0].clone(); // $1/$2.evsc
-    let output = cli.output.unwrap_or(file.with_extension("ll")); // $3 or $1/$2.ll
     let path = file.parent().unwrap(); // $1/
     let name = file.file_name().unwrap().to_str().unwrap(); // $2
+
+    let extension = if cli.emit_llvm { "ll" } else { "o" };
+    let output = cli.output.unwrap_or(file.with_extension(extension)); // $3 or $1/$2.ll|o
+
+    let cpu = cli.cpu.unwrap_or("x86-64".to_string());
+    let features = cli.features.unwrap_or("+avx2".to_string());
+    let opt = cli.opt.unwrap_or(OptLevel::O3);
+
+    let reloc_mode = if cli.pic {
+        RelocMode::PIC
+    } else if cli.shared {
+        RelocMode::DynamicNoPic
+    } else if cli.static_ {
+        RelocMode::Static
+    } else {
+        RelocMode::Default
+    };
+
+    let backend_opts = BackendOptions {
+        code_model: CodeModel::Default,
+        opt_level: opt.into(),
+        reloc_mode,
+        cpu,
+        features,
+    };
 
     let opts = CompileOptions {
         module_name: name,
         source_dir: path,
         output_file: &output,
+        emit_llvm: cli.emit_llvm,
+        backend_options: &backend_opts,
     };
 
     let file = fs::read_to_string(&file)?;
@@ -58,6 +90,7 @@ mod tests {
     use std::{fs, path::Path};
 
     use crate::{
+        backend::BackendOptions,
         intermediate::{self, CompileOptions},
         lexer::lexer::tokenize,
         parser::parser::parse,
@@ -105,6 +138,8 @@ mod tests {
                     module_name: &format!("{i:02}-test"),
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
+                    emit_llvm: true,
+                    backend_options: &BackendOptions::default(),
                 };
                 let res = intermediate::compile(ast.unwrap(), &opts);
                 if status("Compiling", &name, res.is_ok()) {

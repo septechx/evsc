@@ -31,10 +31,10 @@ entry:
   %foo = alloca %Foo, align 8
   store %Foo %load_inst, ptr %foo, align 4
   %load_ptr = load %Foo, ptr %foo, align 4
-  %field_ptr = getelementptr inbounds %Foo, ptr %foo, i32 0, i32 0
+  %loaded_struct = load %Foo, ptr %foo, align 4
+  %field = extractvalue %Foo %loaded_struct, 0
   %load_ptr1 = load %Foo, ptr %foo, align 4
   %calltmp = call i32 @Foo_bar(i32 2, i32 1)
-  %load_ptr2 = load i32, ptr %field_ptr, align 4
-  %subtmp = sub i32 %load_ptr2, %calltmp
+  %subtmp = sub i32 %field, %calltmp
   ret i32 %subtmp
 }

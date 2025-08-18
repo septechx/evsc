@@ -245,14 +245,13 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         )?)
                     }
                     BasicTypeEnum::PointerType(_) => {
-                        let field_ptr = builder.build_struct_gep(
-                            base_type,
-                            base.value.into_pointer_value(),
+                        let loaded_struct = builder.build_load(struct_ty, base.value.into_pointer_value(), "loaded_struct")?;
+                        let field_value = builder.build_extract_value(
+                            loaded_struct.into_struct_value(),
                             *field_index,
-                            "field_ptr",
+                            "field",
                         )?;
-                        let field_ty = struct_ty.get_field_type_at_index(*field_index).unwrap();
-                        SmartValue::from_pointer(field_ptr.as_basic_value_enum(), field_ty)
+                        SmartValue::from_value(field_value)
                     }
                     _ => bail!("Expected struct or pointer type, got {:?}", base_type),
                 }

@@ -16,15 +16,15 @@ entry:
   %s = alloca %Slice, align 8
   store %Slice { ptr @str, i64 12 }, ptr %s, align 8
   %load_ptr = load %Slice, ptr %s, align 8
-  %field_ptr = getelementptr inbounds %Slice, ptr %s, i32 0, i32 0
-  %load_ptr1 = load ptr, ptr %field_ptr, align 8
+  %loaded_struct = load %Slice, ptr %s, align 8
+  %field = extractvalue %Slice %loaded_struct, 0
   %ptr = alloca ptr, align 8
-  store ptr %load_ptr1, ptr %ptr, align 8
-  %load_ptr2 = load %Slice, ptr %s, align 8
-  %field_ptr3 = getelementptr inbounds %Slice, ptr %s, i32 0, i32 1
-  %load_ptr4 = load i64, ptr %field_ptr3, align 4
+  store ptr %field, ptr %ptr, align 8
+  %load_ptr1 = load %Slice, ptr %s, align 8
+  %loaded_struct2 = load %Slice, ptr %s, align 8
+  %field3 = extractvalue %Slice %loaded_struct2, 1
   %len = alloca i64, align 8
-  store i64 %load_ptr4, ptr %len, align 4
-  %load_ptr5 = load i64, ptr %len, align 4
-  ret i64 %load_ptr5
+  store i64 %field3, ptr %len, align 4
+  %load_ptr4 = load i64, ptr %len, align 4
+  ret i64 %load_ptr4
 }

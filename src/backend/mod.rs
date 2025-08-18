@@ -25,15 +25,13 @@ use anyhow::{anyhow, Result};
 use inkwell::{
     llvm_sys::target_machine::LLVMGetDefaultTargetTriple,
     module::Module,
-    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetTriple},
+    targets::{
+        CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+    },
     OptimizationLevel,
 };
 
-pub fn build_object_file(
-    output_path: &Path,
-    module: &Module,
-    options: &BackendOptions,
-) -> Result<()> {
+pub fn prepare_module(module: &Module, options: &BackendOptions) -> Result<TargetMachine> {
     Target::initialize_all(&InitializationConfig::default());
 
     let target_triple = unsafe { CStr::from_ptr(LLVMGetDefaultTargetTriple()).to_str()? };
@@ -54,8 +52,32 @@ pub fn build_object_file(
     module.set_data_layout(&target_machine.get_target_data().get_data_layout());
     module.set_triple(&target_triple);
 
+    Ok(target_machine)
+}
+
+pub fn build_object_file(
+    output_path: &Path,
+    module: &Module,
+    options: &BackendOptions,
+) -> Result<()> {
+    let target_machine = prepare_module(module, options)?;
+
     target_machine
         .write_to_file(module, FileType::Object, output_path)
+        .map_err(|e| anyhow!("{e}"))?;
+
+    Ok(())
+}
+
+pub fn build_assembly_file(
+    output_path: &Path,
+    module: &Module,
+    options: &BackendOptions,
+) -> Result<()> {
+    let target_machine = prepare_module(module, options)?;
+
+    target_machine
+        .write_to_file(module, FileType::Assembly, output_path)
         .map_err(|e| anyhow!("{e}"))?;
 
     Ok(())

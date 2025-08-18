@@ -25,8 +25,8 @@ use inkwell::{
 
 use crate::{
     ast::statements::BlockStmt,
-    backend::{build_object_file, BackendOptions},
-    intermediate::compiler::CompilationContext,
+    backend::{build_assembly_file, build_object_file, BackendOptions},
+    intermediate::{compiler::CompilationContext, emmiter::emit_to_file},
 };
 
 #[derive(Debug)]
@@ -34,8 +34,15 @@ pub struct CompileOptions<'a> {
     pub module_name: &'a str,
     pub source_dir: &'a Path,
     pub output_file: &'a Path,
-    pub emit_llvm: bool,
+    pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
+}
+
+#[derive(Debug)]
+pub enum EmitType {
+    LLVM,
+    Assembly,
+    Object,
 }
 
 pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
@@ -50,10 +57,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
-    if opts.emit_llvm {
-        write_output(opts.output_file, &module)?;
-    } else {
-        build_object_file(opts.output_file, &module, opts.backend_options)?;
+    match opts.emit {
+        EmitType::LLVM => emit_to_file(opts.output_file, &module)?,
+        EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
+        EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
     }
 
     Ok(())
@@ -132,12 +139,6 @@ fn emit_global_ctors<'ctx>(
         LLVMSetInitializer(gv.as_value_ref(), array_ref);
     }
     gv.set_linkage(Linkage::Appending);
-
-    Ok(())
-}
-
-fn write_output(path: &Path, module: &Module) -> Result<()> {
-    emmiter::emit_to_file(path, module)?;
 
     Ok(())
 }

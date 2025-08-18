@@ -16,18 +16,18 @@ impl FromStr for OptLevel {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "0" | "O0" | "o0" => Ok(OptLevel::O0),
-            "1" | "O1" | "o1" => Ok(OptLevel::O1),
-            "2" | "O2" | "o2" => Ok(OptLevel::O2),
-            "3" | "O3" | "o3" => Ok(OptLevel::O3),
+            "0" => Ok(OptLevel::O0),
+            "1" => Ok(OptLevel::O1),
+            "2" => Ok(OptLevel::O2),
+            "3" => Ok(OptLevel::O3),
             other => Err(anyhow!("invalid optimization level: {}", other)),
         }
     }
 }
 
-impl Into<OptimizationLevel> for OptLevel {
-    fn into(self) -> OptimizationLevel {
-        match self {
+impl From<OptLevel> for OptimizationLevel {
+    fn from(level: OptLevel) -> OptimizationLevel {
+        match level {
             OptLevel::O0 => OptimizationLevel::None,
             OptLevel::O1 => OptimizationLevel::Less,
             OptLevel::O2 => OptimizationLevel::Default,

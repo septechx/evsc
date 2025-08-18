@@ -10,7 +10,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use crate::{
-    backend::BackendOptions, intermediate::CompileOptions as IRCompilerOptions,
+    backend::BackendOptions,
+    intermediate::{CompileOptions as IRCompilerOptions, EmitType},
     lexer::lexer::tokenize,
 };
 
@@ -20,6 +21,7 @@ pub struct CompilerOptions {
     pub source_dir: PathBuf,
     pub output_file: PathBuf,
     pub emit_llvm: bool,
+    pub emit: EmitType,
 }
 
 /// Compiles the given source code into an object file
@@ -31,7 +33,7 @@ pub fn compile(source: String, opts: &CompilerOptions) -> Result<Vec<u8>> {
         module_name: &opts.module_name,
         source_dir: &opts.source_dir,
         output_file: &opts.output_file,
-        emit_llvm: opts.emit_llvm,
+        emit: &opts.emit,
         backend_options: &BackendOptions::default(),
     };
 

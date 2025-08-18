@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 use crate::{
     backend::BackendOptions,
-    intermediate::{self, CompileOptions},
+    intermediate::{self, CompileOptions, EmitType},
     lexer::lexer::tokenize,
     parser::parser::parse,
 };
@@ -43,7 +43,7 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     module_name: name,
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{name}.ll")),
-                    emit_llvm: true,
+                    emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
                 };
                 intermediate::compile(ast, &opts)?;

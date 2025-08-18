@@ -8,7 +8,10 @@ mod parser;
 
 mod gentests;
 
-use std::fs;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use clap::Parser;
 use inkwell::targets::{CodeModel, RelocMode};
@@ -16,7 +19,7 @@ use inkwell::targets::{CodeModel, RelocMode};
 use crate::{
     backend::BackendOptions,
     cli::{Cli, OptLevel},
-    intermediate::CompileOptions,
+    intermediate::{CompileOptions, EmitType},
     lexer::lexer::tokenize,
     parser::parser::parse,
 };
@@ -40,15 +43,36 @@ fn main() -> anyhow::Result<()> {
 
     // TODO: Handle multiple files and link them together
 
-    let file = cli.files[0].clone(); // $1/$2.evsc
-    let path = file.parent().unwrap(); // $1/
-    let name = file.file_name().unwrap().to_str().unwrap(); // $2
+    let file_path = cli.files[0].clone(); // $1/$2.evsc
+    build_file(file_path, &cli)?;
 
-    let extension = if cli.emit_llvm { "ll" } else { "o" };
-    let output = cli.output.unwrap_or(file.with_extension(extension)); // $3 or $1/$2.ll|o
+    Ok(())
+}
 
-    let cpu = cli.cpu.unwrap_or("x86-64".to_string());
-    let features = cli.features.unwrap_or("+avx2".to_string());
+fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
+    let source_dir = file_path
+        .parent()
+        .expect("source file must have a parent directory"); // $1/
+
+    let module_name = file_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("file name must be valid UTF-8"); // $2
+
+    let (extension, emit) = match (cli.emit_llvm, cli.emit_asm) {
+        (true, _) => ("ll", EmitType::LLVM),
+        (false, true) => ("s", EmitType::Assembly),
+        _ => ("o", EmitType::Object),
+    };
+
+    let output = cli.output.clone().unwrap_or_else(|| {
+        env::current_dir()
+            .expect("failed to get current dir")
+            .join(Path::new(module_name).with_extension(extension))
+    }); // $3 or $2.ll|o|s
+
+    let cpu = cli.cpu.clone().unwrap_or_else(|| "x86-64".to_string());
+    let features = cli.features.clone().unwrap_or_else(|| "+avx2".to_string());
     let opt = cli.opt.unwrap_or(OptLevel::O3);
 
     let reloc_mode = if cli.pic {
@@ -70,15 +94,15 @@ fn main() -> anyhow::Result<()> {
     };
 
     let opts = CompileOptions {
-        module_name: name,
-        source_dir: path,
+        module_name,
+        source_dir,
+        emit: &emit,
         output_file: &output,
-        emit_llvm: cli.emit_llvm,
         backend_options: &backend_opts,
     };
 
-    let file = fs::read_to_string(&file)?;
-    let tokens = tokenize(file)?;
+    let source_text = fs::read_to_string(&file_path)?;
+    let tokens = tokenize(source_text)?;
     let ast = parse(tokens)?;
     intermediate::compile(ast, &opts)?;
 
@@ -91,7 +115,7 @@ mod tests {
 
     use crate::{
         backend::BackendOptions,
-        intermediate::{self, CompileOptions},
+        intermediate::{self, CompileOptions, EmitType},
         lexer::lexer::tokenize,
         parser::parser::parse,
     };
@@ -138,7 +162,7 @@ mod tests {
                     module_name: &format!("{i:02}-test"),
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
-                    emit_llvm: true,
+                    emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
                 };
                 let res = intermediate::compile(ast.unwrap(), &opts);

@@ -1,4 +1,3 @@
-/target
-main
-main.ll
-main.o
+target/
+.vscode/
+main*

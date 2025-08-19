@@ -40,7 +40,7 @@ pub fn link_executable(options: &LinkerOptions) -> Result<()> {
     }
 
     for lib in &options.libraries {
-        args.push(format!("-l{}", lib));
+        args.push(format!("-l{lib}"));
     }
 
     if options.static_linking {
@@ -56,7 +56,7 @@ pub fn link_executable(options: &LinkerOptions) -> Result<()> {
     }
 
     if options.verbose {
-        eprintln!("Running linker: {} {:?}", linker, args);
+        eprintln!("Running linker: {linker} {args:?}");
     }
 
     let output = Command::new(&linker)
@@ -72,17 +72,14 @@ pub fn link_executable(options: &LinkerOptions) -> Result<()> {
     if options.verbose {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if !stdout.is_empty() {
-            eprintln!("Linker output:\n{}", stdout);
+            eprintln!("Linker output:\n{stdout}");
         }
     }
 
     Ok(())
 }
 
-pub fn link_shared_library(options: &LinkerOptions) -> Result<()> {
-    let mut lib_options = options.clone();
-    lib_options.output_path = options.output_path.replace(".exe", "").replace(".out", "");
-
+pub fn link_shared_library(lib_options: &LinkerOptions) -> Result<()> {
     let linker = find_linker()?;
 
     let mut args = Vec::new();
@@ -95,7 +92,7 @@ pub fn link_shared_library(options: &LinkerOptions) -> Result<()> {
     args.extend(lib_options.object_files.clone());
 
     for lib in &lib_options.libraries {
-        args.push(format!("-l{}", lib));
+        args.push(format!("-l{lib}"));
     }
 
     if lib_options.verbose {
@@ -103,7 +100,7 @@ pub fn link_shared_library(options: &LinkerOptions) -> Result<()> {
     }
 
     if lib_options.verbose {
-        eprintln!("Running linker for shared library: {} {:?}", linker, args);
+        eprintln!("Running linker for shared library: {linker} {args:?}");
     }
 
     let output = Command::new(&linker)
@@ -120,7 +117,7 @@ pub fn link_shared_library(options: &LinkerOptions) -> Result<()> {
 }
 
 fn find_linker() -> Result<String> {
-    let linkers = ["lld", "ld.lld", "ld", "gold"];
+    let linkers = ["gcc"];
 
     for linker in &linkers {
         if Command::new(linker).arg("--version").output().is_ok() {

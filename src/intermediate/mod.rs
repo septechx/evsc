@@ -20,7 +20,7 @@ use inkwell::{
     module::{Linkage, Module},
     types::AsTypeRef,
     values::{AsValueRef, BasicValue, FunctionValue},
-    AddressSpace, InlineAsmDialect,
+    AddressSpace,
 };
 
 use crate::{

@@ -1,5 +1,14 @@
 pub mod linker;
 
+use anyhow::{anyhow, Result};
+use inkwell::{
+    llvm_sys::target_machine::LLVMGetDefaultTargetTriple,
+    module::Module,
+    targets::{
+        CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+    },
+    OptimizationLevel,
+};
 use std::{ffi::CStr, path::Path};
 
 #[derive(Debug)]
@@ -22,16 +31,6 @@ impl Default for BackendOptions {
         }
     }
 }
-
-use anyhow::{anyhow, Result};
-use inkwell::{
-    llvm_sys::target_machine::LLVMGetDefaultTargetTriple,
-    module::Module,
-    targets::{
-        CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
-    },
-    OptimizationLevel,
-};
 
 pub fn prepare_module(module: &Module, options: &BackendOptions) -> Result<TargetMachine> {
     Target::initialize_all(&InitializationConfig::default());
@@ -89,8 +88,7 @@ pub fn build_executable(
     object_files: &[&Path],
     output_path: &Path,
     is_shared: bool,
-    link_libc: bool,
     pie: bool,
 ) -> Result<()> {
-    linker::link_object_files(object_files, output_path, is_shared, link_libc, pie)
+    linker::link_object_files(object_files, output_path, is_shared, pie)
 }

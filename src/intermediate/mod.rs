@@ -9,7 +9,7 @@ mod resolve_lib;
 
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -19,8 +19,8 @@ use inkwell::{
     },
     module::{Linkage, Module},
     types::AsTypeRef,
-    values::{AsValueRef, BasicValue, FunctionValue},
-    AddressSpace,
+    values::{AsValueRef, BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace, InlineAsmDialect,
 };
 
 use crate::{
@@ -36,7 +36,6 @@ pub struct CompileOptions<'a> {
     pub output_file: &'a Path,
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
-    pub link_libc: bool,
     pub pic: bool,
 }
 
@@ -60,6 +59,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
+    if *opts.emit == EmitType::Executable {
+        generate_c_runtime_integration(&context, &module, &builder)?;
+    }
+
     match opts.emit {
         EmitType::LLVM => emit_to_file(opts.output_file, &module)?,
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
@@ -69,16 +72,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             build_object_file(&temp_obj_path, &module, opts.backend_options)?;
 
             let object_files = vec![temp_obj_path.as_path()];
-            build_executable(
-                &object_files,
-                opts.output_file,
-                false,
-                opts.link_libc,
-                opts.pic,
-            )?;
+            build_executable(&object_files, opts.output_file, false, opts.pic)?;
 
             if let Err(e) = std::fs::remove_file(&temp_obj_path) {
-                eprintln!("Warning: Failed to remove temporary object file: {}", e);
+                eprintln!("Warning: Failed to remove temporary object file: {e}");
             }
         }
     }
@@ -159,6 +156,63 @@ fn emit_global_ctors<'ctx>(
         LLVMSetInitializer(gv.as_value_ref(), array_ref);
     }
     gv.set_linkage(Linkage::Appending);
+
+    Ok(())
+}
+
+pub fn generate_c_runtime_integration<'ctx>(
+    context: &'ctx Context,
+    module: &Module<'ctx>,
+    builder: &Builder<'ctx>,
+) -> Result<()> {
+    let start_fn_type = context.void_type().fn_type(&[], false);
+    let start_fn = module.add_function("_start", start_fn_type, None);
+
+    let entry_bb = context.append_basic_block(start_fn, "entry");
+    builder.position_at_end(entry_bb);
+
+    if let Some(init_fn) = module.get_function("__module_init") {
+        builder.build_call(init_fn, &[], "init_call")?;
+    }
+
+    if let Some(main_fn) = module.get_function("main") {
+        let main_result = builder.build_call(main_fn, &[], "main_call")?;
+        let result_value = main_result
+            .try_as_basic_value()
+            .left()
+            .ok_or_else(|| anyhow!("Expected main to return a basic value"))?;
+
+        create_exit_syscall(context, builder, result_value)?;
+    } else {
+        bail!("Main function not found")
+    }
+
+    builder.build_unreachable()?;
+
+    Ok(())
+}
+
+fn create_exit_syscall<'ctx>(
+    context: &'ctx Context,
+    builder: &Builder<'ctx>,
+    exit_code: BasicValueEnum<'ctx>,
+) -> Result<()> {
+    let exit_ty = context
+        .void_type()
+        .fn_type(&[context.i32_type().into()], false);
+
+    let exit_asm = context.create_inline_asm(
+        exit_ty,
+        "mov rax, 60\nmov edi, $0\nsyscall".to_string(),
+        "r".to_string(),
+        true,
+        false,
+        Some(InlineAsmDialect::Intel),
+        false,
+    );
+
+    builder.build_indirect_call(exit_ty, exit_asm, &[exit_code.into()], "exit_call")?;
+    builder.build_return(None)?;
 
     Ok(())
 }

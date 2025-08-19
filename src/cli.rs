@@ -80,7 +80,4 @@ pub struct Cli {
 
     #[clap(long = "strip", help = "Strip symbols from executable")]
     pub strip: bool,
-
-    #[clap(long = "no-libc", help = "Do not link against libc")]
-    pub no_libc: bool,
 }

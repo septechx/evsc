@@ -1,3 +1,4 @@
 target/
 .vscode/
 main*
+mini_libc*

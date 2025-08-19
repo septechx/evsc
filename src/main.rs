@@ -70,6 +70,8 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
             _ => {
                 if cli.shared {
                     ("so", EmitType::Object)
+                } else if cli.files.len() > 1 {
+                    ("o", EmitType::Object)
                 } else {
                     ("", EmitType::Executable)
                 }
@@ -117,7 +119,6 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         emit: &emit,
         output_file: &output,
         backend_options: &backend_opts,
-        link_libc: !cli.no_libc,
         pic: !cli.no_pie,
     };
 
@@ -126,7 +127,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
     let ast = parse(tokens)?;
     intermediate::compile(ast, &opts)?;
 
-    if emit == EmitType::Executable && !cli.files.is_empty() {
+    if cli.files.len() > 1 {
         let additional_objects: Vec<&Path> = cli.files[1..]
             .iter()
             .filter(|f| f.extension().map_or(false, |ext| ext == "o"))
@@ -139,9 +140,8 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
             all_objects.extend(additional_objects);
             backend::build_executable(
                 &all_objects,
-                &output,
+                &output.with_extension(""),
                 cli.shared,
-                !cli.no_libc,
                 !cli.no_pie,
             )?;
         }
@@ -205,8 +205,7 @@ mod tests {
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
-                    link_libc: true, // Doesn't matter with EmitType::LLVM
-                    pic: true,       // Doesn't matter with EmitType::LLVM
+                    pic: true, // Doesn't matter with EmitType::LLVM
                 };
                 let res = intermediate::compile(ast.unwrap(), &opts);
                 if status("Compiling", &name, res.is_ok()) {

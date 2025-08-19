@@ -24,7 +24,7 @@ pub fn main() i32 {
 **Compiling:**
 
 - LLVM 18.1.x
-- GCC (for linking)
+- lc
 
 ## Building
 

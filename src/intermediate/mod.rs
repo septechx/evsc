@@ -20,12 +20,12 @@ use inkwell::{
     module::{Linkage, Module},
     types::AsTypeRef,
     values::{AsValueRef, BasicValue, FunctionValue},
-    AddressSpace,
+    AddressSpace, InlineAsmDialect,
 };
 
 use crate::{
     ast::statements::BlockStmt,
-    backend::{build_assembly_file, build_object_file, BackendOptions},
+    backend::{build_assembly_file, build_executable, build_object_file, BackendOptions},
     intermediate::{compiler::CompilationContext, emmiter::emit_to_file},
 };
 
@@ -36,13 +36,15 @@ pub struct CompileOptions<'a> {
     pub output_file: &'a Path,
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
+    pub link_libc: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EmitType {
     LLVM,
     Assembly,
     Object,
+    Executable,
 }
 
 pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
@@ -53,7 +55,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
     inject_builtins(&context, &mut cc);
 
-    let init_fn = setup_module(&context, &module, &builder);
+    let init_fn = setup_module(&context, &module, &builder)?;
     compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
@@ -61,6 +63,17 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
         EmitType::LLVM => emit_to_file(opts.output_file, &module)?,
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
+        EmitType::Executable => {
+            let temp_obj_path = opts.output_file.with_extension("o");
+            build_object_file(&temp_obj_path, &module, opts.backend_options)?;
+            
+            let object_files = vec![temp_obj_path.as_path()];
+            build_executable(&object_files, opts.output_file, false, false, opts.link_libc)?;
+
+            if let Err(e) = std::fs::remove_file(&temp_obj_path) {
+                eprintln!("Warning: Failed to remove temporary object file: {}", e);
+            }
+        }
     }
 
     Ok(())
@@ -74,13 +87,13 @@ fn setup_module<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
-) -> FunctionValue<'ctx> {
+) -> Result<FunctionValue<'ctx>> {
     let init_fn_type = context.void_type().fn_type(&[], false);
     let init_fn = module.add_function("__module_init", init_fn_type, None);
     let init_bb = context.append_basic_block(init_fn, "entry");
     builder.position_at_end(init_bb);
 
-    init_fn
+    Ok(init_fn)
 }
 
 fn emit_global_ctors<'ctx>(

@@ -1,3 +1,5 @@
+pub mod linker;
+
 use std::{ffi::CStr, path::Path};
 
 #[derive(Debug)]
@@ -13,7 +15,7 @@ impl Default for BackendOptions {
     fn default() -> Self {
         Self {
             opt_level: OptimizationLevel::Aggressive,
-            reloc_mode: RelocMode::Default,
+            reloc_mode: RelocMode::PIC,
             code_model: CodeModel::Default,
             cpu: "x86-64".to_string(),
             features: "+avx2".to_string(),
@@ -81,4 +83,14 @@ pub fn build_assembly_file(
         .map_err(|e| anyhow!("{e}"))?;
 
     Ok(())
+}
+
+pub fn build_executable(
+    object_files: &[&Path],
+    output_path: &Path,
+    is_shared: bool,
+    verbose: bool,
+    link_libc: bool,
+) -> Result<()> {
+    linker::link_object_files(object_files, output_path, is_shared, verbose, link_libc)
 }

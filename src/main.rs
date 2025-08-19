@@ -41,8 +41,6 @@ fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    // TODO: Handle multiple files and link them together
-
     let file_path = cli.files[0].clone(); // $1/$2.evsc
     build_file(file_path, &cli)?;
 
@@ -59,30 +57,50 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         .and_then(|s| s.to_str())
         .expect("file name must be valid UTF-8"); // $2
 
-    let (extension, emit) = match (cli.emit_llvm, cli.emit_asm) {
-        (true, _) => ("ll", EmitType::LLVM),
-        (false, true) => ("s", EmitType::Assembly),
-        _ => ("o", EmitType::Object),
+    let (extension, emit) = if cli.no_link {
+        match (cli.emit_llvm, cli.emit_asm) {
+            (true, _) => ("ll", EmitType::LLVM),
+            (false, true) => ("s", EmitType::Assembly),
+            _ => ("o", EmitType::Object),
+        }
+    } else {
+        match (cli.emit_llvm, cli.emit_asm) {
+            (true, _) => ("ll", EmitType::LLVM),
+            (false, true) => ("s", EmitType::Assembly),
+            _ => {
+                if cli.shared {
+                    ("so", EmitType::Object)
+                } else {
+                    ("", EmitType::Executable)
+                }
+            }
+        }
     };
 
     let output = cli.output.clone().unwrap_or_else(|| {
-        env::current_dir()
-            .expect("failed to get current dir")
-            .join(Path::new(module_name).with_extension(extension))
-    }); // $3 or $2.ll|o|s
+        if emit == EmitType::Executable {
+            env::current_dir()
+                .expect("failed to get current dir")
+                .join(Path::new(module_name))
+        } else {
+            env::current_dir()
+                .expect("failed to get current dir")
+                .join(Path::new(module_name).with_extension(extension))
+        }
+    });
 
     let cpu = cli.cpu.clone().unwrap_or_else(|| "x86-64".to_string());
     let features = cli.features.clone().unwrap_or_else(|| "+avx2".to_string());
     let opt = cli.opt.unwrap_or(OptLevel::O3);
 
-    let reloc_mode = if cli.pic {
-        RelocMode::PIC
+    let reloc_mode = if cli.no_pie {
+        RelocMode::Default
     } else if cli.shared {
         RelocMode::DynamicNoPic
     } else if cli.static_ {
         RelocMode::Static
     } else {
-        RelocMode::Default
+        RelocMode::PIC
     };
 
     let backend_opts = BackendOptions {
@@ -99,12 +117,28 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         emit: &emit,
         output_file: &output,
         backend_options: &backend_opts,
+        link_libc: !cli.no_libc,
     };
 
     let source_text = fs::read_to_string(&file_path)?;
     let tokens = tokenize(source_text)?;
     let ast = parse(tokens)?;
     intermediate::compile(ast, &opts)?;
+
+    if emit == EmitType::Executable && !cli.files.is_empty() {
+        let additional_objects: Vec<&Path> = cli.files[1..]
+            .iter()
+            .filter(|f| f.extension().map_or(false, |ext| ext == "o"))
+            .map(|f| f.as_path())
+            .collect();
+        
+        if !additional_objects.is_empty() {
+            let temp_obj_path = output.with_extension("o");
+            let mut all_objects = vec![temp_obj_path.as_path()];
+            all_objects.extend(additional_objects);
+            backend::build_executable(&all_objects, &output, cli.shared, cli.verbose_link, !cli.no_libc)?;
+        }
+    }
 
     Ok(())
 }
@@ -164,6 +198,7 @@ mod tests {
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
+                    link_libc: true,
                 };
                 let res = intermediate::compile(ast.unwrap(), &opts);
                 if status("Compiling", &name, res.is_ok()) {

@@ -26,20 +26,7 @@ pub struct CompilerOptions {
 
 /// Compiles the given source code into an object file
 pub fn compile(source: String, opts: &CompilerOptions) -> Result<Vec<u8>> {
-    let tokens = tokenize(source)?;
-    let ast = parser::parser::parse(tokens)?;
-
-    let compiler_opts = IRCompilerOptions {
-        module_name: &opts.module_name,
-        source_dir: &opts.source_dir,
-        output_file: &opts.output_file,
-        emit: &opts.emit,
-        backend_options: &BackendOptions::default(),
-    };
-
-    intermediate::compile(ast, &compiler_opts)?;
-
-    // TODO: Actually compile the IR
+    // TODO: Implement
 
     Ok(Vec::new())
 }

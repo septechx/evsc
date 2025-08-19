@@ -66,12 +66,24 @@ pub struct Cli {
     #[clap(short = 'O', help = "Set optimization level. Default: 3")]
     pub opt: Option<OptLevel>,
 
-    #[clap(long = "fPIC", help = "Generate position independent code")]
-    pub pic: bool,
+    #[clap(long = "no-pie", help = "Disable position independent executable")]
+    pub no_pie: bool,
 
     #[clap(long = "shared", help = "Generate a shared library")]
     pub shared: bool,
 
     #[clap(long = "static", help = "Generate a static library")]
     pub static_: bool,
+
+    #[clap(long = "no-link", help = "Only compile, do not link")]
+    pub no_link: bool,
+
+    #[clap(long = "verbose-link", help = "Verbose linker output")]
+    pub verbose_link: bool,
+
+    #[clap(long = "strip", help = "Strip symbols from executable")]
+    pub strip: bool,
+
+    #[clap(long = "no-libc", help = "Do not link against libc")]
+    pub no_libc: bool,
 }

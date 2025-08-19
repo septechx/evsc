@@ -16,7 +16,7 @@ pub fn resolve_std_lib() -> Result<PathBuf> {
         return Ok(PathBuf::from("~/.local/share/evsc/lib/std/std.evsc"));
     }
 
-    if fs::exists("opt/evsc/lib/std/std.evsc").is_ok() {
+    if fs::exists("/opt/evsc/lib/std/std.evsc").is_ok() {
         return Ok(PathBuf::from("opt/evsc/lib/std/std.evsc"));
     }
 

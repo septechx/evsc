@@ -27,6 +27,6 @@ pub struct CompilerOptions {
 /// Compiles the given source code into an object file
 pub fn compile(source: String, opts: &CompilerOptions) -> Result<Vec<u8>> {
     // TODO: Implement
-
+    //
     Ok(Vec::new())
 }

@@ -1,5 +1,5 @@
-use std::{path::Path, process::Command};
 use anyhow::{anyhow, Result};
+use std::{path::Path, process::Command};
 
 #[derive(Debug, Clone)]
 pub struct LinkerOptions {
@@ -28,107 +28,110 @@ impl Default for LinkerOptions {
 
 pub fn link_executable(options: &LinkerOptions) -> Result<()> {
     let linker = find_linker()?;
-    
+
     let mut args = Vec::new();
 
     args.push("-o".to_string());
     args.push(options.output_path.clone());
     args.extend(options.object_files.clone());
-    
+
     if options.link_libc {
         args.push("-lc".to_string());
     }
-    
+
     for lib in &options.libraries {
         args.push(format!("-l{}", lib));
     }
-    
+
     if options.static_linking {
         args.push("-static".to_string());
     }
-    
+
     if options.strip_symbols {
         args.push("-s".to_string());
     }
-    
+
     if options.verbose {
         args.push("-v".to_string());
     }
-    
+
     if options.verbose {
         eprintln!("Running linker: {} {:?}", linker, args);
     }
-    
+
     let output = Command::new(&linker)
         .args(&args)
         .output()
         .map_err(|e| anyhow!("Failed to execute linker '{}': {}", linker, e))?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow!("Linker failed:\n{}", stderr));
     }
-    
+
     if options.verbose {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if !stdout.is_empty() {
             eprintln!("Linker output:\n{}", stdout);
         }
     }
-    
+
     Ok(())
 }
 
 pub fn link_shared_library(options: &LinkerOptions) -> Result<()> {
     let mut lib_options = options.clone();
     lib_options.output_path = options.output_path.replace(".exe", "").replace(".out", "");
-    
+
     let linker = find_linker()?;
-    
+
     let mut args = Vec::new();
-    
+
     args.push("--shared".to_string());
-    
+
     args.push("-o".to_string());
     args.push(lib_options.output_path.clone());
-    
+
     args.extend(lib_options.object_files.clone());
-    
+
     for lib in &lib_options.libraries {
         args.push(format!("-l{}", lib));
     }
-    
+
     if lib_options.verbose {
         args.push("-v".to_string());
     }
-    
+
     if lib_options.verbose {
         eprintln!("Running linker for shared library: {} {:?}", linker, args);
     }
-    
+
     let output = Command::new(&linker)
         .args(&args)
         .output()
         .map_err(|e| anyhow!("Failed to execute linker '{}': {}", linker, e))?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow!("Linker failed:\n{}", stderr));
     }
-    
+
     Ok(())
 }
 
 fn find_linker() -> Result<String> {
     let linkers = ["lld", "ld.lld", "ld", "gold"];
-    
+
     for linker in &linkers {
         if Command::new(linker).arg("--version").output().is_ok() {
             return Ok(linker.to_string());
         }
     }
-    
-    Err(anyhow!("No suitable linker found. Tried: {}", linkers.join(", ")))
+
+    Err(anyhow!(
+        "No suitable linker found. Tried: {}",
+        linkers.join(", ")
+    ))
 }
 
 pub fn link_object_files(
@@ -142,7 +145,7 @@ pub fn link_object_files(
         .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect();
-    
+
     let options = LinkerOptions {
         output_path: output_path.to_string_lossy().to_string(),
         object_files: object_paths,
@@ -152,11 +155,10 @@ pub fn link_object_files(
         verbose,
         link_libc,
     };
-    
+
     if is_shared {
         link_shared_library(&options)
     } else {
         link_executable(&options)
     }
 }
-

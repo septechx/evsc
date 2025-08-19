@@ -2,6 +2,9 @@ set positional-arguments
 
 LLVM_SYS_181_PREFIX := "$(llvm-config-18 --bindir)"
 
+@build: build-include
+    cargo build --release
+
 @run file: build-include
     env EVSC_STD_LIB_PATH="$(pwd)/lib/std" cargo run $1
 
@@ -14,12 +17,8 @@ LLVM_SYS_181_PREFIX := "$(llvm-config-18 --bindir)"
 @check: build-include
     cargo check
 
-@build: build-include
-    cargo build --release
-
 @clean:
-    rm -rf include/libllvm_bindings.a include/llvm_bindings.o
-    rm -rf tests/*-test.ll
+    rm -rf include/*.a include/*.o tests/*-test.ll
     cargo clean
 
 

@@ -12,14 +12,21 @@ pub fn main() i32 {
 }
 ```
 
-## Building
+## Requirements
 
-Requirements:
+**Building:**
 
 - Rust
 - Clang
 - LLVM 18.1.x
 - just
+
+**Compiling:**
+
+- LLVM 18.1.x
+- A linker
+
+## Building
 
 ```sh
 just build

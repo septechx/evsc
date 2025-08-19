@@ -9,9 +9,7 @@ pub mod linkers {
 use anyhow::{anyhow, bail, Result};
 use std::{path::Path, process::Command};
 
-use ld::LdLinker;
 
-use crate::backend::linker::gcc::GccLinker;
 
 #[derive(Debug, Clone)]
 pub struct LinkerOptions {

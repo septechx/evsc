@@ -137,7 +137,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
     if cli.files.len() > 1 {
         let additional_objects: Vec<&Path> = cli.files[1..]
             .iter()
-            .filter(|f| f.extension().map_or(false, |ext| ext == "o"))
+            .filter(|f| f.extension().is_some_and(|ext| ext == "o"))
             .map(|f| f.as_path())
             .collect();
 
@@ -214,6 +214,7 @@ mod tests {
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
                     pic: true, // Doesn't matter with EmitType::LLVM
+                    linker_kind: None,
                 };
                 let res = intermediate::compile(ast.unwrap(), &opts);
                 if status("Compiling", &name, res.is_ok()) {

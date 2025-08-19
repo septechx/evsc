@@ -10,14 +10,6 @@ pub struct GccLinker {
 }
 
 impl GccLinker {
-    pub fn new() -> Result<Self> {
-        let command = Self::find_linker()?;
-        Ok(Self {
-            args: Vec::new(),
-            command,
-        })
-    }
-
     fn find_linker() -> Result<String> {
         let linkers = ["gcc"];
 
@@ -35,6 +27,14 @@ impl GccLinker {
 }
 
 impl Linker for GccLinker {
+    fn new() -> Self {
+        let command = Self::find_linker().map_err(|e| panic!("{e}")).unwrap();
+        Self {
+            args: Vec::new(),
+            command,
+        }
+    }
+
     fn add_output(&mut self, output_path: &str) {
         self.args.push("-o".to_string());
         self.args.push(output_path.to_string());

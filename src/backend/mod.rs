@@ -11,6 +11,8 @@ use inkwell::{
 };
 use std::{ffi::CStr, path::Path};
 
+use crate::backend::linker::linkers::{GccLinker, LdLinker};
+
 #[derive(Debug)]
 pub struct BackendOptions {
     pub opt_level: OptimizationLevel,
@@ -30,6 +32,12 @@ impl Default for BackendOptions {
             features: "+avx2".to_string(),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LinkerKind {
+    Gcc,
+    Ld,
 }
 
 pub fn prepare_module(module: &Module, options: &BackendOptions) -> Result<TargetMachine> {
@@ -89,6 +97,14 @@ pub fn build_executable(
     output_path: &Path,
     is_shared: bool,
     pie: bool,
+    linker_kind: LinkerKind,
 ) -> Result<()> {
-    linker::link_object_files(object_files, output_path, is_shared, pie)
+    match linker_kind {
+        LinkerKind::Ld => {
+            linker::link_object_files::<LdLinker>(object_files, output_path, is_shared, pie)
+        }
+        LinkerKind::Gcc => {
+            linker::link_object_files::<GccLinker>(object_files, output_path, is_shared, pie)
+        }
+    }
 }

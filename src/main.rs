@@ -17,7 +17,7 @@ use clap::Parser;
 use inkwell::targets::{CodeModel, RelocMode};
 
 use crate::{
-    backend::BackendOptions,
+    backend::{BackendOptions, LinkerKind},
     cli::{Cli, OptLevel},
     intermediate::{CompileOptions, EmitType},
     lexer::lexer::tokenize,
@@ -105,6 +105,12 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         RelocMode::PIC
     };
 
+    let linker_kind = if cli.use_gcc_linker {
+        LinkerKind::Gcc
+    } else {
+        LinkerKind::Ld
+    };
+
     let backend_opts = BackendOptions {
         code_model: CodeModel::Default,
         opt_level: opt.into(),
@@ -120,6 +126,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         output_file: &output,
         backend_options: &backend_opts,
         pic: !cli.no_pie,
+        linker_kind: Some(linker_kind),
     };
 
     let source_text = fs::read_to_string(&file_path)?;
@@ -143,6 +150,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
                 &output.with_extension(""),
                 cli.shared,
                 !cli.no_pie,
+                linker_kind,
             )?;
         }
     }

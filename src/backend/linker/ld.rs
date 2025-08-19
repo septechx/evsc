@@ -10,17 +10,6 @@ pub struct LdLinker {
 }
 
 impl LdLinker {
-    pub fn new() -> Result<Self> {
-        let command = Self::find_linker()?;
-        Ok(Self {
-            args: vec![
-                "--dynamic-linker".to_string(),
-                "/usr/lib/ld-linux-x86-64.so.2".to_string(),
-            ],
-            command,
-        })
-    }
-
     fn find_linker() -> Result<String> {
         let linkers = ["ld"];
 
@@ -38,6 +27,17 @@ impl LdLinker {
 }
 
 impl Linker for LdLinker {
+    fn new() -> Self {
+        let command = Self::find_linker().map_err(|e| panic!("{e}")).unwrap();
+        Self {
+            args: vec![
+                "--dynamic-linker".to_string(),
+                "/usr/lib/ld-linux-x86-64.so.2".to_string(),
+            ],
+            command,
+        }
+    }
+
     fn add_output(&mut self, output_path: &str) {
         self.args.push("-o".to_string());
         self.args.push(output_path.to_string());

@@ -80,4 +80,7 @@ pub struct Cli {
 
     #[clap(long = "strip", help = "Strip symbols from executable")]
     pub strip: bool,
+
+    #[clap(long = "use-gcc-linker", help = "Use gcc as a linker instead of ld")]
+    pub use_gcc_linker: bool,
 }

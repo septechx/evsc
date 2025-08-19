@@ -1,10 +1,17 @@
 mod gcc;
 mod ld;
 
+pub mod linkers {
+    pub use super::gcc::GccLinker;
+    pub use super::ld::LdLinker;
+}
+
 use anyhow::{anyhow, bail, Result};
 use std::{path::Path, process::Command};
 
 use ld::LdLinker;
+
+use crate::backend::linker::gcc::GccLinker;
 
 #[derive(Debug, Clone)]
 pub struct LinkerOptions {
@@ -30,6 +37,7 @@ impl Default for LinkerOptions {
 }
 
 pub trait Linker {
+    fn new() -> Self;
     fn add_output(&mut self, output_path: &str);
     fn add_objects(&mut self, objects: &[String]);
     fn add_libraries(&mut self, libraries: &[String]);
@@ -88,7 +96,7 @@ fn run_linker(linker: &impl Linker) -> Result<()> {
     Ok(())
 }
 
-pub fn link_object_files(
+pub fn link_object_files<T: Linker>(
     object_files: &[&Path],
     output_path: &Path,
     is_shared: bool,
@@ -108,7 +116,7 @@ pub fn link_object_files(
         pie,
     };
 
-    let mut linker = LdLinker::new()?;
+    let mut linker = T::new();
 
     if is_shared {
         link_shared_library(&mut linker, &options)

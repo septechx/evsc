@@ -25,7 +25,9 @@ use inkwell::{
 
 use crate::{
     ast::statements::BlockStmt,
-    backend::{build_assembly_file, build_executable, build_object_file, BackendOptions},
+    backend::{
+        build_assembly_file, build_executable, build_object_file, BackendOptions, LinkerKind,
+    },
     intermediate::{compiler::CompilationContext, emmiter::emit_to_file},
 };
 
@@ -37,6 +39,7 @@ pub struct CompileOptions<'a> {
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
     pub pic: bool,
+    pub linker_kind: Option<LinkerKind>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,11 +71,23 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Executable => {
+            let linker_kind = if let Some(linker_kind) = opts.linker_kind {
+                linker_kind
+            } else {
+                bail!("Linker kind not specified for executable")
+            };
+
             let temp_obj_path = opts.output_file.with_extension("o");
             build_object_file(&temp_obj_path, &module, opts.backend_options)?;
 
             let object_files = vec![temp_obj_path.as_path()];
-            build_executable(&object_files, opts.output_file, false, opts.pic)?;
+            build_executable(
+                &object_files,
+                opts.output_file,
+                false,
+                opts.pic,
+                linker_kind,
+            )?;
 
             if let Err(e) = std::fs::remove_file(&temp_obj_path) {
                 eprintln!("Warning: Failed to remove temporary object file: {e}");

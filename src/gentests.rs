@@ -46,6 +46,7 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
                     pic: true, // Doesn't matter with EmitType::LLVM
+                    linker_kind: None,
                 };
                 intermediate::compile(ast, &opts)?;
                 let name_old = format!("{name}.ll");

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use std::{path::Path, process::Command};
 
 #[derive(Debug, Clone)]
@@ -26,87 +26,141 @@ impl Default for LinkerOptions {
     }
 }
 
-pub fn generate_common_args(options: &LinkerOptions) -> Vec<String> {
-    let mut args = Vec::new();
-
-    args.push("-o".to_string());
-    args.push(options.output_path.clone());
-    args.extend(options.object_files.clone());
-
-    if options.link_libc {
-        args.push("-lc".to_string());
-    }
-
-    for lib in &options.libraries {
-        args.push(format!("-l{lib}"));
-    }
-
-    if options.strip_symbols {
-        args.push("-s".to_string());
-    }
-
-    args
+pub trait Linker {
+    fn add_output(&mut self, output_path: &str);
+    fn add_objects(&mut self, objects: &[String]);
+    fn include_libc(&mut self);
+    fn add_libraries(&mut self, libraries: &[String]);
+    fn strip_symbols(&mut self);
+    fn add_static(&mut self);
+    fn add_shared(&mut self);
+    fn add_pie(&mut self);
+    fn command(&self) -> &str;
+    fn args(&self) -> &[String];
 }
 
-pub fn link_executable(options: &LinkerOptions) -> Result<()> {
-    let linker = find_linker()?;
-
-    let mut args = Vec::new();
-
-    args.extend(generate_common_args(options));
-
-    if options.static_linking {
-        args.push("-static".to_string());
-    }
-
-    let output = Command::new(&linker)
-        .args(&args)
-        .output()
-        .map_err(|e| anyhow!("Failed to execute linker '{}': {}", linker, e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow!("Linker failed:\n{}", stderr));
-    }
-
-    Ok(())
+#[derive(Debug, Clone)]
+pub struct GccLinker {
+    args: Vec<String>,
+    command: String,
 }
 
-pub fn link_shared_library(lib_options: &LinkerOptions) -> Result<()> {
-    let linker = find_linker()?;
-
-    let mut args = Vec::new();
-
-    args.push("--shared".to_string());
-
-    args.extend(generate_common_args(lib_options));
-
-    let output = Command::new(&linker)
-        .args(&args)
-        .output()
-        .map_err(|e| anyhow!("Failed to execute linker '{}': {}", linker, e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow!("Linker failed:\n{}", stderr));
+impl GccLinker {
+    pub fn new() -> Result<Self> {
+        let command = Self::find_linker()?;
+        Ok(Self { args: Vec::new(), command })
     }
 
-    Ok(())
+    fn find_linker() -> Result<String> {
+        let linkers = ["gcc"]; 
+
+        for linker in &linkers {
+            if Command::new(linker).arg("--version").output().is_ok() {
+                return Ok(linker.to_string());
+            }
+        }
+
+        Err(anyhow!(
+            "No suitable linker found. Tried: {}",
+            linkers.join(", ")
+        ))
+    }
 }
 
-fn find_linker() -> Result<String> {
-    let linkers = ["gcc"];
+impl Linker for GccLinker {
+    fn add_output(&mut self, output_path: &str) {
+        self.args.push("-o".to_string());
+        self.args.push(output_path.to_string());
+    }
 
-    for linker in &linkers {
-        if Command::new(linker).arg("--version").output().is_ok() {
-            return Ok(linker.to_string());
+    fn add_objects(&mut self, objects: &[String]) {
+        self.args.extend(objects.to_owned());
+    }
+
+    fn include_libc(&mut self) {
+        // ggc always links libc
+    }
+
+    fn add_libraries(&mut self, libraries: &[String]) {
+        for lib in libraries {
+            self.args.push(format!("-l{lib}"));
         }
     }
 
-    Err(anyhow!(
-        "No suitable linker found. Tried: {}",
-        linkers.join(", ")
-    ))
+    fn strip_symbols(&mut self) {
+        self.args.push("-s".to_string());
+    }
+
+    fn add_static(&mut self) {
+        self.args.push("-static".to_string());
+    }
+
+    fn add_shared(&mut self) {
+        self.args.push("-shared".to_string());
+    }
+
+    fn add_pie(&mut self) {
+        self.args.push("-pie".to_string());
+    }
+
+    fn command(&self) -> &str {
+        &self.command
+    }
+
+    fn args(&self) -> &[String] {
+        &self.args
+    }
+}
+
+pub fn link_executable(linker: &mut impl Linker, options: &LinkerOptions) -> Result<()> {
+    linker.add_output(&options.output_path);
+    linker.add_objects(&options.object_files);
+    linker.add_libraries(&options.libraries);
+
+    if options.strip_symbols {
+        linker.strip_symbols();
+    }
+
+    if options.static_linking {
+        linker.add_static();
+    }
+
+    if options.link_libc {
+        linker.include_libc();
+    }
+
+    if options.pie {
+        linker.add_pie();
+    }
+
+    run_linker(linker)
+}
+
+pub fn link_shared_library(linker: &mut impl Linker, options: &LinkerOptions) -> Result<()> {
+    linker.add_output(&options.output_path);
+    linker.add_objects(&options.object_files);
+    linker.add_libraries(&options.libraries);
+    linker.add_shared();
+
+    if options.strip_symbols {
+        linker.strip_symbols();
+    }
+
+    run_linker(linker)
+}
+
+fn run_linker(linker: &impl Linker) -> Result<()> {
+    let output = Command::new(linker.command())
+    .args(linker.args())
+    .output()
+    .map_err(|e| anyhow!("Failed to execute linker '{}': {}", linker.command(), e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("Linker failed:\n{}", stderr);
+    }
+
+    Ok(())
 }
 
 pub fn link_object_files(
@@ -131,9 +185,11 @@ pub fn link_object_files(
         pie,
     };
 
+    let mut linker = GccLinker::new()?;
+
     if is_shared {
-        link_shared_library(&options)
+        link_shared_library(&mut linker, &options)
     } else {
-        link_executable(&options)
+        link_executable(&mut linker, &options)
     }
 }

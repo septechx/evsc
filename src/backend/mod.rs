@@ -89,8 +89,8 @@ pub fn build_executable(
     object_files: &[&Path],
     output_path: &Path,
     is_shared: bool,
-    verbose: bool,
     link_libc: bool,
+    pie: bool,
 ) -> Result<()> {
-    linker::link_object_files(object_files, output_path, is_shared, verbose, link_libc)
+    linker::link_object_files(object_files, output_path, is_shared, link_libc, pie)
 }

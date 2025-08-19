@@ -37,6 +37,7 @@ pub struct CompileOptions<'a> {
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
     pub link_libc: bool,
+    pub pic: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -66,9 +67,15 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
         EmitType::Executable => {
             let temp_obj_path = opts.output_file.with_extension("o");
             build_object_file(&temp_obj_path, &module, opts.backend_options)?;
-            
+
             let object_files = vec![temp_obj_path.as_path()];
-            build_executable(&object_files, opts.output_file, false, false, opts.link_libc)?;
+            build_executable(
+                &object_files,
+                opts.output_file,
+                false,
+                opts.link_libc,
+                opts.pic,
+            )?;
 
             if let Err(e) = std::fs::remove_file(&temp_obj_path) {
                 eprintln!("Warning: Failed to remove temporary object file: {}", e);

@@ -45,7 +45,8 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     output_file: &test_path.join(format!("{name}.ll")),
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
-                    link_libc: true,
+                    link_libc: true, // Doesn't matter with EmitType::LLVM
+                    pic: true,       // Doesn't matter with EmitType::LLVM
                 };
                 intermediate::compile(ast, &opts)?;
                 let name_old = format!("{name}.ll");

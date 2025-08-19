@@ -78,9 +78,6 @@ pub struct Cli {
     #[clap(long = "no-link", help = "Only compile, do not link")]
     pub no_link: bool,
 
-    #[clap(long = "verbose-link", help = "Verbose linker output")]
-    pub verbose_link: bool,
-
     #[clap(long = "strip", help = "Strip symbols from executable")]
     pub strip: bool,
 

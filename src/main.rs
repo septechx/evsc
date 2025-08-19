@@ -118,6 +118,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         output_file: &output,
         backend_options: &backend_opts,
         link_libc: !cli.no_libc,
+        pic: !cli.no_pie,
     };
 
     let source_text = fs::read_to_string(&file_path)?;
@@ -131,12 +132,18 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
             .filter(|f| f.extension().map_or(false, |ext| ext == "o"))
             .map(|f| f.as_path())
             .collect();
-        
+
         if !additional_objects.is_empty() {
             let temp_obj_path = output.with_extension("o");
             let mut all_objects = vec![temp_obj_path.as_path()];
             all_objects.extend(additional_objects);
-            backend::build_executable(&all_objects, &output, cli.shared, cli.verbose_link, !cli.no_libc)?;
+            backend::build_executable(
+                &all_objects,
+                &output,
+                cli.shared,
+                !cli.no_libc,
+                !cli.no_pie,
+            )?;
         }
     }
 
@@ -198,7 +205,8 @@ mod tests {
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
-                    link_libc: true,
+                    link_libc: true, // Doesn't matter with EmitType::LLVM
+                    pic: true,       // Doesn't matter with EmitType::LLVM
                 };
                 let res = intermediate::compile(ast.unwrap(), &opts);
                 if status("Compiling", &name, res.is_ok()) {

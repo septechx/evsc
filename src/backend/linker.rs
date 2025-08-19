@@ -8,8 +8,8 @@ pub struct LinkerOptions {
     pub libraries: Vec<String>,
     pub static_linking: bool,
     pub strip_symbols: bool,
-    pub verbose: bool,
     pub link_libc: bool,
+    pub pie: bool,
 }
 
 impl Default for LinkerOptions {
@@ -20,15 +20,13 @@ impl Default for LinkerOptions {
             libraries: Vec::new(),
             static_linking: false,
             strip_symbols: false,
-            verbose: false,
             link_libc: true,
+            pie: true,
         }
     }
 }
 
-pub fn link_executable(options: &LinkerOptions) -> Result<()> {
-    let linker = find_linker()?;
-
+pub fn generate_common_args(options: &LinkerOptions) -> Vec<String> {
     let mut args = Vec::new();
 
     args.push("-o".to_string());
@@ -43,20 +41,22 @@ pub fn link_executable(options: &LinkerOptions) -> Result<()> {
         args.push(format!("-l{lib}"));
     }
 
-    if options.static_linking {
-        args.push("-static".to_string());
-    }
-
     if options.strip_symbols {
         args.push("-s".to_string());
     }
 
-    if options.verbose {
-        args.push("-v".to_string());
-    }
+    args
+}
 
-    if options.verbose {
-        eprintln!("Running linker: {linker} {args:?}");
+pub fn link_executable(options: &LinkerOptions) -> Result<()> {
+    let linker = find_linker()?;
+
+    let mut args = Vec::new();
+
+    args.extend(generate_common_args(options));
+
+    if options.static_linking {
+        args.push("-static".to_string());
     }
 
     let output = Command::new(&linker)
@@ -69,13 +69,6 @@ pub fn link_executable(options: &LinkerOptions) -> Result<()> {
         return Err(anyhow!("Linker failed:\n{}", stderr));
     }
 
-    if options.verbose {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if !stdout.is_empty() {
-            eprintln!("Linker output:\n{stdout}");
-        }
-    }
-
     Ok(())
 }
 
@@ -86,22 +79,7 @@ pub fn link_shared_library(lib_options: &LinkerOptions) -> Result<()> {
 
     args.push("--shared".to_string());
 
-    args.push("-o".to_string());
-    args.push(lib_options.output_path.clone());
-
-    args.extend(lib_options.object_files.clone());
-
-    for lib in &lib_options.libraries {
-        args.push(format!("-l{lib}"));
-    }
-
-    if lib_options.verbose {
-        args.push("-v".to_string());
-    }
-
-    if lib_options.verbose {
-        eprintln!("Running linker for shared library: {linker} {args:?}");
-    }
+    args.extend(generate_common_args(lib_options));
 
     let output = Command::new(&linker)
         .args(&args)
@@ -135,8 +113,8 @@ pub fn link_object_files(
     object_files: &[&Path],
     output_path: &Path,
     is_shared: bool,
-    verbose: bool,
     link_libc: bool,
+    pie: bool,
 ) -> Result<()> {
     let object_paths: Vec<String> = object_files
         .iter()
@@ -149,8 +127,8 @@ pub fn link_object_files(
         libraries: Vec::new(),
         static_linking: false,
         strip_symbols: false,
-        verbose,
         link_libc,
+        pie,
     };
 
     if is_shared {

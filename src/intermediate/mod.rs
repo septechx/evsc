@@ -28,7 +28,9 @@ use crate::{
     backend::{
         build_assembly_file, build_executable, build_object_file, BackendOptions, LinkerKind,
     },
+    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock, SourceLocation},
     intermediate::{compiler::CompilationContext, emmiter::emit_to_file},
+    ERRORS,
 };
 
 #[derive(Debug)]
@@ -36,6 +38,7 @@ pub struct CompileOptions<'a> {
     pub module_name: &'a str,
     pub source_dir: &'a Path,
     pub output_file: &'a Path,
+    pub source_file: &'a Path,
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
     pub pic: bool,
@@ -63,7 +66,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
     if *opts.emit == EmitType::Executable {
-        generate_c_runtime_integration(&context, &module, &builder)?;
+        generate_c_runtime_integration(&context, &module, &builder, opts.source_file)?;
     }
 
     match opts.emit {
@@ -74,7 +77,12 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             let linker_kind = if let Some(linker_kind) = opts.linker_kind {
                 linker_kind
             } else {
-                bail!("Linker kind not specified for executable")
+                ERRORS.lock().add_simple(
+                    ErrorLevel::Fatal,
+                    "Linker kind not specified for executable".to_string(),
+                );
+
+                unreachable!()
             };
 
             let temp_obj_path = opts.output_file.with_extension("o");
@@ -90,7 +98,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             )?;
 
             if let Err(e) = std::fs::remove_file(&temp_obj_path) {
-                eprintln!("Warning: Failed to remove temporary object file: {e}");
+                ERRORS.lock().add_simple(
+                    ErrorLevel::Warning,
+                    format!("Failed to remove temporary object file: {e}"),
+                );
             }
         }
     }
@@ -179,6 +190,7 @@ pub fn generate_c_runtime_integration<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
+    source_file: &Path,
 ) -> Result<()> {
     let start_fn_type = context.void_type().fn_type(&[], false);
     let start_fn = module.add_function("_start", start_fn_type, None);
@@ -199,7 +211,18 @@ pub fn generate_c_runtime_integration<'ctx>(
 
         create_exit_syscall(context, builder, result_value)?;
     } else {
-        bail!("Main function not found")
+        ERRORS.lock().add(
+            CompilationError::new(ErrorLevel::Fatal, "Main function not found".to_string())
+                .with_code(CodeLine::new(
+                    1,
+                    "pub fn main() void {}".to_string(),
+                    CodeType::Add,
+                ))
+                .with_info(InfoBlock::new(
+                    "Add a main function or compile with `--no-link`".to_string(),
+                ))
+                .with_location(SourceLocation::new(source_file.to_path_buf(), 1, 1, 1)),
+        );
     }
 
     builder.build_unreachable()?;
@@ -218,7 +241,7 @@ fn create_exit_syscall<'ctx>(
 
     let exit_asm = context.create_inline_asm(
         exit_ty,
-        "mov rax, 60\nmov edi, $0\nsyscall".to_string(),
+        "mov rax, 60\nmov rdi, $0\nsyscall".to_string(),
         "r".to_string(),
         true,
         false,

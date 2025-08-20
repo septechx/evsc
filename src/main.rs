@@ -28,8 +28,8 @@ use crate::{
     errors::ErrorCollector,
     intermediate::{CompileOptions, EmitType},
     lexer::lexer::tokenize,
-    parser::parser::parse,
     lexer::token::extract_tokens,
+    parser::parser::parse,
 };
 
 lazy_static! {
@@ -130,6 +130,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         source_dir,
         emit: &emit,
         output_file: &output,
+        source_file: &file_path,
         backend_options: &backend_opts,
         pic: !cli.no_pie,
         linker_kind: Some(linker_kind),
@@ -172,8 +173,8 @@ mod tests {
         backend::BackendOptions,
         intermediate::{self, CompileOptions, EmitType},
         lexer::lexer::tokenize,
-        parser::parser::parse,
         lexer::token::extract_tokens,
+        parser::parser::parse,
     };
 
     fn status(task: &str, file: &str, ok: bool) -> bool {
@@ -217,6 +218,7 @@ mod tests {
                 let opts = CompileOptions {
                     module_name: &format!("{i:02}-test"),
                     source_dir: test_path,
+                    source_file: &path,
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),

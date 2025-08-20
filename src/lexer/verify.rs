@@ -1,19 +1,19 @@
 use crate::{
-    errors::{CodeLine, ErrorLevel},
-    lexer::token::LocatedToken,
+    errors::{CodeLine, CodeType, ErrorLevel},
+    lexer::token::{LocatedToken, Token},
     ERRORS,
 };
 
 pub fn verify_tokens(tokens: &[LocatedToken]) {
     for token in tokens {
-        if let crate::lexer::token::Token::Illegal(c) = &token.token {
+        if let Token::Illegal(c) = &token.token {
             let line = build_line_with_positions(tokens, token.location.line);
 
             ERRORS.lock().add_with_location_and_code(
                 ErrorLevel::Fatal,
                 format!("Illegal token: {c}"),
                 token.location.clone(),
-                CodeLine::new(token.location.line, line),
+                CodeLine::new(token.location.line, line, CodeType::None),
             );
         }
     }

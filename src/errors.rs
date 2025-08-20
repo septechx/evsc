@@ -3,6 +3,7 @@ use std::{
     collections::HashMap,
     fmt::{self, Display, Formatter},
     path::PathBuf,
+    process,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -56,48 +57,43 @@ impl Display for SourceLocation {
 #[derive(Debug, Clone)]
 pub struct InfoBlock {
     pub title: String,
-    pub content: String,
-    pub suggestion: Option<String>,
 }
 
 impl InfoBlock {
-    pub fn new(title: String, content: String) -> Self {
-        Self {
-            title,
-            content,
-            suggestion: None,
-        }
-    }
-
-    pub fn with_suggestion(mut self, suggestion: String) -> Self {
-        self.suggestion = Some(suggestion);
-        self
+    pub fn new(title: String) -> Self {
+        Self { title }
     }
 }
 
 impl Display for InfoBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "  {} {}", "→".blue(), self.title.bold())?;
-        writeln!(f, "    {}", self.content)?;
-
-        if let Some(suggestion) = &self.suggestion {
-            writeln!(f, "  {} {}", "💡".yellow(), "Suggestion:".yellow().bold())?;
-            writeln!(f, "    {}", suggestion.green())?;
-        }
+        writeln!(f, "{}", self.title)?;
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodeType {
+    Add,
+    Remove,
+    None,
 }
 
 #[derive(Debug, Clone)]
 pub struct CodeLine {
     pub line: usize,
     pub code: String,
+    pub code_type: CodeType,
 }
 
 impl CodeLine {
-    pub fn new(line: usize, code: String) -> Self {
-        Self { line, code }
+    pub fn new(line: usize, code: String, code_type: CodeType) -> Self {
+        Self {
+            line,
+            code,
+            code_type,
+        }
     }
 }
 
@@ -154,10 +150,20 @@ impl CompilationError {
         }
 
         if let Some(code) = &self.code {
+            let line = code.line.to_string();
+            writeln!(f, "{} {}", " ".repeat(line.len()), "|".purple())?;
+            writeln!(
+                f,
+                "{} {} {}",
+                line.purple(),
+                "|".purple(),
+                match code.code_type {
+                    CodeType::Add => code.code.green(),
+                    CodeType::Remove => code.code.red(),
+                    CodeType::None => code.code.normal(),
+                }
+            )?;
             if let Some(location) = &self.location {
-                let line = code.line.to_string();
-                writeln!(f, "{} {}", " ".repeat(line.len()), "|".purple())?;
-                writeln!(f, "{} {} {}", line.purple(), "|".purple(), code.code)?;
                 let underline = if location.length > 1 {
                     " ".repeat(location.column - 1) + &"^".repeat(location.length)
                 } else {
@@ -170,11 +176,21 @@ impl CompilationError {
                     "|".purple(),
                     underline.red().bold()
                 )?;
+            } else {
+                writeln!(f, "{} {}", " ".repeat(line.len()), "|".purple())?;
             }
         }
 
-        for info in &self.info_blocks {
-            writeln!(f, "{} note: {}", "=".purple(), info)?;
+        if let Some(code) = &self.code {
+            for info in &self.info_blocks {
+                writeln!(
+                    f,
+                    "{} {} note: {}",
+                    " ".repeat(code.line.to_string().len()),
+                    "=".purple(),
+                    info
+                )?;
+            }
         }
 
         Ok(())
@@ -216,7 +232,7 @@ impl ErrorCollector {
     pub fn add(&mut self, error: CompilationError) {
         if error.level == ErrorLevel::Fatal && self.should_panic_on_fatal {
             eprintln!("{}", error);
-            panic!("Fatal compilation error occurred");
+            process::exit(1);
         }
 
         self.errors.push(error);
@@ -230,12 +246,16 @@ impl ErrorCollector {
                 ),
             );
             eprintln!("{}", max_error);
-            panic!("Compilation stopped due to too many errors");
+            process::exit(1);
         }
     }
 
     pub fn add_simple(&mut self, level: ErrorLevel, message: String) {
         self.add(CompilationError::new(level, message));
+    }
+
+    pub fn add_with_info(&mut self, level: ErrorLevel, message: String, info: InfoBlock) {
+        self.add(CompilationError::new(level, message).with_info(info));
     }
 
     pub fn add_with_location(
@@ -393,13 +413,8 @@ mod tests {
 
     #[test]
     fn test_info_block() {
-        let info = InfoBlock::new(
-            "Type mismatch".to_string(),
-            "Expected integer, got string".to_string(),
-        )
-        .with_suggestion("Use .to_int() method".to_string());
+        let info = InfoBlock::new("Type mismatch".to_string());
 
         assert_eq!(info.title, "Type mismatch");
-        assert!(info.suggestion.is_some());
     }
 }

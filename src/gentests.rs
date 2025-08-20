@@ -4,8 +4,8 @@ use crate::{
     backend::BackendOptions,
     intermediate::{self, CompileOptions, EmitType},
     lexer::lexer::tokenize,
-    parser::parser::parse,
     lexer::token::extract_tokens,
+    parser::parser::parse,
 };
 
 pub fn check() -> anyhow::Result<()> {
@@ -61,6 +61,7 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     module_name: name,
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{name}.ll")),
+                    source_file: &path,
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
                     pic: true, // Doesn't matter with EmitType::LLVM

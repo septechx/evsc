@@ -30,6 +30,7 @@ use crate::{
     lexer::lexer::tokenize,
     lexer::token::extract_tokens,
     parser::parser::parse,
+    lexer::token::extract_tokens,
 };
 
 lazy_static! {

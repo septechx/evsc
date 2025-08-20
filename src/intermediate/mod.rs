@@ -9,7 +9,7 @@ mod resolve_lib;
 
 use std::path::Path;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -77,10 +77,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             let linker_kind = if let Some(linker_kind) = opts.linker_kind {
                 linker_kind
             } else {
-                ERRORS.lock().add_simple(
+                ERRORS.lock().add(CompilationError::new(
                     ErrorLevel::Fatal,
                     "Linker kind not specified for executable".to_string(),
-                );
+                ));
 
                 unreachable!()
             };
@@ -98,10 +98,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             )?;
 
             if let Err(e) = std::fs::remove_file(&temp_obj_path) {
-                ERRORS.lock().add_simple(
+                ERRORS.lock().add(CompilationError::new(
                     ErrorLevel::Warning,
                     format!("Failed to remove temporary object file: {e}"),
-                );
+                ));
             }
         }
     }

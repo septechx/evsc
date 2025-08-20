@@ -1,6 +1,9 @@
 use std::process::Command;
 
-use crate::{errors::ErrorLevel, ERRORS};
+use crate::{
+    errors::{CompilationError, ErrorLevel},
+    ERRORS,
+};
 
 use super::Linker;
 
@@ -20,10 +23,10 @@ impl LdLinker {
             }
         }
 
-        ERRORS.lock().add_simple(
+        ERRORS.lock().add(CompilationError::new(
             ErrorLevel::Fatal,
             format!("No suitable linker found. Tried: {}", linkers.join(", ")),
-        );
+        ));
 
         unreachable!()
     }

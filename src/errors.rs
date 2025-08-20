@@ -250,37 +250,6 @@ impl ErrorCollector {
         }
     }
 
-    pub fn add_simple(&mut self, level: ErrorLevel, message: String) {
-        self.add(CompilationError::new(level, message));
-    }
-
-    pub fn add_with_info(&mut self, level: ErrorLevel, message: String, info: InfoBlock) {
-        self.add(CompilationError::new(level, message).with_info(info));
-    }
-
-    pub fn add_with_location(
-        &mut self,
-        level: ErrorLevel,
-        message: String,
-        location: SourceLocation,
-    ) {
-        let error = CompilationError::new(level, message).with_location(location);
-        self.add(error);
-    }
-
-    pub fn add_with_location_and_code(
-        &mut self,
-        level: ErrorLevel,
-        message: String,
-        location: SourceLocation,
-        code: CodeLine,
-    ) {
-        let error = CompilationError::new(level, message)
-            .with_location(location)
-            .with_code(code);
-        self.add(error);
-    }
-
     pub fn has_errors(&self) -> bool {
         self.errors.iter().any(|e| e.level >= ErrorLevel::Error)
     }
@@ -391,9 +360,18 @@ mod tests {
     fn test_error_collector() {
         let mut collector = ErrorCollector::new();
 
-        collector.add_simple(ErrorLevel::Info, "Info message".to_string());
-        collector.add_simple(ErrorLevel::Warning, "Warning message".to_string());
-        collector.add_simple(ErrorLevel::Error, "Error message".to_string());
+        collector.add(CompilationError::new(
+            ErrorLevel::Info,
+            "Info message".to_string(),
+        ));
+        collector.add(CompilationError::new(
+            ErrorLevel::Warning,
+            "Warning message".to_string(),
+        ));
+        collector.add(CompilationError::new(
+            ErrorLevel::Error,
+            "Error message".to_string(),
+        ));
 
         assert_eq!(collector.get_all_errors().len(), 3);
         assert!(collector.has_errors());

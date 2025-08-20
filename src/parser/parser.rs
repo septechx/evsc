@@ -18,6 +18,10 @@ impl Parser {
         Parser { tokens, pos: 0 }
     }
 
+    pub fn tokens(&self) -> &[Token] {
+        &self.tokens
+    }
+
     pub fn current_token(&self) -> Token {
         if self.pos < self.tokens.len() {
             self.tokens[self.pos].clone()

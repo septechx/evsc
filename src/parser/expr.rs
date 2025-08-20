@@ -12,24 +12,45 @@ use crate::{
             SymbolExpr,
         },
     },
-    lexer::token::TokenKind,
+    errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
+    lexer::{
+        token::{Token, TokenKind},
+        verify::build_line_with_positions,
+    },
     parser::{
         lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
         parser::Parser,
         types::parse_type,
     },
+    ERRORS,
 };
 
+fn handle_unexpected_token(parser: &mut Parser, token: Token) -> ! {
+    ERRORS.lock().add(
+        CompilationError::new(
+            ErrorLevel::Fatal,
+            format!("Syntax error: Unexpected token `{}`", token.value),
+        )
+        .with_location(parser.current_token().location.clone())
+        .with_code(CodeLine::new(
+            token.location.line,
+            build_line_with_positions(parser.tokens(), token.location.line),
+            CodeType::None,
+        )),
+    );
+
+    unreachable!()
+}
+
 pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
-    let token_kind = parser.current_token().kind;
+    let token = parser.current_token();
 
     let nud_fn = {
         let nud_lu = NUD_LU.lock().unwrap();
-        nud_lu.get(&token_kind).cloned().ok_or_else(|| {
-            anyhow!(format!("Nud handler expected for token {token_kind:?}")
-                .red()
-                .bold())
-        })?
+        nud_lu
+            .get(&token.kind)
+            .cloned()
+            .unwrap_or_else(|| handle_unexpected_token(parser, token.clone()))
     };
 
     let mut left = nud_fn(parser)?;
@@ -49,11 +70,10 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
         let token_kind = parser.current_token();
         let led_fn = {
             let led_lu = LED_LU.lock().unwrap();
-            led_lu.get(&token_kind.kind).cloned().ok_or_else(|| {
-                anyhow!(format!("Led handler expected for token {token_kind:?}")
-                    .red()
-                    .bold())
-            })?
+            led_lu
+                .get(&token_kind.kind)
+                .cloned()
+                .unwrap_or_else(|| handle_unexpected_token(parser, token_kind.clone()))
         };
 
         left = led_fn(parser, left.clone(), current_bp)?;

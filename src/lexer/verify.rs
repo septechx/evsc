@@ -1,5 +1,5 @@
 use crate::{
-    errors::{CodeLine, CodeType, ErrorLevel},
+    errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
     lexer::token::{Token, TokenKind},
     ERRORS,
 };
@@ -10,17 +10,16 @@ pub fn verify_tokens(tokens: &[Token]) {
             let line = build_line_with_positions(tokens, token.location.line);
             let c = token.value.chars().next().unwrap_or('\0');
 
-            ERRORS.lock().add_with_location_and_code(
-                ErrorLevel::Fatal,
-                format!("Illegal token: {c}"),
-                token.location.clone(),
-                CodeLine::new(token.location.line, line, CodeType::None),
+            ERRORS.lock().add(
+                CompilationError::new(ErrorLevel::Fatal, format!("Illegal token: {c}"))
+                    .with_location(token.location.clone())
+                    .with_code(CodeLine::new(token.location.line, line, CodeType::None)),
             );
         }
     }
 }
 
-fn build_line_with_positions(tokens: &[Token], target_line: usize) -> String {
+pub fn build_line_with_positions(tokens: &[Token], target_line: usize) -> String {
     let line_tokens: Vec<_> = tokens
         .iter()
         .filter(|t| t.location.line == target_line)

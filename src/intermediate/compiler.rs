@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use inkwell::{
     AddressSpace,
     builder::Builder,
@@ -18,6 +18,7 @@ use crate::{
         },
     },
     bindings::llvm_bindings::create_named_struct,
+    errors::helpers,
     intermediate::{
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
@@ -273,7 +274,8 @@ fn compile_var_decl<'a, 'ctx>(
     let value = if let Some(expr) = &var_decl.assigned_value {
         compile_expression_to_value(context, module, builder, expr, compilation_context)?
     } else {
-        bail!("Variable must have an initial value");
+        helpers::add_error("Variable must have an initial value");
+        return Ok(());
     };
 
     if var_decl.is_static {

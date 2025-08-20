@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use std::{
     collections::HashMap,
     mem::{self, Discriminant},
@@ -21,6 +21,7 @@ use crate::{
         },
         parser::Parser,
     },
+    errors::helpers,
 };
 
 type TypeNudHandler = fn(&mut Parser) -> Result<Type>;
@@ -86,12 +87,13 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
                 underlying: Box::new(underlying),
             }))
         }
-        _ => Err(anyhow!(format!(
-            "Expected number or ']' in array type, got {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold())),
+        _ => {
+            helpers::add_error(format!(
+                "Expected number or ']' in array type, got {:?}",
+                parser.current_token()
+            ));
+            Ok(Type::Symbol(SymbolType { name: "dummy".to_string() }))
+        }
     }
 }
 
@@ -165,9 +167,8 @@ fn parse_function_type(parser: &mut Parser) -> Result<Type> {
         if parser.current_token() == Token::Comma {
             parser.advance();
         } else if parser.current_token() != Token::CloseParen {
-            bail!("Expected comma or closing parenthesis in function type"
-                .red()
-                .bold());
+            helpers::add_error("Expected comma or closing parenthesis in function type");
+            parser.advance();
         }
     }
     parser.expect(Token::CloseParen)?;

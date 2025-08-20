@@ -4,7 +4,6 @@ pub extern fn @asm(asm: []const u8, constraints: []const u8, ...) void;
 #[internal]
 pub extern fn @import(path: []const u8) any;
 
-// Implementation detail: Slices aren't actually generic, ptr is *const any and only one struct is defined per program.
 #[internal]
 pub struct Slice<T> {
   ptr: *const T,

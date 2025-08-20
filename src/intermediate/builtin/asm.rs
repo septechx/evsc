@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -10,6 +10,7 @@ use inkwell::{
 
 use crate::{
     ast::{ast::Expression, expressions::FunctionCallExpr},
+    errors::helpers,
     intermediate::{
         compile_expr::compile_expression_to_value,
         compiler::CompilationContext,
@@ -26,7 +27,12 @@ pub fn handle_asm_call<'ctx>(
 ) -> Result<SmartValue<'ctx>> {
     let (asm_str, constraints) = match (&expr.arguments[0], &expr.arguments[1]) {
         (Expression::String(asm), Expression::String(cons)) => (asm, cons),
-        _ => bail!("First two arguments must be string literals"),
+        _ => {
+            helpers::add_error("First two arguments must be string literals");
+            return Ok(SmartValue::from_value(
+                context.i32_type().const_int(0, false).as_basic_value_enum()
+            ));
+        }
     };
 
     let mut operands: Vec<BasicMetadataValueEnum> = Vec::new();

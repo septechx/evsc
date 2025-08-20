@@ -1,17 +1,19 @@
 use std::{collections::HashMap, mem};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 
 use crate::{
     ast::{
-        ast::Expression,
+        ast::{Expression, Type},
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr,
             SymbolExpr,
         },
+        types::SymbolType,
     },
+    errors::helpers,
     lexer::token::Token,
     parser::{
         lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
@@ -82,12 +84,13 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
             parser.advance();
             Ok(Expression::Symbol(SymbolExpr { value }))
         }
-        _ => bail!(format!(
-            "Cannot create primary expression from {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold()),
+        _ => {
+            helpers::add_error(format!(
+                "Cannot create primary expression from {:?}",
+                parser.current_token()
+            ));
+            Ok(Expression::Number(NumberExpr { value: 0 }))
+        }
     }
 }
 
@@ -148,7 +151,10 @@ pub fn parse_struct_instantiation_expr(
 
     let name = match name_expr {
         Expression::Symbol(symbol_expr) => symbol_expr.value,
-        _ => return Err(anyhow!("Expected struct name to be a symbol")),
+        _ => {
+            helpers::add_error("Expected struct name to be a symbol");
+            return Ok(Expression::Symbol(SymbolExpr { value: "dummy".to_string() }));
+        }
     };
 
     let mut properties: HashMap<String, Expression> = HashMap::new();
@@ -241,13 +247,14 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             parser.expect(Token::CloseCurly)?;
 
             if contents.len() != length {
-                bail!(format!(
+                helpers::add_error(format!(
                     "Fixed array literal has {} elements but expected {}",
                     contents.len(),
                     length
-                )
-                .red()
-                .bold());
+                ));
+                while contents.len() < length {
+                    contents.push(Expression::Number(NumberExpr { value: 0 }));
+                }
             }
 
             Ok(Expression::FixedArrayLiteral(FixedArrayLiteralExpr {
@@ -278,12 +285,16 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
                 contents,
             }))
         }
-        _ => Err(anyhow!(format!(
-            "Expected number or ']' in array literal, got {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold())),
+        _ => {
+            helpers::add_error(format!(
+                "Expected number or ']' in array literal, got {:?}",
+                parser.current_token()
+            ));
+            Ok(Expression::ArrayLiteral(ArrayLiteralExpr {
+                underlying: Type::Symbol(SymbolType { name: "dummy".to_string() }),
+                contents: vec![],
+            }))
+        }
     }
 }
 

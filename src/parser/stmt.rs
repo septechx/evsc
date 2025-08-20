@@ -1,16 +1,14 @@
 use std::mem;
 
-use anyhow::{bail, Result};
-use colored::Colorize;
-
 use crate::{
     ast::{
         ast::{Expression, Statement, Type},
+        expressions::NumberExpr,
         statements::{
-            ExpressionStmt, FnArgument, FnDeclStmt, ReturnStmt, StructDeclStmt, StructMethod,
-            StructProperty, VarDeclStmt,
+            ExpressionStmt, FnArgument, FnDeclStmt, ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
+    errors::helpers,
     lexer::token::Token,
     parser::{
         expr::parse_expr,
@@ -19,6 +17,8 @@ use crate::{
         types::parse_type,
     },
 };
+
+use anyhow::Result;
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Statement> {
     let stmt_fn = {
@@ -45,22 +45,26 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
     let is_static = match parser.current_token() {
         Token::Static => true,
         Token::Let => false,
-        _ => bail!(
-            "Expected 'let' or 'static' keyword, recieved {:?}",
-            parser.current_token()
-        ),
+        _ => {
+            helpers::add_error(format!(
+                "Expected 'let' or 'static' keyword, recieved {:?}",
+                parser.current_token()
+            ));
+            false
+        }
     };
 
     parser.advance();
 
-    let is_constant = parser.current_token() != Token::Mut;
+    let mut is_constant = parser.current_token() != Token::Mut;
 
     if !is_constant {
         parser.advance();
     }
 
     if is_static && !is_constant {
-        anyhow::bail!("Static variables must be constant");
+        helpers::add_error("Static variables must be constant");
+        is_constant = true;
     }
 
     let variable_name = parser
@@ -81,15 +85,15 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
         parser.expect(Token::Equals)?;
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
     } else if explicit_type.is_none() {
-        anyhow::bail!("Missing type or value in variable declaration".red().bold());
+        helpers::add_error("Missing type or value in variable declaration");
+        assigned_value = Some(Expression::Number(NumberExpr { value: 0 }));
     }
 
     parser.expect(Token::Semicolon)?;
 
     if is_constant && assigned_value.is_none() {
-        anyhow::bail!("Cannot define constant without providing a value"
-            .red()
-            .bold());
+        helpers::add_error("Cannot define constant without providing a value");
+        assigned_value = Some(Expression::Number(NumberExpr { value: 0 }));
     }
 
     Ok(Statement::VarDecl(VarDeclStmt {
@@ -154,11 +158,8 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                bail!(
-                    format!("Property {property_name} has already been defined in struct")
-                        .red()
-                        .bold()
-                );
+                helpers::add_error(format!("Property {property_name} has already been defined in struct"));
+                continue;
             }
 
             properties.push(StructProperty {
@@ -170,12 +171,11 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        bail!(format!(
+        helpers::add_error(format!(
             "Unexpected token in struct declaration: {:?}",
             parser.current_token()
-        )
-        .red()
-        .bold());
+        ));
+        parser.advance();
     }
 
     parser.expect(Token::CloseCurly)?;
@@ -198,7 +198,12 @@ pub fn parse_pub_stmt(parser: &mut Parser) -> Result<Statement> {
         Statement::FnDecl(fn_decl_stmt) => {
             fn_decl_stmt.is_public = true;
         }
-        _ => return Err(anyhow::anyhow!("Expected function or struct declaration")),
+        _ => {
+            helpers::add_error("Expected function or struct declaration");
+            return Ok(Statement::Expression(ExpressionStmt {
+                expression: Expression::Number(NumberExpr { value: 0 }),
+            }));
+        }
     }
     Ok(stmt)
 }
@@ -236,11 +241,8 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                bail!(
-                    format!("Argument {argument_name} has already been defined in function")
-                        .red()
-                        .bold()
-                );
+                helpers::add_error(format!("Argument {argument_name} has already been defined in function"));
+                continue;
             }
 
             arguments.push(FnArgument {
@@ -251,12 +253,11 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        bail!(format!(
+        helpers::add_error(format!(
             "Unexpected token in function declaration: {:?}",
             parser.current_token()
-        )
-        .red()
-        .bold());
+        ));
+        parser.advance();
     }
 
     parser.expect(Token::CloseParen)?;

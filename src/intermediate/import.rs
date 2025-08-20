@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -20,6 +20,7 @@ use crate::{
     lexer::lexer::tokenize,
     parser::parser::parse,
     lexer::token::extract_tokens,
+    errors::helpers,
 };
 
 pub fn import_module<'ctx>(
@@ -30,12 +31,20 @@ pub fn import_module<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<SmartValue<'ctx>> {
     if expr.arguments.len() != 1 {
-        bail!("Expected one argument to @import");
+        helpers::add_error("Expected one argument to @import");
+        return Ok(SmartValue::from_value(
+            context.i32_type().const_int(0, false).as_basic_value_enum()
+        ));
     }
 
     let module_name = match &expr.arguments[0] {
         Expression::String(sym) => sym.value.clone(),
-        _ => bail!("Expected string literal as argument to @import"),
+        _ => {
+            helpers::add_error("Expected string literal as argument to @import");
+            return Ok(SmartValue::from_value(
+                context.i32_type().const_int(0, false).as_basic_value_enum()
+            ));
+        }
     };
 
     let module_path = if module_name == "std" {

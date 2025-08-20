@@ -375,6 +375,49 @@ pub mod builders {
     }
 }
 
+pub mod helpers {
+    use super::*;
+    use crate::ERRORS;
+
+    pub fn add_error(message: impl Into<String>) {
+        ERRORS.lock().add_simple(ErrorLevel::Error, message.into());
+    }
+
+    pub fn add_error_at(
+        message: impl Into<String>,
+        file: PathBuf,
+        line: usize,
+        column: usize,
+    ) {
+        ERRORS.lock().add_with_location(ErrorLevel::Error, message.into(), SourceLocation::simple(file, line, column));
+    }
+    pub fn add_fatal(message: impl Into<String>) {
+        ERRORS.lock().add_simple(ErrorLevel::Fatal, message.into());
+    }
+
+    pub fn add_fatal_at(
+        message: impl Into<String>,
+        file: PathBuf,
+        line: usize,
+        column: usize,
+    ) {
+        ERRORS.lock().add_with_location(ErrorLevel::Fatal, message.into(), SourceLocation::simple(file, line, column));
+    }
+
+    pub fn add_warning(message: impl Into<String>) {
+        ERRORS.lock().add_simple(ErrorLevel::Warning, message.into());
+    }
+
+    pub fn add_warning_at(
+        message: impl Into<String>,
+        file: PathBuf,
+        line: usize,
+        column: usize,
+    ) {
+        ERRORS.lock().add_with_location(ErrorLevel::Warning, message.into(), SourceLocation::simple(file, line, column));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

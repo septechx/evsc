@@ -1,10 +1,10 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum},
-    values::{BasicMetadataValueEnum, BasicValue},
+    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue},
     AddressSpace,
 };
 
@@ -13,6 +13,7 @@ use crate::{
         ast::{Expression, Type},
         types::SliceType,
     },
+    errors::helpers,
     intermediate::{
         builtin,
         compile_type::compile_type,
@@ -237,14 +238,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             if let Some(field_index) = struct_def.field_indices.get(&expr.member.value) {
                 match base.value.get_type() {
-                    BasicTypeEnum::StructType(_) => {
+                    inkwell::types::BasicTypeEnum::StructType(_) => {
                         SmartValue::from_value(builder.build_extract_value(
                             base.value.into_struct_value(),
                             *field_index,
                             "field",
                         )?)
                     }
-                    BasicTypeEnum::PointerType(_) => {
+                    inkwell::types::BasicTypeEnum::PointerType(_) => {
                         let loaded_struct = builder.build_load(struct_ty, base.value.into_pointer_value(), "loaded_struct")?;
                         let field_value = builder.build_extract_value(
                             loaded_struct.into_struct_value(),
@@ -253,7 +254,12 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         )?;
                         SmartValue::from_value(field_value)
                     }
-                    _ => bail!("Expected struct or pointer type, got {:?}", base_type),
+                    _ => {
+                        helpers::add_error(format!("Expected struct or pointer type, got {:?}", base_type));
+                        return Ok(SmartValue::from_value(
+                            context.i32_type().const_int(0, false).as_basic_value_enum()
+                        ));
+                    }
                 }
             } else if let Some(func) =
                 module.get_function(&format!("{}_{}", struct_name, expr.member.value))
@@ -263,7 +269,10 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     func.get_type().get_return_type().unwrap(),
                 )
             } else {
-                bail!("No such field or function: {}", expr.member.value);
+                helpers::add_error(format!("No such field or function: {}", expr.member.value));
+                return Ok(SmartValue::from_value(
+                    context.i32_type().const_int(0, false).as_basic_value_enum()
+                ));
             }
         }
         Expression::StructInstantiation(expr) => {
@@ -279,13 +288,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             // Field in instantiation but not in struct
             for field_name in expr.properties.keys() {
                 if !struct_def.field_indices.contains_key(field_name) {
-                    bail!("No such field {} in struct: {}", field_name, expr.name);
+                    helpers::add_error(format!("No such field {} in struct: {}", field_name, expr.name));
+                    continue;
                 }
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
                 if !expr.properties.contains_key(field_name) {
-                    bail!("Missing field {} in struct {}", field_name, expr.name);
+                    helpers::add_error(format!("Missing field {} in struct {}", field_name, expr.name));
                 }
             }
 
@@ -373,8 +383,13 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let slice_llvm_type = compile_type(context, &slice_ty, compilation_context);
 
             let slice_struct = match slice_llvm_type {
-                BasicTypeEnum::StructType(ty) => ty,
-                _ => bail!("Slice type did not compile to a struct"),
+                inkwell::types::BasicTypeEnum::StructType(ty) => ty,
+                _ => {
+                    helpers::add_error("Slice type did not compile to a struct");
+                    return Ok(SmartValue::from_value(
+                        context.i32_type().const_int(0, false).as_basic_value_enum()
+                    ));
+                }
             };
 
             let len_val = context.i64_type().const_int(len as u64, false);

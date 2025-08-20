@@ -1,14 +1,13 @@
 use std::mem;
 
-use colored::Colorize;
-
 use crate::{
     ast::{ast::Statement, statements::BlockStmt},
+    errors::helpers,
     lexer::token::Token,
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
 };
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -42,12 +41,14 @@ impl Parser {
         let token = self.current_token();
 
         if mem::discriminant(&token) != mem::discriminant(&expected_kind) {
-            bail!(err
+            let error_message = err
                 .unwrap_or(format!(
                     "Expected {expected_kind:?} but recieved {token:?} instead.",
-                ))
-                .red()
-                .bold());
+                ));
+            
+            helpers::add_error(error_message);
+            
+            return Ok(self.advance());
         }
 
         Ok(self.advance())

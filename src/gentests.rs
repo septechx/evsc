@@ -2,10 +2,12 @@ use std::{fs, path::Path};
 
 use crate::{
     backend::BackendOptions,
+    errors::ErrorLevel,
     intermediate::{self, CompileOptions, EmitType},
     lexer::lexer::tokenize,
-    parser::parser::parse,
     lexer::token::extract_tokens,
+    parser::parser::parse,
+    ERRORS,
 };
 
 pub fn check() -> anyhow::Result<()> {
@@ -55,18 +57,36 @@ pub fn gen_tests() -> anyhow::Result<()> {
             if name.ends_with(".evsc") {
                 let file = fs::read_to_string(&path)?;
                 let tokens = tokenize(file, &path)?;
+                
+                if ERRORS.lock().has_errors() {
+                    ERRORS.lock().print_errors(ErrorLevel::Error);
+                    std::process::exit(1);
+                }
+                
                 let ast = parse(extract_tokens(&tokens))?;
+                
+                if ERRORS.lock().has_errors() {
+                    ERRORS.lock().print_errors(ErrorLevel::Error);
+                    std::process::exit(1);
+                }
+                
                 let name_no_ext = name.strip_suffix(".evsc").unwrap();
                 let opts = CompileOptions {
                     module_name: name,
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{name}.ll")),
+                    source_file: &path,
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
                     pic: true, // Doesn't matter with EmitType::LLVM
                     linker_kind: None,
                 };
                 intermediate::compile(ast, &opts)?;
+                
+                if ERRORS.lock().has_errors() {
+                    ERRORS.lock().print_errors(ErrorLevel::Error);
+                    std::process::exit(1);
+                }
                 let name_old = format!("{name}.ll");
                 let name = name_no_ext.strip_suffix("-test").unwrap();
                 let name = format!("{name}.ll");

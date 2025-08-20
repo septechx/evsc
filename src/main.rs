@@ -25,9 +25,10 @@ use parking_lot::Mutex;
 use crate::{
     backend::{BackendOptions, LinkerKind},
     cli::{Cli, OptLevel},
-    errors::ErrorCollector,
+    errors::{ErrorCollector, ErrorLevel},
     intermediate::{CompileOptions, EmitType},
     lexer::lexer::tokenize,
+    lexer::token::extract_tokens,
     parser::parser::parse,
     lexer::token::extract_tokens,
 };
@@ -50,7 +51,16 @@ fn main() -> anyhow::Result<()> {
         .clone(); // $1/$2.evsc
     build_file(file_path, &cli)?;
 
+    ERRORS.lock().print_all();
+
     Ok(())
+}
+
+fn check_for_errors() {
+    if ERRORS.lock().has_errors() {
+        ERRORS.lock().print_all();
+        std::process::exit(1);
+    }
 }
 
 fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
@@ -130,15 +140,22 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
         source_dir,
         emit: &emit,
         output_file: &output,
+        source_file: &file_path,
         backend_options: &backend_opts,
         pic: !cli.no_pie,
         linker_kind: Some(linker_kind),
     };
 
     let source_text = fs::read_to_string(&file_path)?;
+
     let tokens = tokenize(source_text, &file_path)?;
+    check_for_errors();
+
     let ast = parse(extract_tokens(&tokens))?;
+    check_for_errors();
+
     intermediate::compile(ast, &opts)?;
+    check_for_errors();
 
     if cli.files.len() > 1 {
         let additional_objects: Vec<&Path> = cli.files[1..]
@@ -170,10 +187,12 @@ mod tests {
 
     use crate::{
         backend::BackendOptions,
+        errors::ErrorLevel,
         intermediate::{self, CompileOptions, EmitType},
         lexer::lexer::tokenize,
-        parser::parser::parse,
         lexer::token::extract_tokens,
+        parser::parser::parse,
+        ERRORS,
     };
 
     fn status(task: &str, file: &str, ok: bool) -> bool {
@@ -208,15 +227,30 @@ mod tests {
                     eprintln!("{}", tokens.err().unwrap());
                     continue;
                 };
+                
+                if ERRORS.lock().has_errors() {
+                    ERRORS.lock().print_errors(ErrorLevel::Error);
+                    failed = true;
+                    continue;
+                }
+                
                 let ast = parse(extract_tokens(&tokens.unwrap()));
                 if status("Parsing", &name, ast.is_ok()) {
                     failed = true;
                     eprintln!("{}", ast.err().unwrap());
                     continue;
                 };
+                
+                if ERRORS.lock().has_errors() {
+                    ERRORS.lock().print_errors(ErrorLevel::Error);
+                    failed = true;
+                    continue;
+                }
+                
                 let opts = CompileOptions {
                     module_name: &format!("{i:02}-test"),
                     source_dir: test_path,
+                    source_file: &path,
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
                     emit: &EmitType::LLVM,
                     backend_options: &BackendOptions::default(),
@@ -229,6 +263,12 @@ mod tests {
                     eprintln!("{}", res.err().unwrap());
                     continue;
                 };
+                
+                if ERRORS.lock().has_errors() {
+                    ERRORS.lock().print_errors(ErrorLevel::Error);
+                    failed = true;
+                    continue;
+                }
             }
 
             {

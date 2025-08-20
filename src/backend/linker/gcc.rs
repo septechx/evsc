@@ -1,6 +1,3 @@
-use anyhow::{anyhow, Result};
-use std::process::Command;
-
 use super::Linker;
 
 #[derive(Debug, Clone)]
@@ -9,29 +6,11 @@ pub struct GccLinker {
     command: String,
 }
 
-impl GccLinker {
-    fn find_linker() -> Result<String> {
-        let linkers = ["gcc"];
-
-        for linker in &linkers {
-            if Command::new(linker).arg("--version").output().is_ok() {
-                return Ok(linker.to_string());
-            }
-        }
-
-        Err(anyhow!(
-            "No suitable linker found. Tried: {}",
-            linkers.join(", ")
-        ))
-    }
-}
-
 impl Linker for GccLinker {
     fn new() -> Self {
-        let command = Self::find_linker().map_err(|e| panic!("{e}")).unwrap();
         Self {
             args: Vec::new(),
-            command,
+            command: "gcc".to_string(),
         }
     }
 

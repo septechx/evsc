@@ -6,6 +6,32 @@ use inkwell::{
 
 use crate::{ast::ast::Type, intermediate::compiler::CompilationContext};
 
+fn compile_arch_size_type<'ctx>(context: &'ctx Context) -> BasicTypeEnum<'ctx> {
+    match std::env::consts::ARCH {
+        "x86" => context.i32_type(),
+        "x86_64" => context.i64_type(),
+        "arm" => context.i32_type(),
+        "aarch64" => context.i64_type(),
+        "m68k" => context.i32_type(),
+        "mips" => context.i32_type(),
+        "mips32r6" => context.i32_type(),
+        "mips64" => context.i64_type(),
+        "mips64r6" => context.i64_type(),
+        "csky" => context.i32_type(),
+        "powerpc" => context.i32_type(),
+        "powerpc64" => context.i64_type(),
+        "riscv32" => context.i32_type(),
+        "riscv64" => context.i64_type(),
+        "s390x" => context.i32_type(),
+        "sparc" => context.i32_type(),
+        "sparc64" => context.i64_type(),
+        "hexagon" => context.i32_type(),
+        "loongarch64" => context.i64_type(),
+        _ => unimplemented!(),
+    }
+    .as_basic_type_enum()
+}
+
 pub fn compile_type<'ctx>(
     context: &'ctx Context,
     ty: &Type,
@@ -16,15 +42,22 @@ pub fn compile_type<'ctx>(
         Type::Const(inner) => compile_type(context, &inner.underlying, compilation_context),
         Type::Symbol(sym) => {
             match sym.name.as_str() {
-                "i32" => context.i32_type(),
-                "i64" => context.i64_type(),
-                "u8" => context.i8_type(),
-                "usize" => context.i64_type(),
-                // Programs should only use *const any, anything else is for a builtin function
-                "any" => context.i8_type(),
+                "u8" | "i8" => context.i8_type().as_basic_type_enum(),
+                "u16" | "i16" => context.i16_type().as_basic_type_enum(),
+                "u32" | "i32" => context.i32_type().as_basic_type_enum(),
+                "u64" | "i64" => context.i64_type().as_basic_type_enum(),
+                "u128" | "i128" => context.i128_type().as_basic_type_enum(),
+                "f16" => context.f16_type().as_basic_type_enum(),
+                "f32" => context.f32_type().as_basic_type_enum(),
+                "f64" => context.f64_type().as_basic_type_enum(),
+                "f128" => context.f128_type().as_basic_type_enum(),
+                "usize" | "isize" => compile_arch_size_type(context),
+                // Any should map to *void
+                "any" => context
+                    .ptr_type(AddressSpace::default())
+                    .as_basic_type_enum(),
                 tyname => unimplemented!("{tyname}"),
             }
-            .as_basic_type_enum()
         }
         Type::Slice(_) => compilation_context
             .type_context

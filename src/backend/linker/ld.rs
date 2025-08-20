@@ -1,5 +1,6 @@
-use anyhow::{anyhow, Result};
 use std::process::Command;
+
+use crate::{errors::ErrorLevel, ERRORS};
 
 use super::Linker;
 
@@ -10,25 +11,27 @@ pub struct LdLinker {
 }
 
 impl LdLinker {
-    fn find_linker() -> Result<String> {
-        let linkers = ["ld"];
+    fn find_linker() -> String {
+        let linkers = ["ld.mold", "ld.lld", "ld.gold", "ld"];
 
         for linker in &linkers {
             if Command::new(linker).arg("--version").output().is_ok() {
-                return Ok(linker.to_string());
+                return linker.to_string();
             }
         }
 
-        Err(anyhow!(
-            "No suitable linker found. Tried: {}",
-            linkers.join(", ")
-        ))
+        ERRORS.lock().add_simple(
+            ErrorLevel::Fatal,
+            format!("No suitable linker found. Tried: {}", linkers.join(", ")),
+        );
+
+        unreachable!()
     }
 }
 
 impl Linker for LdLinker {
     fn new() -> Self {
-        let command = Self::find_linker().map_err(|e| panic!("{e}")).unwrap();
+        let command = Self::find_linker();
         Self {
             args: vec![
                 "--dynamic-linker".to_string(),

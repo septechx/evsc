@@ -29,7 +29,6 @@ use crate::{
     intermediate::{CompileOptions, EmitType},
     lexer::lexer::tokenize,
     parser::parser::parse,
-    lexer::token::extract_tokens,
 };
 
 lazy_static! {

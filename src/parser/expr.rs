@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem};
+use std::collections::HashMap;
 
 use anyhow::{anyhow, bail, Result};
 use colored::Colorize;
@@ -12,7 +12,7 @@ use crate::{
             SymbolExpr,
         },
     },
-    lexer::token::Token,
+    lexer::token::TokenKind,
     parser::{
         lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
         parser::Parser,
@@ -21,18 +21,15 @@ use crate::{
 };
 
 pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
-    let token_kind = parser.current_token();
+    let token_kind = parser.current_token().kind;
 
     let nud_fn = {
         let nud_lu = NUD_LU.lock().unwrap();
-        nud_lu
-            .get(&mem::discriminant(&token_kind))
-            .cloned()
-            .ok_or_else(|| {
-                anyhow!(format!("Nud handler expected for token {token_kind:?}")
-                    .red()
-                    .bold())
-            })?
+        nud_lu.get(&token_kind).cloned().ok_or_else(|| {
+            anyhow!(format!("Nud handler expected for token {token_kind:?}")
+                .red()
+                .bold())
+        })?
     };
 
     let mut left = nud_fn(parser)?;
@@ -41,7 +38,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
         let current_bp = {
             let bp_lu = BP_LU.lock().unwrap();
             *bp_lu
-                .get(&mem::discriminant(&parser.current_token()))
+                .get(&parser.current_token().kind)
                 .unwrap_or(&BindingPower::DefaultBp)
         };
 
@@ -52,14 +49,11 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
         let token_kind = parser.current_token();
         let led_fn = {
             let led_lu = LED_LU.lock().unwrap();
-            led_lu
-                .get(&mem::discriminant(&token_kind))
-                .cloned()
-                .ok_or_else(|| {
-                    anyhow!(format!("Led handler expected for token {token_kind:?}")
-                        .red()
-                        .bold())
-                })?
+            led_lu.get(&token_kind.kind).cloned().ok_or_else(|| {
+                anyhow!(format!("Led handler expected for token {token_kind:?}")
+                    .red()
+                    .bold())
+            })?
         };
 
         left = led_fn(parser, left.clone(), current_bp)?;
@@ -69,16 +63,19 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
 }
 
 pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
-    match parser.current_token() {
-        Token::Number(value) => {
+    let value = parser.current_token().value.clone();
+    match parser.current_token().kind {
+        TokenKind::Number => {
             parser.advance();
-            Ok(Expression::Number(NumberExpr { value }))
+            Ok(Expression::Number(NumberExpr {
+                value: value.parse::<i32>()?,
+            }))
         }
-        Token::StringLiteral(value) => {
+        TokenKind::StringLiteral => {
             parser.advance();
             Ok(Expression::String(StringExpr { value }))
         }
-        Token::Identifier(value) => {
+        TokenKind::Identifier => {
             parser.advance();
             Ok(Expression::Symbol(SymbolExpr { value }))
         }
@@ -134,7 +131,7 @@ pub fn parse_assignment_expr(
 pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expression> {
     parser.advance();
     let expr = parse_expr(parser, BindingPower::DefaultBp)?;
-    parser.expect(Token::CloseParen)?;
+    parser.expect(TokenKind::CloseParen)?;
 
     Ok(expr)
 }
@@ -154,24 +151,24 @@ pub fn parse_struct_instantiation_expr(
     let mut properties: HashMap<String, Expression> = HashMap::new();
 
     loop {
-        if parser.current_token() == Token::CloseCurly {
+        if parser.current_token().kind == TokenKind::CloseCurly {
             parser.advance();
             break;
         }
 
-        let property_name = parser.expect(Token::identifier())?.unwrap_identifier();
-        parser.expect(Token::Colon)?;
+        let property_name = parser.expect(TokenKind::Identifier)?.value;
+        parser.expect(TokenKind::Colon)?;
 
         let expr = parse_expr(parser, BindingPower::DefaultBp)?;
 
         properties.insert(property_name, expr);
 
-        if parser.current_token() == Token::CloseCurly {
+        if parser.current_token().kind == TokenKind::CloseCurly {
             parser.advance();
             break;
         }
 
-        parser.expect(Token::Comma)?;
+        parser.expect(TokenKind::Comma)?;
     }
 
     Ok(Expression::StructInstantiation(StructInstantiationExpr {
@@ -190,7 +187,7 @@ pub fn parse_function_call_expr(
     let mut arguments: Vec<Expression> = Vec::new();
 
     loop {
-        if parser.current_token() == Token::CloseParen {
+        if parser.current_token().kind == TokenKind::CloseParen {
             parser.advance();
             break;
         }
@@ -199,12 +196,12 @@ pub fn parse_function_call_expr(
 
         arguments.push(expr);
 
-        if parser.current_token() == Token::CloseParen {
+        if parser.current_token().kind == TokenKind::CloseParen {
             parser.advance();
             break;
         }
 
-        parser.expect(Token::Comma)?;
+        parser.expect(TokenKind::Comma)?;
     }
 
     Ok(Expression::FunctionCall(FunctionCallExpr {
@@ -216,29 +213,27 @@ pub fn parse_function_call_expr(
 pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
     parser.advance();
 
-    match parser.current_token() {
-        Token::Number(length) => {
-            let length = length as usize;
+    match parser.current_token().kind {
+        TokenKind::Number => {
+            let length = parser.current_token().value.parse::<usize>()?;
 
             // Fixed-size array
             parser.advance();
-            parser.expect(Token::CloseBracket)?;
+            parser.expect(TokenKind::CloseBracket)?;
 
-            // Get the underlying type
             let underlying = parse_type(parser, BindingPower::DefaultBp)?;
 
-            // Parse array contents
-            parser.expect(Token::OpenCurly)?;
+            parser.expect(TokenKind::OpenCurly)?;
             let mut contents = Vec::with_capacity(length);
 
-            while parser.current_token() != Token::CloseCurly {
+            while parser.current_token().kind != TokenKind::CloseCurly {
                 contents.push(parse_expr(parser, BindingPower::Logical)?);
 
-                if parser.current_token() != Token::CloseCurly {
-                    parser.expect(Token::Comma)?;
+                if parser.current_token().kind != TokenKind::CloseCurly {
+                    parser.expect(TokenKind::Comma)?;
                 }
             }
-            parser.expect(Token::CloseCurly)?;
+            parser.expect(TokenKind::CloseCurly)?;
 
             if contents.len() != length {
                 bail!(format!(
@@ -256,22 +251,22 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
                 contents,
             }))
         }
-        Token::CloseBracket => {
+        TokenKind::CloseBracket => {
             // Variable-length array
             parser.advance();
             let underlying = parse_type(parser, BindingPower::DefaultBp)?;
 
-            parser.expect(Token::OpenCurly)?;
+            parser.expect(TokenKind::OpenCurly)?;
             let mut contents = Vec::new();
 
-            while parser.current_token() != Token::CloseCurly {
+            while parser.current_token().kind != TokenKind::CloseCurly {
                 contents.push(parse_expr(parser, BindingPower::Logical)?);
 
-                if parser.current_token() != Token::CloseCurly {
-                    parser.expect(Token::Comma)?;
+                if parser.current_token().kind != TokenKind::CloseCurly {
+                    parser.expect(TokenKind::Comma)?;
                 }
             }
-            parser.expect(Token::CloseCurly)?;
+            parser.expect(TokenKind::CloseCurly)?;
 
             Ok(Expression::ArrayLiteral(ArrayLiteralExpr {
                 underlying,
@@ -292,9 +287,9 @@ pub fn parse_member_access_expr(
     base: Expression,
     _bp: BindingPower,
 ) -> Result<Expression> {
-    parser.expect(Token::Dot)?;
+    parser.expect(TokenKind::Dot)?;
     let member = SymbolExpr {
-        value: parser.expect(Token::identifier())?.unwrap_identifier(),
+        value: parser.expect(TokenKind::Identifier)?.value,
     };
     Ok(Expression::MemberAccess(MemberAccessExpr {
         base: Box::new(base),

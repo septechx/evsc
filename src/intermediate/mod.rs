@@ -9,7 +9,7 @@ mod resolve_lib;
 
 use std::path::Path;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use inkwell::{
     builder::Builder,
     context::Context,

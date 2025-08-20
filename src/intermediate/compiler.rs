@@ -1,13 +1,13 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
     intermediate::{
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
-        pointer::{SmartValue, get_value},
+        pointer::{get_value, SmartValue},
     },
 };
 
@@ -116,7 +116,7 @@ pub fn compile<'a, 'ctx>(
                     .insert(fn_decl.name.clone(), function);
             }
             Statement::StructDecl(struct_decl) => {
-                compile_struct_decl(context, module, builder, struct_decl, compilation_context)?;
+                compile_struct_decl(context, module, struct_decl, compilation_context)?;
             }
             _ => (),
         }
@@ -313,7 +313,6 @@ fn compile_var_decl<'a, 'ctx>(
 fn compile_struct_decl<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
-    builder: &Builder<'ctx>,
     struct_decl: &StructDeclStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {

@@ -1,14 +1,10 @@
-use std::{
-    collections::HashMap,
-    mem::{self, Discriminant},
-    sync::Mutex,
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
 
 use crate::{
     ast::ast::{Expression, Statement},
-    lexer::token::Token::{self, self as T},
+    lexer::token::TokenKind::{self, self as T},
     parser::{
         expr::{
             parse_array_literal_expr, parse_assignment_expr, parse_binary_expr,
@@ -16,8 +12,10 @@ use crate::{
             parse_prefix_expr, parse_primary_expr, parse_struct_instantiation_expr,
         },
         parser::Parser,
-        stmt::{parse_fn_decl_stmt, parse_struct_decl_stmt, parse_var_decl_statement},
-        stmt::{parse_pub_stmt, parse_return_stmt},
+        stmt::{
+            parse_fn_decl_stmt, parse_pub_stmt, parse_return_stmt, parse_struct_decl_stmt,
+            parse_var_decl_statement,
+        },
     },
 };
 
@@ -42,10 +40,10 @@ type StmtHandler = fn(&mut Parser) -> anyhow::Result<Statement>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expression>;
 type LedHandler = fn(&mut Parser, Expression, BindingPower) -> anyhow::Result<Expression>;
 
-type StmtLookup = HashMap<Discriminant<Token>, StmtHandler>;
-type NudLookup = HashMap<Discriminant<Token>, NudHandler>;
-type LedLookup = HashMap<Discriminant<Token>, LedHandler>;
-pub type BpLookup = HashMap<Discriminant<Token>, BindingPower>;
+type StmtLookup = HashMap<TokenKind, StmtHandler>;
+type NudLookup = HashMap<TokenKind, NudHandler>;
+type LedLookup = HashMap<TokenKind, LedHandler>;
+pub type BpLookup = HashMap<TokenKind, BindingPower>;
 
 lazy_static! {
     pub static ref BP_LU: Mutex<BpLookup> = Mutex::new(HashMap::new());
@@ -54,30 +52,18 @@ lazy_static! {
     pub static ref STMT_LU: Mutex<StmtLookup> = Mutex::new(HashMap::new());
 }
 
-fn led(kind: Token, bp: BindingPower, led_fn: LedHandler) {
-    BP_LU.lock().unwrap().insert(mem::discriminant(&kind), bp);
-    LED_LU
-        .lock()
-        .unwrap()
-        .insert(mem::discriminant(&kind), led_fn);
+fn led(kind: TokenKind, bp: BindingPower, led_fn: LedHandler) {
+    BP_LU.lock().unwrap().insert(kind, bp);
+    LED_LU.lock().unwrap().insert(kind, led_fn);
 }
 
-fn nud(kind: Token, nud_fn: NudHandler) {
-    NUD_LU
-        .lock()
-        .unwrap()
-        .insert(mem::discriminant(&kind), nud_fn);
+fn nud(kind: TokenKind, nud_fn: NudHandler) {
+    NUD_LU.lock().unwrap().insert(kind, nud_fn);
 }
 
-fn stmt(kind: Token, stmt_fn: StmtHandler) {
-    BP_LU
-        .lock()
-        .unwrap()
-        .insert(mem::discriminant(&kind), BindingPower::DefaultBp);
-    STMT_LU
-        .lock()
-        .unwrap()
-        .insert(mem::discriminant(&kind), stmt_fn);
+fn stmt(kind: TokenKind, stmt_fn: StmtHandler) {
+    BP_LU.lock().unwrap().insert(kind, BindingPower::DefaultBp);
+    STMT_LU.lock().unwrap().insert(kind, stmt_fn);
 }
 
 pub fn create_token_lookups() {
@@ -112,9 +98,9 @@ pub fn create_token_lookups() {
     led(T::Percent, BP::Multiplicative, parse_binary_expr);
 
     // Literals & Symbols
-    nud(T::number(), parse_primary_expr);
-    nud(T::string_literal(), parse_primary_expr);
-    nud(T::identifier(), parse_primary_expr);
+    nud(T::Number, parse_primary_expr);
+    nud(T::StringLiteral, parse_primary_expr);
+    nud(T::Identifier, parse_primary_expr);
     nud(T::OpenParen, parse_grouping_expr);
     nud(T::Dash, parse_prefix_expr);
     nud(T::Reference, parse_prefix_expr);

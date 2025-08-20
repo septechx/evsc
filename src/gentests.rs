@@ -5,7 +5,6 @@ use crate::{
     errors::ErrorLevel,
     intermediate::{self, CompileOptions, EmitType},
     lexer::lexer::tokenize,
-    lexer::token::extract_tokens,
     parser::parser::parse,
     ERRORS,
 };
@@ -57,19 +56,19 @@ pub fn gen_tests() -> anyhow::Result<()> {
             if name.ends_with(".evsc") {
                 let file = fs::read_to_string(&path)?;
                 let tokens = tokenize(file, &path)?;
-                
+
                 if ERRORS.lock().has_errors() {
                     ERRORS.lock().print_errors(ErrorLevel::Error);
                     std::process::exit(1);
                 }
-                
-                let ast = parse(extract_tokens(&tokens))?;
-                
+
+                let ast = parse(tokens)?;
+
                 if ERRORS.lock().has_errors() {
                     ERRORS.lock().print_errors(ErrorLevel::Error);
                     std::process::exit(1);
                 }
-                
+
                 let name_no_ext = name.strip_suffix(".evsc").unwrap();
                 let opts = CompileOptions {
                     module_name: name,
@@ -82,7 +81,7 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     linker_kind: None,
                 };
                 intermediate::compile(ast, &opts)?;
-                
+
                 if ERRORS.lock().has_errors() {
                     ERRORS.lock().print_errors(ErrorLevel::Error);
                     std::process::exit(1);

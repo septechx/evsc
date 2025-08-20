@@ -2,6 +2,7 @@ mod ast;
 mod backend;
 mod bindings;
 mod cli;
+mod errors;
 mod intermediate;
 mod lexer;
 mod parser;
@@ -12,19 +13,28 @@ mod gentests;
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use clap::Parser;
 use colored::Colorize;
 use inkwell::targets::{CodeModel, RelocMode};
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
 
 use crate::{
     backend::{BackendOptions, LinkerKind},
     cli::{Cli, OptLevel},
+    errors::ErrorCollector,
     intermediate::{CompileOptions, EmitType},
     lexer::lexer::tokenize,
     parser::parser::parse,
+    lexer::token::extract_tokens,
 };
+
+lazy_static! {
+    pub static ref ERRORS: Arc<Mutex<ErrorCollector>> = Arc::new(Mutex::new(ErrorCollector::new()));
+}
 
 fn main() -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
@@ -126,8 +136,8 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
     };
 
     let source_text = fs::read_to_string(&file_path)?;
-    let tokens = tokenize(source_text)?;
-    let ast = parse(tokens)?;
+    let tokens = tokenize(source_text, &file_path)?;
+    let ast = parse(extract_tokens(&tokens))?;
     intermediate::compile(ast, &opts)?;
 
     if cli.files.len() > 1 {
@@ -163,6 +173,7 @@ mod tests {
         intermediate::{self, CompileOptions, EmitType},
         lexer::lexer::tokenize,
         parser::parser::parse,
+        lexer::token::extract_tokens,
     };
 
     fn status(task: &str, file: &str, ok: bool) -> bool {
@@ -190,14 +201,14 @@ mod tests {
             {
                 let name = format!("{i:02}-test.evsc");
                 let path = test_path.join(&name);
-                let file = fs::read_to_string(path).unwrap();
-                let tokens = tokenize(file);
+                let file = fs::read_to_string(&path).unwrap();
+                let tokens = tokenize(file, &path);
                 if status("Tokenizing", &name, tokens.is_ok()) {
                     failed = true;
                     eprintln!("{}", tokens.err().unwrap());
                     continue;
                 };
-                let ast = parse(tokens.unwrap());
+                let ast = parse(extract_tokens(&tokens.unwrap()));
                 if status("Parsing", &name, ast.is_ok()) {
                     failed = true;
                     eprintln!("{}", ast.err().unwrap());

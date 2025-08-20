@@ -1,5 +1,12 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap, mem};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    mem,
+    ops::{Deref, DerefMut},
+};
+
+use crate::errors::SourceLocation;
 
 #[derive(Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
@@ -59,6 +66,7 @@ pub enum Token {
 
     // Special
     Eof,
+    Illegal(char),
 }
 
 impl PartialEq for Token {
@@ -68,6 +76,63 @@ impl PartialEq for Token {
 }
 
 impl Eq for Token {}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Semicolon => write!(f, ";"),
+            Token::Pipe => write!(f, "|"),
+            Token::Colon => write!(f, ":"),
+            Token::Arrow => write!(f, "->"),
+            Token::OpenCurly => write!(f, "{{"),
+            Token::CloseCurly => write!(f, "}}"),
+            Token::OpenParen => write!(f, "("),
+            Token::CloseParen => write!(f, ")"),
+            Token::Dot => write!(f, "."),
+            Token::Equals => write!(f, "="),
+            Token::PlusEquals => write!(f, "+="),
+            Token::MinusEquals => write!(f, "-="),
+            Token::StarEquals => write!(f, "*="),
+            Token::SlashEquals => write!(f, "/="),
+            Token::PercentEquals => write!(f, "%="),
+            Token::Underscore => write!(f, "_"),
+            Token::OpenBracket => write!(f, "["),
+            Token::CloseBracket => write!(f, "]"),
+            Token::Hash => write!(f, "#"),
+            Token::Comma => write!(f, ","),
+            Token::Plus => write!(f, "+"),
+            Token::Dash => write!(f, "-"),
+            Token::Star => write!(f, "*"),
+            Token::Slash => write!(f, "/"),
+            Token::Percent => write!(f, "%"),
+            Token::And => write!(f, "&"),
+            Token::Or => write!(f, "|"),
+            Token::DotDot => write!(f, ".."),
+            Token::EqualsEquals => write!(f, "=="),
+            Token::NotEquals => write!(f, "!="),
+            Token::Less => write!(f, "<"),
+            Token::More => write!(f, ">"),
+            Token::LessEquals => write!(f, "<="),
+            Token::MoreEquals => write!(f, ">="),
+            Token::Reference => write!(f, "@"),
+            Token::Identifier(value) => write!(f, "{value}"),
+            Token::StringLiteral(value) => write!(f, "\"{value}\""),
+            Token::Number(value) => write!(f, "{value}"),
+            Token::Let => write!(f, "let"),
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
+            Token::Struct => write!(f, "struct"),
+            Token::Fn => write!(f, "fn"),
+            Token::Return => write!(f, "return"),
+            Token::Const => write!(f, "const"),
+            Token::Pub => write!(f, "pub"),
+            Token::Static => write!(f, "static"),
+            Token::Mut => write!(f, "mut"),
+            Token::Eof => write!(f, "EOF"),
+            Token::Illegal(c) => write!(f, "{c}"),
+        }
+    }
+}
 
 use Token as T;
 lazy_static! {
@@ -114,6 +179,43 @@ impl Token {
     pub fn number() -> Token {
         Token::Number(0)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct LocatedToken {
+    pub token: Token,
+    pub location: SourceLocation,
+}
+
+impl LocatedToken {
+    pub fn new(token: Token, location: SourceLocation) -> Self {
+        Self { token, location }
+    }
+
+    pub fn new_simple(token: Token, file: std::path::PathBuf, line: usize, column: usize) -> Self {
+        Self {
+            token,
+            location: SourceLocation::simple(file, line, column),
+        }
+    }
+}
+
+impl Deref for LocatedToken {
+    type Target = Token;
+
+    fn deref(&self) -> &Self::Target {
+        &self.token
+    }
+}
+
+impl DerefMut for LocatedToken {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.token
+    }
+}
+
+pub fn extract_tokens(located_tokens: &[LocatedToken]) -> Vec<Token> {
+    located_tokens.iter().map(|lt| lt.token.clone()).collect()
 }
 
 #[cfg(test)]

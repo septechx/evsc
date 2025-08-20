@@ -1,6 +1,7 @@
-use crate::lexer::token::Token;
-use anyhow::{Result, anyhow};
-use colored::Colorize;
+use std::path::Path;
+
+use crate::lexer::{token::{Token, LocatedToken}, verify::verify_tokens};
+use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -12,6 +13,7 @@ pub struct Lexer {
     file_len: usize,
     pos: usize,
     line: usize,
+    column: usize,
 }
 
 impl Lexer {
@@ -21,6 +23,7 @@ impl Lexer {
             file_content: file,
             pos: 0,
             line: 1,
+            column: 1,
         }
     }
 
@@ -30,7 +33,15 @@ impl Lexer {
 
     fn advance(&mut self, len: usize) {
         let advanced_text = &self.file_content[self.pos..self.pos + len];
-        self.line += advanced_text.matches('\n').count();
+        let newlines = advanced_text.matches('\n').count();
+        if newlines > 0 {
+            self.line += newlines;
+            if let Some(last_newline) = advanced_text.rfind('\n') {
+                self.column = advanced_text[last_newline + 1..].len() + 1;
+            }
+        } else {
+            self.column += len;
+        }
         self.pos += len;
     }
 
@@ -38,20 +49,27 @@ impl Lexer {
         &self.file_content[self.pos..]
     }
 
-    pub fn tokenize(&mut self) -> Result<Vec<Token>> {
-        let mut tokens: Vec<Token> = vec![];
+    pub fn tokenize(&mut self, file_path: &Path) -> Result<Vec<LocatedToken>> {
+        let mut tokens: Vec<LocatedToken> = vec!();
 
         while !self.at_eof() {
             let remaining = self.remaining_input();
             let mut matched = false;
             let mut match_len = 0;
+            let current_line = self.line;
+            let current_column = self.column;
 
             for handler in REGEXES.iter() {
                 if let Some(mat) = handler.regex.find(remaining) {
                     if mat.start() == 0 {
                         let matched_text = mat.as_str();
                         if let Some(token) = (handler.handler)(matched_text)? {
-                            tokens.push(token);
+                            tokens.push(LocatedToken::new_simple(
+                                token,
+                                file_path.to_path_buf(),
+                                current_line,
+                                current_column,
+                            ));
                         }
                         match_len = matched_text.len();
                         matched = true;
@@ -62,15 +80,13 @@ impl Lexer {
 
             if !matched {
                 let next_char = remaining.chars().next().unwrap_or('\0');
-                return Err(anyhow!(
-                    "{}",
-                    format!(
-                        "Unexpected character at line {}, position {}: '{}'",
-                        self.line, self.pos, next_char,
-                    )
-                    .red()
-                    .bold()
+                tokens.push(LocatedToken::new_simple(
+                    Token::Illegal(next_char),
+                    file_path.to_path_buf(),
+                    current_line,
+                    current_column,
                 ));
+                match_len = 1;
             }
 
             self.advance(match_len);
@@ -80,9 +96,11 @@ impl Lexer {
     }
 }
 
-pub fn tokenize(file: String) -> Result<Vec<Token>> {
+pub fn tokenize(file: String, path: &Path) -> Result<Vec<LocatedToken>> {
     let mut lexer = Lexer::new(file);
-    lexer.tokenize()
+    let tokens = lexer.tokenize(path)?;
+    verify_tokens(&tokens);
+    Ok(tokens)
 }
 
 fn default_handler(tok: Token) -> TokenHandler {
@@ -197,41 +215,45 @@ mod tests {
         let add = (a, b) -> a + b;
         let result = add(five, ten);
         "#;
+        let test_path = Path::new("test.evsc");
         let expected = vec![
-            Token::Let,
-            Token::Identifier("five".to_string()),
-            Token::Equals,
-            Token::Number(5),
-            Token::Semicolon,
-            Token::Let,
-            Token::Identifier("ten".to_string()),
-            Token::Equals,
-            Token::Number(10),
-            Token::Semicolon,
-            Token::Let,
-            Token::Identifier("add".to_string()),
-            Token::Equals,
-            Token::OpenParen,
-            Token::Identifier("a".to_string()),
-            Token::Comma,
-            Token::Identifier("b".to_string()),
-            Token::CloseParen,
-            Token::Arrow,
-            Token::Identifier("a".to_string()),
-            Token::Plus,
-            Token::Identifier("b".to_string()),
-            Token::Semicolon,
-            Token::Let,
-            Token::Identifier("result".to_string()),
-            Token::Equals,
-            Token::Identifier("add".to_string()),
-            Token::OpenParen,
-            Token::Identifier("five".to_string()),
-            Token::Comma,
-            Token::Identifier("ten".to_string()),
-            Token::CloseParen,
-            Token::Semicolon,
+            LocatedToken::new_simple(Token::Let, test_path.to_path_buf(), 1, 1),
+            LocatedToken::new_simple(Token::Identifier("five".to_string()), test_path.to_path_buf(), 1, 5),
+            LocatedToken::new_simple(Token::Equals, test_path.to_path_buf(), 1, 9),
+            LocatedToken::new_simple(Token::Number(5), test_path.to_path_buf(), 1, 11),
+            LocatedToken::new_simple(Token::Semicolon, test_path.to_path_buf(), 1, 12),
+            LocatedToken::new_simple(Token::Let, test_path.to_path_buf(), 2, 1),
+            LocatedToken::new_simple(Token::Identifier("ten".to_string()), test_path.to_path_buf(), 2, 5),
+            LocatedToken::new_simple(Token::Equals, test_path.to_path_buf(), 2, 9),
+            LocatedToken::new_simple(Token::Number(10), test_path.to_path_buf(), 2, 11),
+            LocatedToken::new_simple(Token::Semicolon, test_path.to_path_buf(), 2, 12),
+            LocatedToken::new_simple(Token::Let, test_path.to_path_buf(), 3, 1),
+            LocatedToken::new_simple(Token::Identifier("add".to_string()), test_path.to_path_buf(), 3, 5),
+            LocatedToken::new_simple(Token::Equals, test_path.to_path_buf(), 3, 9),
+            LocatedToken::new_simple(Token::OpenParen, test_path.to_path_buf(), 3, 11),
+            LocatedToken::new_simple(Token::Identifier("a".to_string()), test_path.to_path_buf(), 3, 13),
+            LocatedToken::new_simple(Token::Comma, test_path.to_path_buf(), 3, 14),
+            LocatedToken::new_simple(Token::Identifier("b".to_string()), test_path.to_path_buf(), 3, 16),
+            LocatedToken::new_simple(Token::CloseParen, test_path.to_path_buf(), 3, 17),
+            LocatedToken::new_simple(Token::Arrow, test_path.to_path_buf(), 3, 19),
+            LocatedToken::new_simple(Token::Identifier("a".to_string()), test_path.to_path_buf(), 3, 21),
+            LocatedToken::new_simple(Token::Plus, test_path.to_path_buf(), 3, 23),
+            LocatedToken::new_simple(Token::Identifier("b".to_string()), test_path.to_path_buf(), 3, 25),
+            LocatedToken::new_simple(Token::Semicolon, test_path.to_path_buf(), 3, 26),
+            LocatedToken::new_simple(Token::Let, test_path.to_path_buf(), 4, 1),
+            LocatedToken::new_simple(Token::Identifier("result".to_string()), test_path.to_path_buf(), 4, 5),
+            LocatedToken::new_simple(Token::Equals, test_path.to_path_buf(), 4, 13),
+            LocatedToken::new_simple(Token::Identifier("add".to_string()), test_path.to_path_buf(), 4, 15),
+            LocatedToken::new_simple(Token::OpenParen, test_path.to_path_buf(), 4, 17),
+            LocatedToken::new_simple(Token::Identifier("five".to_string()), test_path.to_path_buf(), 4, 19),
+            LocatedToken::new_simple(Token::Comma, test_path.to_path_buf(), 4, 21),
+            LocatedToken::new_simple(Token::Identifier("ten".to_string()), test_path.to_path_buf(), 4, 23),
+            LocatedToken::new_simple(Token::CloseParen, test_path.to_path_buf(), 4, 24),
+            LocatedToken::new_simple(Token::Semicolon, test_path.to_path_buf(), 4, 25),
         ];
-        assert_eq!(tokenize(input.to_string()).unwrap(), expected);
+        assert_eq!(
+            tokenize(input.to_string(), &Path::new("test.evsc")).unwrap().into_iter().map(|lt| lt.token).collect::<Vec<_>>(),
+            expected.into_iter().map(|lt| lt.token).collect::<Vec<_>>()
+        );
     }
 }

@@ -19,6 +19,7 @@ use crate::{
     },
     lexer::lexer::tokenize,
     parser::parser::parse,
+    lexer::token::extract_tokens,
 };
 
 pub fn import_module<'ctx>(
@@ -51,8 +52,8 @@ pub fn import_module<'ctx>(
 
     let file = fs::read_to_string(&module_path)?;
 
-    let tokens = tokenize(file)?;
-    let ast = parse(tokens)?;
+    let tokens = tokenize(file, &module_path)?;
+    let ast = parse(extract_tokens(&tokens))?;
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
 

@@ -6,6 +6,7 @@ mod intermediate;
 mod lexer;
 mod parser;
 
+#[cfg(debug_assertions)]
 mod gentests;
 
 use std::{
@@ -14,6 +15,7 @@ use std::{
 };
 
 use clap::Parser;
+use colored::Colorize;
 use inkwell::targets::{CodeModel, RelocMode};
 
 use crate::{
@@ -25,23 +27,17 @@ use crate::{
 };
 
 fn main() -> anyhow::Result<()> {
-    if std::env::var("IS_DEV").is_ok() {
-        let args: Vec<String> = std::env::args().collect();
-
-        if args.len() == 2 && args[1] == "gen_tests" {
-            gentests::clean_tests()?;
-            println!("Cleaned tests");
-            gentests::gen_tests()?;
-            println!("Generated tests");
-            return Ok(());
-        }
-
-        return Ok(());
-    }
+    #[cfg(debug_assertions)]
+    gentests::check()?;
 
     let cli = Cli::parse();
 
-    let file_path = cli.files[0].clone(); // $1/$2.evsc
+    let file_path = cli
+        .files
+        .iter()
+        .find(|file| file.extension().unwrap() == "evsc")
+        .ok_or(anyhow::anyhow!("No evsc files specified".red().bold()))?
+        .clone(); // $1/$2.evsc
     build_file(file_path, &cli)?;
 
     Ok(())

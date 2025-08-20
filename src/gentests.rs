@@ -5,6 +5,7 @@ use crate::{
     intermediate::{self, CompileOptions, EmitType},
     lexer::lexer::tokenize,
     parser::parser::parse,
+    lexer::token::extract_tokens,
 };
 
 pub fn check() -> anyhow::Result<()> {
@@ -52,9 +53,9 @@ pub fn gen_tests() -> anyhow::Result<()> {
             let path2 = path.clone();
             let name = path2.file_name().unwrap().to_str().unwrap();
             if name.ends_with(".evsc") {
-                let file = fs::read_to_string(path)?;
-                let tokens = tokenize(file)?;
-                let ast = parse(tokens)?;
+                let file = fs::read_to_string(&path)?;
+                let tokens = tokenize(file, &path)?;
+                let ast = parse(extract_tokens(&tokens))?;
                 let name_no_ext = name.strip_suffix(".evsc").unwrap();
                 let opts = CompileOptions {
                     module_name: name,

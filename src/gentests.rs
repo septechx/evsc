@@ -7,6 +7,23 @@ use crate::{
     parser::parser::parse,
 };
 
+pub fn check() -> anyhow::Result<()> {
+    if std::env::var("IS_DEV").is_ok() {
+        let args: Vec<String> = std::env::args().collect();
+
+        if args.len() == 2 && args[1] == "gen_tests" {
+            clean_tests()?;
+            println!("Cleaned tests");
+            gen_tests()?;
+            println!("Generated tests");
+        }
+
+        panic!("Done");
+    }
+
+    Ok(())
+}
+
 pub fn clean_tests() -> anyhow::Result<()> {
     let test_path = "tests";
 

@@ -24,7 +24,6 @@ pub fn main() i32 {
 **Compiling:**
 
 - LLVM 18.1.x
-- lc
 
 ## Building
 

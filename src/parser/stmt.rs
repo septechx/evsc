@@ -5,10 +5,11 @@ use crate::{
         ast::{Expression, Statement, Type},
         expressions::NumberExpr,
         statements::{
-            ExpressionStmt, FnArgument, FnDeclStmt, ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
+            ExpressionStmt, FnArgument, FnDeclStmt, ReturnStmt, StructDeclStmt, StructMethod,
+            StructProperty, VarDeclStmt,
         },
     },
-    errors::helpers,
+    errors::ErrorLevel,
     lexer::token::Token,
     parser::{
         expr::parse_expr,
@@ -16,6 +17,7 @@ use crate::{
         parser::Parser,
         types::parse_type,
     },
+    ERRORS,
 };
 
 use anyhow::Result;
@@ -42,28 +44,36 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
     let mut explicit_type: Option<Type> = None;
     let mut assigned_value: Option<Expression> = None;
 
-    let is_static = match parser.current_token() {
+    let is_static = match parser.current_token().token {
         Token::Static => true,
         Token::Let => false,
         _ => {
-            helpers::add_error(format!(
-                "Expected 'let' or 'static' keyword, recieved {:?}",
-                parser.current_token()
-            ));
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                format!(
+                    "Expected 'let' or 'static' keyword, recieved {:?}",
+                    parser.current_token()
+                ),
+                parser.current_token().location.clone(),
+            );
             false
         }
     };
 
     parser.advance();
 
-    let mut is_constant = parser.current_token() != Token::Mut;
+    let mut is_constant = parser.current_token().token != Token::Mut;
 
     if !is_constant {
         parser.advance();
     }
 
     if is_static && !is_constant {
-        helpers::add_error("Static variables must be constant");
+        ERRORS.lock().add_with_location(
+            ErrorLevel::Error,
+            "Static variables must be constant".to_string(),
+            parser.current_token().location.clone(),
+        );
         is_constant = true;
     }
 
@@ -76,23 +86,31 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
         )?
         .unwrap_identifier();
 
-    if parser.current_token() == Token::Colon {
+    if parser.current_token().token == Token::Colon {
         parser.advance();
         explicit_type = Some(parse_type(parser, BindingPower::DefaultBp)?);
     }
 
-    if parser.current_token() != Token::Semicolon {
+    if parser.current_token().token != Token::Semicolon {
         parser.expect(Token::Equals)?;
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
     } else if explicit_type.is_none() {
-        helpers::add_error("Missing type or value in variable declaration");
+        ERRORS.lock().add_with_location(
+            ErrorLevel::Error,
+            "Missing type or value in variable declaration".to_string(),
+            parser.current_token().location.clone(),
+        );
         assigned_value = Some(Expression::Number(NumberExpr { value: 0 }));
     }
 
     parser.expect(Token::Semicolon)?;
 
     if is_constant && assigned_value.is_none() {
-        helpers::add_error("Cannot define constant without providing a value");
+        ERRORS.lock().add_with_location(
+            ErrorLevel::Error,
+            "Cannot define constant without providing a value".to_string(),
+            parser.current_token().location.clone(),
+        );
         assigned_value = Some(Expression::Number(NumberExpr { value: 0 }));
     }
 
@@ -114,17 +132,17 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
     parser.expect(Token::OpenCurly)?;
 
     loop {
-        if !parser.has_tokens() || parser.current_token() == Token::CloseCurly {
+        if !parser.has_tokens() || parser.current_token().token == Token::CloseCurly {
             break;
         }
 
-        let is_public = parser.current_token() == Token::Pub;
+        let is_public = parser.current_token().token == Token::Pub;
 
         if is_public {
             parser.advance();
         }
 
-        if parser.current_token() == Token::Fn {
+        if parser.current_token().token == Token::Fn {
             let fn_decl = parse_fn_decl_stmt(parser)?;
             match fn_decl {
                 Statement::FnDecl(fn_decl) => methods.push(StructMethod {
@@ -148,7 +166,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             )?;
             let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
 
-            if parser.current_token() != Token::CloseCurly {
+            if parser.current_token().token != Token::CloseCurly {
                 parser.expect(Token::Comma)?;
             }
 
@@ -158,7 +176,11 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                helpers::add_error(format!("Property {property_name} has already been defined in struct"));
+                ERRORS.lock().add_with_location(
+                    ErrorLevel::Error,
+                    format!("Property {property_name} has already been defined in struct"),
+                    parser.current_token().location.clone(),
+                );
                 continue;
             }
 
@@ -171,10 +193,14 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        helpers::add_error(format!(
-            "Unexpected token in struct declaration: {:?}",
-            parser.current_token()
-        ));
+        ERRORS.lock().add_with_location(
+            ErrorLevel::Error,
+            format!(
+                "Unexpected token in struct declaration: {:?}",
+                parser.current_token()
+            ),
+            parser.current_token().location.clone(),
+        );
         parser.advance();
     }
 
@@ -199,7 +225,11 @@ pub fn parse_pub_stmt(parser: &mut Parser) -> Result<Statement> {
             fn_decl_stmt.is_public = true;
         }
         _ => {
-            helpers::add_error("Expected function or struct declaration");
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                "Expected function or struct declaration".to_string(),
+                parser.current_token().location.clone(),
+            );
             return Ok(Statement::Expression(ExpressionStmt {
                 expression: Expression::Number(NumberExpr { value: 0 }),
             }));
@@ -217,7 +247,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
     parser.expect(Token::OpenParen)?;
 
     loop {
-        if !parser.has_tokens() || parser.current_token() == Token::CloseParen {
+        if !parser.has_tokens() || parser.current_token().token == Token::CloseParen {
             break;
         }
 
@@ -231,7 +261,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             )?;
             let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
 
-            if parser.current_token() != Token::CloseParen {
+            if parser.current_token().token != Token::CloseParen {
                 parser.expect(Token::Comma)?;
             }
 
@@ -241,7 +271,11 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                helpers::add_error(format!("Argument {argument_name} has already been defined in function"));
+                ERRORS.lock().add_with_location(
+                    ErrorLevel::Error,
+                    format!("Argument {argument_name} has already been defined in function"),
+                    parser.current_token().location.clone(),
+                );
                 continue;
             }
 
@@ -253,10 +287,14 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        helpers::add_error(format!(
-            "Unexpected token in function declaration: {:?}",
-            parser.current_token()
-        ));
+        ERRORS.lock().add_with_location(
+            ErrorLevel::Error,
+            format!(
+                "Unexpected token in function declaration: {:?}",
+                parser.current_token()
+            ),
+            parser.current_token().location.clone(),
+        );
         parser.advance();
     }
 
@@ -266,7 +304,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
 
     parser.expect(Token::OpenCurly)?;
 
-    while parser.has_tokens() && parser.current_token() != Token::CloseCurly {
+    while parser.has_tokens() && parser.current_token().token != Token::CloseCurly {
         let stmt = parse_stmt(parser)?;
         body.push(stmt);
     }
@@ -285,7 +323,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
 pub fn parse_return_stmt(parser: &mut Parser) -> Result<Statement> {
     parser.expect(Token::Return)?;
 
-    let expression = if parser.current_token() != Token::Semicolon {
+    let expression = if parser.current_token().token != Token::Semicolon {
         Some(parse_expr(parser, BindingPower::DefaultBp)?)
     } else {
         None

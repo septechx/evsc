@@ -25,11 +25,10 @@ use parking_lot::Mutex;
 use crate::{
     backend::{BackendOptions, LinkerKind},
     cli::{Cli, OptLevel},
-    errors::{ErrorCollector, ErrorLevel},
+    errors::ErrorCollector,
     intermediate::{CompileOptions, EmitType},
-    lexer::lexer::tokenize,
-    lexer::token::extract_tokens,
-    parser::parser::parse,
+    lexer::{lexer::tokenize, token::extract_tokens},
+    parser::parser::{parse, parse_with_file_path},
 };
 
 lazy_static! {
@@ -150,7 +149,7 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
     let tokens = tokenize(source_text, &file_path)?;
     check_for_errors();
 
-    let ast = parse(extract_tokens(&tokens))?;
+    let ast = parse(tokens)?;
     check_for_errors();
 
     intermediate::compile(ast, &opts)?;
@@ -188,9 +187,8 @@ mod tests {
         backend::BackendOptions,
         errors::ErrorLevel,
         intermediate::{self, CompileOptions, EmitType},
-        lexer::lexer::tokenize,
-        lexer::token::extract_tokens,
-        parser::parser::parse,
+        lexer::{lexer::tokenize, token::extract_tokens},
+        parser::parser::{parse, parse_with_file_path},
         ERRORS,
     };
 
@@ -226,26 +224,26 @@ mod tests {
                     eprintln!("{}", tokens.err().unwrap());
                     continue;
                 };
-                
+
                 if ERRORS.lock().has_errors() {
                     ERRORS.lock().print_errors(ErrorLevel::Error);
                     failed = true;
                     continue;
                 }
-                
-                let ast = parse(extract_tokens(&tokens.unwrap()));
+
+                let ast = parse(tokens.unwrap());
                 if status("Parsing", &name, ast.is_ok()) {
                     failed = true;
                     eprintln!("{}", ast.err().unwrap());
                     continue;
                 };
-                
+
                 if ERRORS.lock().has_errors() {
                     ERRORS.lock().print_errors(ErrorLevel::Error);
                     failed = true;
                     continue;
                 }
-                
+
                 let opts = CompileOptions {
                     module_name: &format!("{i:02}-test"),
                     source_dir: test_path,
@@ -262,7 +260,7 @@ mod tests {
                     eprintln!("{}", res.err().unwrap());
                     continue;
                 };
-                
+
                 if ERRORS.lock().has_errors() {
                     ERRORS.lock().print_errors(ErrorLevel::Error);
                     failed = true;
@@ -281,7 +279,6 @@ mod tests {
                 let test_file = fs::read_to_string(test_path).unwrap();
 
                 // Not sure why the first two lines are different, but the tests fail without this
-                // code
                 let test_file = test_file.split('\n').collect::<Vec<_>>();
                 let test_file = test_file[2..].join("\n");
 

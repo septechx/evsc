@@ -13,7 +13,7 @@ use crate::{
         ast::{Expression, Type},
         types::SliceType,
     },
-    errors::helpers,
+    errors::ErrorLevel,
     intermediate::{
         builtin,
         compile_type::compile_type,
@@ -22,6 +22,7 @@ use crate::{
         pointer::{get_value, SmartValue},
     },
     lexer::token::Token,
+    ERRORS,
 };
 
 pub fn compile_expression_to_value<'a, 'ctx>(
@@ -85,7 +86,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            match &expr.operator {
+            match &expr.operator.token {
                 Token::Reference => {
                     let ptr = builder.build_alloca(right.value.get_type(), "ptr")?;
                     builder.build_store(ptr, right.value)?;
@@ -114,7 +115,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let left = get_value(builder, &left)?;
             let right = get_value(builder, &right)?;
 
-            match &expr.operator {
+            match &expr.operator.token {
                 Token::Plus => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
@@ -246,7 +247,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         )?)
                     }
                     inkwell::types::BasicTypeEnum::PointerType(_) => {
-                        let loaded_struct = builder.build_load(struct_ty, base.value.into_pointer_value(), "loaded_struct")?;
+                        let loaded_struct = builder.build_load(
+                            struct_ty,
+                            base.value.into_pointer_value(),
+                            "loaded_struct",
+                        )?;
                         let field_value = builder.build_extract_value(
                             loaded_struct.into_struct_value(),
                             *field_index,
@@ -255,9 +260,12 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                         SmartValue::from_value(field_value)
                     }
                     _ => {
-                        helpers::add_error(format!("Expected struct or pointer type, got {:?}", base_type));
+                        ERRORS.lock().add_simple(
+                            ErrorLevel::Error,
+                            format!("Expected struct or pointer type, got {:?}", base_type),
+                        );
                         return Ok(SmartValue::from_value(
-                            context.i32_type().const_int(0, false).as_basic_value_enum()
+                            context.i32_type().const_int(0, false).as_basic_value_enum(),
                         ));
                     }
                 }
@@ -269,9 +277,12 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     func.get_type().get_return_type().unwrap(),
                 )
             } else {
-                helpers::add_error(format!("No such field or function: {}", expr.member.value));
+                ERRORS.lock().add_simple(
+                    ErrorLevel::Error,
+                    format!("No such field or function: {}", expr.member.value),
+                );
                 return Ok(SmartValue::from_value(
-                    context.i32_type().const_int(0, false).as_basic_value_enum()
+                    context.i32_type().const_int(0, false).as_basic_value_enum(),
                 ));
             }
         }
@@ -288,14 +299,20 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             // Field in instantiation but not in struct
             for field_name in expr.properties.keys() {
                 if !struct_def.field_indices.contains_key(field_name) {
-                    helpers::add_error(format!("No such field {} in struct: {}", field_name, expr.name));
+                    ERRORS.lock().add_simple(
+                        ErrorLevel::Error,
+                        format!("No such field {} in struct: {}", field_name, expr.name),
+                    );
                     continue;
                 }
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
                 if !expr.properties.contains_key(field_name) {
-                    helpers::add_error(format!("Missing field {} in struct {}", field_name, expr.name));
+                    ERRORS.lock().add_simple(
+                        ErrorLevel::Error,
+                        format!("Missing field {} in struct {}", field_name, expr.name),
+                    );
                 }
             }
 
@@ -385,9 +402,12 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let slice_struct = match slice_llvm_type {
                 inkwell::types::BasicTypeEnum::StructType(ty) => ty,
                 _ => {
-                    helpers::add_error("Slice type did not compile to a struct");
+                    ERRORS.lock().add_simple(
+                        ErrorLevel::Error,
+                        "Slice type did not compile to a struct".to_string(),
+                    );
                     return Ok(SmartValue::from_value(
-                        context.i32_type().const_int(0, false).as_basic_value_enum()
+                        context.i32_type().const_int(0, false).as_basic_value_enum(),
                     ));
                 }
             };

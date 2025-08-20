@@ -13,6 +13,7 @@ use crate::{
         ast::Type,
         types::{ConstType, FixedArrayType, FunctionType, SliceType, SymbolType},
     },
+    errors::ErrorLevel,
     lexer::token::Token::{self, self as T},
     parser::{
         lookups::{
@@ -21,7 +22,7 @@ use crate::{
         },
         parser::Parser,
     },
-    errors::helpers,
+    ERRORS,
 };
 
 type TypeNudHandler = fn(&mut Parser) -> Result<Type>;
@@ -70,7 +71,7 @@ fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
 fn parse_array_type(parser: &mut Parser) -> Result<Type> {
     parser.advance();
 
-    match parser.current_token() {
+    match parser.current_token().token {
         T::Number(length) => {
             parser.advance();
             parser.expect(T::CloseBracket)?;
@@ -88,11 +89,17 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
             }))
         }
         _ => {
-            helpers::add_error(format!(
-                "Expected number or ']' in array type, got {:?}",
-                parser.current_token()
-            ));
-            Ok(Type::Symbol(SymbolType { name: "dummy".to_string() }))
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                format!(
+                    "Expected number or ']' in array type, got {:?}",
+                    parser.current_token()
+                ),
+                parser.current_token().location.clone(),
+            );
+            Ok(Type::Symbol(SymbolType {
+                name: "dummy".to_string(),
+            }))
         }
     }
 }
@@ -161,13 +168,17 @@ fn parse_function_type(parser: &mut Parser) -> Result<Type> {
     parser.expect(Token::OpenParen)?;
 
     let mut parameters = Vec::new();
-    while parser.current_token() != Token::CloseParen {
+    while parser.current_token().token != Token::CloseParen {
         parameters.push(parse_type(parser, BindingPower::DefaultBp)?);
 
-        if parser.current_token() == Token::Comma {
+        if parser.current_token().token == Token::Comma {
             parser.advance();
-        } else if parser.current_token() != Token::CloseParen {
-            helpers::add_error("Expected comma or closing parenthesis in function type");
+        } else if parser.current_token().token != Token::CloseParen {
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                "Expected comma or closing parenthesis in function type".to_string(),
+                parser.current_token().location.clone(),
+            );
             parser.advance();
         }
     }

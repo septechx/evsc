@@ -10,12 +10,13 @@ use inkwell::{
 
 use crate::{
     ast::{ast::Expression, expressions::FunctionCallExpr},
-    errors::helpers,
+    errors::ErrorLevel,
     intermediate::{
         compile_expr::compile_expression_to_value,
         compiler::CompilationContext,
         pointer::{get_value, SmartValue},
     },
+    ERRORS,
 };
 
 pub fn handle_asm_call<'ctx>(
@@ -28,9 +29,12 @@ pub fn handle_asm_call<'ctx>(
     let (asm_str, constraints) = match (&expr.arguments[0], &expr.arguments[1]) {
         (Expression::String(asm), Expression::String(cons)) => (asm, cons),
         _ => {
-            helpers::add_error("First two arguments must be string literals");
+            ERRORS.lock().add_simple(
+                ErrorLevel::Error,
+                "First two arguments must be string literals".to_string(),
+            );
             return Ok(SmartValue::from_value(
-                context.i32_type().const_int(0, false).as_basic_value_enum()
+                context.i32_type().const_int(0, false).as_basic_value_enum(),
             ));
         }
     };

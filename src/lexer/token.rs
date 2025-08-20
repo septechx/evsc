@@ -157,9 +157,9 @@ impl Token {
         RESERVED_KEYWORDS.get(ident).cloned()
     }
 
-    pub fn unwrap_identifier(self) -> String {
+    pub fn unwrap_identifier(&self) -> String {
         match self {
-            Token::Identifier(value) => value,
+            Token::Identifier(value) => value.clone(),
             _ => panic!("Expected identifier, got {self:?}"),
         }
     }
@@ -181,7 +181,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LocatedToken {
     pub token: Token,
     pub location: SourceLocation,
@@ -211,6 +211,12 @@ impl Deref for LocatedToken {
 impl DerefMut for LocatedToken {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.token
+    }
+}
+
+impl Display for LocatedToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.token)
     }
 }
 

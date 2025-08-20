@@ -98,12 +98,94 @@ impl CodeLine {
 }
 
 #[derive(Debug, Clone)]
+pub struct CodeBlock {
+    pub lines: Vec<CodeLine>,
+    pub highlight_ranges: Vec<HighlightRange>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HighlightRange {
+    pub line: usize,
+    pub start_column: usize,
+    pub end_column: usize,
+    pub highlight_type: HighlightType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HighlightType {
+    Error,
+    Warning,
+    Info,
+    Add,
+    Remove,
+}
+
+impl CodeBlock {
+    pub fn new() -> Self {
+        Self {
+            lines: Vec::new(),
+            highlight_ranges: Vec::new(),
+        }
+    }
+
+    pub fn add_line(mut self, line: usize, code: String, code_type: CodeType) -> Self {
+        self.lines.push(CodeLine::new(line, code, code_type));
+        self
+    }
+
+    pub fn add_highlight(
+        mut self,
+        line: usize,
+        start_column: usize,
+        end_column: usize,
+        highlight_type: HighlightType,
+    ) -> Self {
+        self.highlight_ranges.push(HighlightRange {
+            line,
+            start_column,
+            end_column,
+            highlight_type,
+        });
+        self
+    }
+
+    pub fn with_single_line(line: usize, code: String, code_type: CodeType) -> Self {
+        let mut block = Self::new();
+        block.lines.push(CodeLine::new(line, code, code_type));
+        block
+    }
+
+    pub fn with_highlight(
+        line: usize,
+        start_column: usize,
+        end_column: usize,
+        highlight_type: HighlightType,
+    ) -> Self {
+        let mut block = Self::new();
+        block.highlight_ranges.push(HighlightRange {
+            line,
+            start_column,
+            end_column,
+            highlight_type,
+        });
+        block
+    }
+}
+
+impl Default for CodeBlock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CompilationError {
     pub level: ErrorLevel,
     pub message: String,
     pub location: Option<SourceLocation>,
     pub info_blocks: Vec<InfoBlock>,
     pub code: Option<CodeLine>,
+    pub code_block: Option<CodeBlock>,
 }
 
 impl CompilationError {
@@ -114,6 +196,7 @@ impl CompilationError {
             location: None,
             info_blocks: Vec::new(),
             code: None,
+            code_block: None,
         }
     }
 
@@ -132,6 +215,11 @@ impl CompilationError {
         self
     }
 
+    pub fn with_code_block(mut self, code_block: CodeBlock) -> Self {
+        self.code_block = Some(code_block);
+        self
+    }
+
     fn display_with_context(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "{}: {}", self.level, self.message.bold())?;
 
@@ -144,6 +232,19 @@ impl CompilationError {
                     "-->".purple(),
                     location
                 )?;
+            } else if let Some(code_block) = &self.code_block {
+                if !code_block.lines.is_empty() {
+                    let first_line = code_block.lines[0].line.to_string();
+                    writeln!(
+                        f,
+                        "{}{} {}",
+                        " ".repeat(first_line.len()),
+                        "-->".purple(),
+                        location
+                    )?;
+                } else {
+                    writeln!(f, " {} {}", "-->".purple(), location)?;
+                }
             } else {
                 writeln!(f, " {} {}", "-->".purple(), location)?;
             }
@@ -181,6 +282,69 @@ impl CompilationError {
             }
         }
 
+        if let Some(code_block) = &self.code_block {
+            for (_i, code_line) in code_block.lines.iter().enumerate() {
+                let line = code_line.line.to_string();
+                let line_prefix = " ".repeat(line.len());
+
+                writeln!(f, "{} {}", line_prefix, "|".purple())?;
+
+                let code_display = match code_line.code_type {
+                    CodeType::Add => code_line.code.green(),
+                    CodeType::Remove => code_line.code.red(),
+                    CodeType::None => code_line.code.normal(),
+                };
+
+                writeln!(f, "{} {} {}", line.purple(), "|".purple(), code_display)?;
+
+                let highlights: Vec<_> = code_block
+                    .highlight_ranges
+                    .iter()
+                    .filter(|h| h.line == code_line.line)
+                    .collect();
+
+                if !highlights.is_empty() {
+                    let mut highlight_line = String::new();
+                    let mut current_pos = 1;
+
+                    for highlight in highlights {
+                        while current_pos < highlight.start_column {
+                            highlight_line.push(' ');
+                            current_pos += 1;
+                        }
+
+                        let highlight_char = match highlight.highlight_type {
+                            HighlightType::Error => "^",
+                            HighlightType::Warning => "~",
+                            HighlightType::Info => "-",
+                            HighlightType::Add => "+",
+                            HighlightType::Remove => "-",
+                        };
+
+                        let highlight_length = highlight.end_column - highlight.start_column;
+                        let highlight_str = highlight_char.repeat(highlight_length);
+
+                        let colored_highlight = match highlight.highlight_type {
+                            HighlightType::Error => highlight_str.red().bold(),
+                            HighlightType::Warning => highlight_str.yellow().bold(),
+                            HighlightType::Info => highlight_str.blue().bold(),
+                            HighlightType::Add => highlight_str.green().bold(),
+                            HighlightType::Remove => highlight_str.red().bold(),
+                        };
+
+                        highlight_line.push_str(&colored_highlight.to_string());
+                        current_pos = highlight.end_column;
+                    }
+
+                    if !highlight_line.is_empty() {
+                        writeln!(f, "{} {} {}", line_prefix, "|".purple(), highlight_line)?;
+                    }
+                } else {
+                    writeln!(f, "{} {}", line_prefix, "|".purple())?;
+                }
+            }
+        }
+
         if let Some(code) = &self.code {
             for info in &self.info_blocks {
                 writeln!(
@@ -190,6 +354,13 @@ impl CompilationError {
                     "=".purple(),
                     info
                 )?;
+            }
+        } else if let Some(code_block) = &self.code_block {
+            if !code_block.lines.is_empty() {
+                let line_prefix = " ".repeat(code_block.lines[0].line.to_string().len());
+                for info in &self.info_blocks {
+                    writeln!(f, "{} {} note: {}", line_prefix, "=".purple(), info)?;
+                }
             }
         }
 
@@ -273,11 +444,11 @@ impl ErrorCollector {
         level: ErrorLevel,
         message: String,
         location: SourceLocation,
-        code: CodeLine,
+        code: CodeBlock,
     ) {
         let error = CompilationError::new(level, message)
             .with_location(location)
-            .with_code(code);
+            .with_code_block(code);
         self.add(error);
     }
 
@@ -375,49 +546,6 @@ pub mod builders {
     }
 }
 
-pub mod helpers {
-    use super::*;
-    use crate::ERRORS;
-
-    pub fn add_error(message: impl Into<String>) {
-        ERRORS.lock().add_simple(ErrorLevel::Error, message.into());
-    }
-
-    pub fn add_error_at(
-        message: impl Into<String>,
-        file: PathBuf,
-        line: usize,
-        column: usize,
-    ) {
-        ERRORS.lock().add_with_location(ErrorLevel::Error, message.into(), SourceLocation::simple(file, line, column));
-    }
-    pub fn add_fatal(message: impl Into<String>) {
-        ERRORS.lock().add_simple(ErrorLevel::Fatal, message.into());
-    }
-
-    pub fn add_fatal_at(
-        message: impl Into<String>,
-        file: PathBuf,
-        line: usize,
-        column: usize,
-    ) {
-        ERRORS.lock().add_with_location(ErrorLevel::Fatal, message.into(), SourceLocation::simple(file, line, column));
-    }
-
-    pub fn add_warning(message: impl Into<String>) {
-        ERRORS.lock().add_simple(ErrorLevel::Warning, message.into());
-    }
-
-    pub fn add_warning_at(
-        message: impl Into<String>,
-        file: PathBuf,
-        line: usize,
-        column: usize,
-    ) {
-        ERRORS.lock().add_with_location(ErrorLevel::Warning, message.into(), SourceLocation::simple(file, line, column));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -459,5 +587,38 @@ mod tests {
         let info = InfoBlock::new("Type mismatch".to_string());
 
         assert_eq!(info.title, "Type mismatch");
+    }
+
+    #[test]
+    fn test_enhanced_code_block() {
+        let code_block = CodeBlock::new()
+            .add_line(5, "let x = 42;".to_string(), CodeType::None)
+            .add_line(6, "let y = x + 1;".to_string(), CodeType::None)
+            .add_highlight(5, 5, 6, HighlightType::Error)
+            .add_highlight(6, 9, 10, HighlightType::Warning);
+
+        assert_eq!(code_block.lines.len(), 2);
+        assert_eq!(code_block.highlight_ranges.len(), 2);
+    }
+
+    #[test]
+    fn test_error_with_enhanced_context() {
+        let file_path = PathBuf::from("test.evsc");
+
+        let error =
+            CompilationError::new(ErrorLevel::Error, "Variable 'x' is undefined".to_string())
+                .with_location(SourceLocation::new(file_path.clone(), 6, 9, 1))
+                .with_code_block(
+                    CodeBlock::new()
+                        .add_line(5, "let x = 42;".to_string(), CodeType::None)
+                        .add_line(6, "let y = x + 1;".to_string(), CodeType::None)
+                        .add_highlight(6, 9, 10, HighlightType::Error),
+                );
+
+        assert!(error.code_block.is_some());
+        if let Some(code_block) = &error.code_block {
+            assert_eq!(code_block.lines.len(), 2);
+            assert_eq!(code_block.highlight_ranges.len(), 1);
+        }
     }
 }

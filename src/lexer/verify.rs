@@ -1,5 +1,5 @@
 use crate::{
-    errors::{CodeLine, CodeType, ErrorLevel},
+    errors::{CodeBlock, CodeType, ErrorLevel},
     lexer::token::{LocatedToken, Token},
     ERRORS,
 };
@@ -13,7 +13,7 @@ pub fn verify_tokens(tokens: &[LocatedToken]) {
                 ErrorLevel::Fatal,
                 format!("Illegal token: {c}"),
                 token.location.clone(),
-                CodeLine::new(token.location.line, line, CodeType::None),
+                CodeBlock::new().add_line(token.location.line, line, CodeType::None),
             );
         }
     }
@@ -72,7 +72,7 @@ mod tests {
         for token in &tokens {
             if let crate::lexer::token::Token::Illegal(c) = &token.token {
                 temp_errors.add_with_location(
-                    ErrorLevel::Fatal,
+                    crate::errors::ErrorLevel::Fatal,
                     format!("Illegal token: {c}"),
                     token.location.clone(),
                 );
@@ -83,7 +83,7 @@ mod tests {
         assert_eq!(all_errors.len(), 1);
 
         let error = &all_errors[0];
-        assert_eq!(error.level, ErrorLevel::Fatal);
+        assert_eq!(error.level, crate::errors::ErrorLevel::Fatal);
         assert_eq!(error.message, "Illegal token: @");
 
         if let Some(location) = &error.location {

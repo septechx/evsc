@@ -13,13 +13,14 @@ use crate::{
         },
         types::SymbolType,
     },
-    errors::helpers,
+    errors::{ErrorLevel, SourceLocation},
     lexer::token::Token,
     parser::{
         lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
         parser::Parser,
         types::parse_type,
     },
+    ERRORS,
 };
 
 pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
@@ -30,11 +31,14 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
         nud_lu
             .get(&mem::discriminant(&token_kind))
             .cloned()
-            .ok_or_else(|| {
-                anyhow!(format!("Nud handler expected for token {token_kind:?}")
-                    .red()
-                    .bold())
-            })?
+            .unwrap_or_else(|| {
+                ERRORS.lock().add_with_location(
+                    ErrorLevel::Fatal,
+                    format!("Syntax error: Unexpected token {token_kind:?}"),
+                    token_kind.location.clone(),
+                );
+                unreachable!()
+            })
     };
 
     let mut left = nud_fn(parser)?;
@@ -57,11 +61,14 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
             led_lu
                 .get(&mem::discriminant(&token_kind))
                 .cloned()
-                .ok_or_else(|| {
-                    anyhow!(format!("Led handler expected for token {token_kind:?}")
-                        .red()
-                        .bold())
-                })?
+                .unwrap_or_else(|| {
+                    ERRORS.lock().add_with_location(
+                        ErrorLevel::Fatal,
+                        format!("Syntax error: Unexpected token {token_kind:?}"),
+                        token_kind.location.clone(),
+                    );
+                    unreachable!()
+                })
         };
 
         left = led_fn(parser, left.clone(), current_bp)?;
@@ -71,7 +78,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
 }
 
 pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
-    match parser.current_token() {
+    match parser.current_token().token {
         Token::Number(value) => {
             parser.advance();
             Ok(Expression::Number(NumberExpr { value }))
@@ -85,10 +92,14 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
             Ok(Expression::Symbol(SymbolExpr { value }))
         }
         _ => {
-            helpers::add_error(format!(
-                "Cannot create primary expression from {:?}",
-                parser.current_token()
-            ));
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                format!(
+                    "Cannot create primary expression from {:?}",
+                    parser.current_token()
+                ),
+                SourceLocation::new(parser.current_token().location.file.clone(), 1, 1, 1),
+            );
             Ok(Expression::Number(NumberExpr { value: 0 }))
         }
     }
@@ -136,6 +147,7 @@ pub fn parse_assignment_expr(
 
 pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expression> {
     parser.advance();
+
     let expr = parse_expr(parser, BindingPower::DefaultBp)?;
     parser.expect(Token::CloseParen)?;
 
@@ -152,27 +164,36 @@ pub fn parse_struct_instantiation_expr(
     let name = match name_expr {
         Expression::Symbol(symbol_expr) => symbol_expr.value,
         _ => {
-            helpers::add_error("Expected struct name to be a symbol");
-            return Ok(Expression::Symbol(SymbolExpr { value: "dummy".to_string() }));
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                "Expected struct name to be a symbol".to_string(),
+                parser.current_token().location.clone(),
+            );
+            return Ok(Expression::Symbol(SymbolExpr {
+                value: "dummy".to_string(),
+            }));
         }
     };
 
     let mut properties: HashMap<String, Expression> = HashMap::new();
 
     loop {
-        if parser.current_token() == Token::CloseCurly {
+        if parser.current_token().token == Token::CloseCurly {
             parser.advance();
             break;
         }
 
-        let property_name = parser.expect(Token::identifier())?.unwrap_identifier();
+        let property_name = parser
+            .expect(Token::identifier())?
+            .clone()
+            .unwrap_identifier();
         parser.expect(Token::Colon)?;
 
         let expr = parse_expr(parser, BindingPower::DefaultBp)?;
 
         properties.insert(property_name, expr);
 
-        if parser.current_token() == Token::CloseCurly {
+        if parser.current_token().token == Token::CloseCurly {
             parser.advance();
             break;
         }
@@ -196,7 +217,7 @@ pub fn parse_function_call_expr(
     let mut arguments: Vec<Expression> = Vec::new();
 
     loop {
-        if parser.current_token() == Token::CloseParen {
+        if parser.current_token().token == Token::CloseParen {
             parser.advance();
             break;
         }
@@ -205,7 +226,7 @@ pub fn parse_function_call_expr(
 
         arguments.push(expr);
 
-        if parser.current_token() == Token::CloseParen {
+        if parser.current_token().token == Token::CloseParen {
             parser.advance();
             break;
         }
@@ -222,7 +243,7 @@ pub fn parse_function_call_expr(
 pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
     parser.advance();
 
-    match parser.current_token() {
+    match parser.current_token().token {
         Token::Number(length) => {
             let length = length as usize;
 
@@ -230,28 +251,30 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             parser.advance();
             parser.expect(Token::CloseBracket)?;
 
-            // Get the underlying type
             let underlying = parse_type(parser, BindingPower::DefaultBp)?;
 
-            // Parse array contents
             parser.expect(Token::OpenCurly)?;
             let mut contents = Vec::with_capacity(length);
 
-            while parser.current_token() != Token::CloseCurly {
+            while parser.current_token().token != Token::CloseCurly {
                 contents.push(parse_expr(parser, BindingPower::Logical)?);
 
-                if parser.current_token() != Token::CloseCurly {
+                if parser.current_token().token != Token::CloseCurly {
                     parser.expect(Token::Comma)?;
                 }
             }
             parser.expect(Token::CloseCurly)?;
 
             if contents.len() != length {
-                helpers::add_error(format!(
-                    "Fixed array literal has {} elements but expected {}",
-                    contents.len(),
-                    length
-                ));
+                ERRORS.lock().add_with_location(
+                    ErrorLevel::Error,
+                    format!(
+                        "Fixed array literal has {} elements but expected {}",
+                        contents.len(),
+                        length
+                    ),
+                    parser.current_token().location.clone(),
+                );
                 while contents.len() < length {
                     contents.push(Expression::Number(NumberExpr { value: 0 }));
                 }
@@ -271,10 +294,10 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             parser.expect(Token::OpenCurly)?;
             let mut contents = Vec::new();
 
-            while parser.current_token() != Token::CloseCurly {
+            while parser.current_token().token != Token::CloseCurly {
                 contents.push(parse_expr(parser, BindingPower::Logical)?);
 
-                if parser.current_token() != Token::CloseCurly {
+                if parser.current_token().token != Token::CloseCurly {
                     parser.expect(Token::Comma)?;
                 }
             }
@@ -286,12 +309,18 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             }))
         }
         _ => {
-            helpers::add_error(format!(
-                "Expected number or ']' in array literal, got {:?}",
-                parser.current_token()
-            ));
+            ERRORS.lock().add_with_location(
+                ErrorLevel::Error,
+                format!(
+                    "Expected number or ']' in array literal, got {:?}",
+                    parser.current_token()
+                ),
+                parser.current_token().location.clone(),
+            );
             Ok(Expression::ArrayLiteral(ArrayLiteralExpr {
-                underlying: Type::Symbol(SymbolType { name: "dummy".to_string() }),
+                underlying: Type::Symbol(SymbolType {
+                    name: "dummy".to_string(),
+                }),
                 contents: vec![],
             }))
         }

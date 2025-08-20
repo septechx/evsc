@@ -12,15 +12,15 @@ use inkwell::{
 use crate::{
     ast::{ast::Expression, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
+    errors::ErrorLevel,
     intermediate::{
         compiler::{self, CompilationContext},
         pointer::SmartValue,
         resolve_lib::resolve_std_lib,
     },
-    lexer::lexer::tokenize,
+    lexer::{lexer::tokenize, token::extract_tokens},
     parser::parser::parse,
-    lexer::token::extract_tokens,
-    errors::helpers,
+    ERRORS,
 };
 
 pub fn import_module<'ctx>(
@@ -31,18 +31,24 @@ pub fn import_module<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<SmartValue<'ctx>> {
     if expr.arguments.len() != 1 {
-        helpers::add_error("Expected one argument to @import");
+        ERRORS.lock().add_simple(
+            ErrorLevel::Error,
+            "Expected 1 argument to @import".to_string(),
+        );
         return Ok(SmartValue::from_value(
-            context.i32_type().const_int(0, false).as_basic_value_enum()
+            context.i32_type().const_int(0, false).as_basic_value_enum(),
         ));
     }
 
     let module_name = match &expr.arguments[0] {
         Expression::String(sym) => sym.value.clone(),
         _ => {
-            helpers::add_error("Expected string literal as argument to @import");
+            ERRORS.lock().add_simple(
+                ErrorLevel::Error,
+                "Expected string argument to @import".to_string(),
+            );
             return Ok(SmartValue::from_value(
-                context.i32_type().const_int(0, false).as_basic_value_enum()
+                context.i32_type().const_int(0, false).as_basic_value_enum(),
             ));
         }
     };
@@ -62,7 +68,7 @@ pub fn import_module<'ctx>(
     let file = fs::read_to_string(&module_path)?;
 
     let tokens = tokenize(file, &module_path)?;
-    let ast = parse(extract_tokens(&tokens))?;
+    let ast = parse(tokens)?;
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
 

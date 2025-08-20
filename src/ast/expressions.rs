@@ -1,6 +1,6 @@
 use crate::{
     ast::ast::{Expression, Type},
-    lexer::token::Token,
+    lexer::token::LocatedToken,
 };
 use std::collections::HashMap;
 
@@ -22,20 +22,20 @@ pub struct SymbolExpr {
 #[derive(Debug, Clone)]
 pub struct BinaryExpr {
     pub left: Box<Expression>,
-    pub operator: Token,
+    pub operator: LocatedToken,
     pub right: Box<Expression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PrefixExpr {
-    pub operator: Token,
+    pub operator: LocatedToken,
     pub right: Box<Expression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AssignmentExpr {
     pub assigne: Box<Expression>,
-    pub operator: Token,
+    pub operator: LocatedToken,
     pub value: Box<Expression>,
 }
 

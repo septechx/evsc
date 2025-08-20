@@ -2,12 +2,12 @@ use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
@@ -18,12 +18,13 @@ use crate::{
         },
     },
     bindings::llvm_bindings::create_named_struct,
-    errors::helpers,
+    errors::ErrorLevel,
     intermediate::{
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
-        pointer::{SmartValue, get_value},
+        pointer::{get_value, SmartValue},
     },
+    ERRORS,
 };
 
 pub type FunctionTable<'ctx> = HashMap<String, FunctionValue<'ctx>>;
@@ -274,7 +275,10 @@ fn compile_var_decl<'a, 'ctx>(
     let value = if let Some(expr) = &var_decl.assigned_value {
         compile_expression_to_value(context, module, builder, expr, compilation_context)?
     } else {
-        helpers::add_error("Variable must have an initial value");
+        ERRORS.lock().add_simple(
+            ErrorLevel::Error,
+            "Variable must have an initial value".to_string(),
+        );
         return Ok(());
     };
 

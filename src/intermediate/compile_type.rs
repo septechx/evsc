@@ -4,30 +4,16 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::{ast::ast::Type, intermediate::compiler::CompilationContext};
+use crate::{
+    ast::ast::Type,
+    intermediate::{arch::is_64, compiler::CompilationContext},
+};
 
 fn compile_arch_size_type<'ctx>(context: &'ctx Context) -> BasicTypeEnum<'ctx> {
-    match std::env::consts::ARCH {
-        "x86" => context.i32_type(),
-        "x86_64" => context.i64_type(),
-        "arm" => context.i32_type(),
-        "aarch64" => context.i64_type(),
-        "m68k" => context.i32_type(),
-        "mips" => context.i32_type(),
-        "mips32r6" => context.i32_type(),
-        "mips64" => context.i64_type(),
-        "mips64r6" => context.i64_type(),
-        "csky" => context.i32_type(),
-        "powerpc" => context.i32_type(),
-        "powerpc64" => context.i64_type(),
-        "riscv32" => context.i32_type(),
-        "riscv64" => context.i64_type(),
-        "s390x" => context.i32_type(),
-        "sparc" => context.i32_type(),
-        "sparc64" => context.i64_type(),
-        "hexagon" => context.i32_type(),
-        "loongarch64" => context.i64_type(),
-        _ => unimplemented!(),
+    if is_64() {
+        context.i64_type()
+    } else {
+        context.i32_type()
     }
     .as_basic_type_enum()
 }

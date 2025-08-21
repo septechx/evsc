@@ -4,13 +4,13 @@ build: bindings
     cargo build --release
 
 run *ARGS: bindings
-    env EVSC_STD_LIB_PATH="$(pwd)/lib/std" cargo run -- {{ARGS}}
+    env EVSC_LIB_PATH="$(pwd)/lib" cargo run -- {{ARGS}}
 
 gen-tests: bindings
-    env EVSC_STD_LIB_PATH="$(pwd)/lib/std" IS_DEV=1 cargo run gen_tests
+    env EVSC_LIB_PATH="$(pwd)/lib" IS_DEV=1 cargo run gen_tests
 
 test: bindings
-    env EVSC_STD_LIB_PATH="$(pwd)/lib/std" cargo test
+    env EVSC_LIB_PATH="$(pwd)/lib" cargo test
 
 check: bindings
     cargo check

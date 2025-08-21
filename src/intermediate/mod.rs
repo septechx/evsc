@@ -1,3 +1,4 @@
+mod arch;
 mod builtin;
 mod compile_expr;
 mod compile_type;
@@ -29,7 +30,9 @@ use crate::{
         build_assembly_file, build_executable, build_object_file, BackendOptions, LinkerKind,
     },
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock, SourceLocation},
-    intermediate::{compiler::CompilationContext, emmiter::emit_to_file},
+    intermediate::{
+        arch::create_exit_syscall, compiler::CompilationContext, emmiter::emit_to_file,
+    },
     ERRORS,
 };
 
@@ -226,31 +229,6 @@ pub fn generate_c_runtime_integration<'ctx>(
     }
 
     builder.build_unreachable()?;
-
-    Ok(())
-}
-
-fn create_exit_syscall<'ctx>(
-    context: &'ctx Context,
-    builder: &Builder<'ctx>,
-    exit_code: BasicValueEnum<'ctx>,
-) -> Result<()> {
-    let exit_ty = context
-        .void_type()
-        .fn_type(&[context.i32_type().into()], false);
-
-    let exit_asm = context.create_inline_asm(
-        exit_ty,
-        "mov rax, 60\nmov rdi, $0\nsyscall".to_string(),
-        "r".to_string(),
-        true,
-        false,
-        Some(InlineAsmDialect::Intel),
-        false,
-    );
-
-    builder.build_indirect_call(exit_ty, exit_asm, &[exit_code.into()], "exit_call")?;
-    builder.build_return(None)?;
 
     Ok(())
 }

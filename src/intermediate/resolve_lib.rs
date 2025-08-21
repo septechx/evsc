@@ -6,10 +6,10 @@ use std::{
 use anyhow::{bail, Result};
 
 pub fn resolve_std_lib() -> Result<PathBuf> {
-    let env_var = env::var("EVSC_STD_LIB_PATH");
+    let env_var = env::var("EVSC_LIB_PATH");
     if env_var.is_ok() {
         let env_var = env_var.unwrap();
-        return Ok(Path::new(&env_var).join("std.evsc"));
+        return Ok(Path::new(&env_var).join("std/std.evsc"));
     }
 
     if fs::exists("/usr/local/share/evsc/lib/std/std.evsc").is_ok() {

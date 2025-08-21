@@ -37,7 +37,7 @@ pub fn create_exit_syscall<'ctx>(
         let exit_ty = context
             .void_type()
             .fn_type(&[context.i32_type().into()], false);
-        let asm = "mov eax, 1\nmov ebx, $0\nint 0x80".to_string();
+        let asm = "mov eax, 60\nmov ebx, $0\nint 0x80".to_string();
         (asm, exit_ty)
     };
 

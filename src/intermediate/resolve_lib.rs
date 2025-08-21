@@ -13,11 +13,11 @@ pub fn resolve_std_lib() -> Result<PathBuf> {
     }
 
     if fs::exists("/usr/local/share/evsc/lib/std/std.evsc").is_ok() {
-        return Ok(PathBuf::from("~/.local/share/evsc/lib/std/std.evsc"));
+        return Ok(PathBuf::from("/usr/local/share/evsc/lib/std/std.evsc"));
     }
 
     if fs::exists("/opt/evsc/lib/std/std.evsc").is_ok() {
-        return Ok(PathBuf::from("opt/evsc/lib/std/std.evsc"));
+        return Ok(PathBuf::from("/opt/evsc/lib/std/std.evsc"));
     }
 
     bail!("Could not find std.evsc");

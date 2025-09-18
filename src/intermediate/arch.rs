@@ -31,20 +31,20 @@ pub fn create_exit_syscall<'ctx>(
         let exit_ty = context
             .void_type()
             .fn_type(&[context.i64_type().into()], false);
-        let asm = "mov rax, 60\nmov rdi, $0\nsyscall".to_string();
+        let asm = "mov rdi, $0\nmov rax, 60\nsyscall".to_string();
         (asm, exit_ty)
     } else {
         let exit_ty = context
             .void_type()
             .fn_type(&[context.i32_type().into()], false);
-        let asm = "mov eax, 60\nmov ebx, $0\nint 0x80".to_string();
+        let asm = "mov ebx, $0\nmov eax, 60\nint 0x80".to_string();
         (asm, exit_ty)
     };
 
     let inline = context.create_inline_asm(
         exit_ty,
         asm,
-        "r".to_string(),
+        "r,~{rax},~{rdi},~{rcx},~{r11},~{memory}".to_string(),
         true,
         false,
         Some(InlineAsmDialect::Intel),
@@ -52,7 +52,7 @@ pub fn create_exit_syscall<'ctx>(
     );
     builder.build_indirect_call(exit_ty, inline, &[exit_code.into()], "exit_call")?;
 
-    builder.build_return(None)?;
+    builder.build_unreachable()?;
 
     Ok(())
 }

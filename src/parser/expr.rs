@@ -20,6 +20,7 @@ use crate::{
     parser::{
         lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
         parser::Parser,
+        string::process_string,
         types::parse_type,
     },
     ERRORS,
@@ -92,8 +93,10 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
             }))
         }
         TokenKind::StringLiteral => {
-            parser.advance();
-            Ok(Expression::String(StringExpr { value }))
+            let token = parser.advance();
+            Ok(Expression::String(StringExpr {
+                value: process_string(&value, token.location, parser.tokens()),
+            }))
         }
         TokenKind::Identifier => {
             parser.advance();

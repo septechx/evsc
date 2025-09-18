@@ -44,8 +44,13 @@ pub fn build_line_with_positions(tokens: &[Token], target_line: usize) -> String
             current_pos += 1;
         }
 
-        line.push_str(&token_str);
-        current_pos += token_str.len();
+        if token.kind == TokenKind::StringLiteral {
+            line.push_str(&format!("\"{token_str}\""));
+            current_pos += token_str.len() + 2;
+        } else {
+            line.push_str(&token_str);
+            current_pos += token_str.len();
+        }
     }
 
     line

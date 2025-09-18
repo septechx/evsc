@@ -7,10 +7,11 @@ mod emmiter;
 mod import;
 mod pointer;
 mod resolve_lib;
+mod runtime;
 
 use std::path::Path;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -20,8 +21,8 @@ use inkwell::{
     },
     module::{Linkage, Module},
     types::AsTypeRef,
-    values::{AsValueRef, BasicValue, BasicValueEnum, FunctionValue},
-    AddressSpace, InlineAsmDialect,
+    values::{AsValueRef, BasicValue, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
@@ -29,9 +30,10 @@ use crate::{
     backend::{
         build_assembly_file, build_executable, build_object_file, BackendOptions, LinkerKind,
     },
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock, SourceLocation},
+    errors::{CompilationError, ErrorLevel},
     intermediate::{
-        arch::create_exit_syscall, compiler::CompilationContext, emmiter::emit_to_file,
+        compiler::CompilationContext, emmiter::emit_to_file,
+        runtime::generate_c_runtime_integration,
     },
     ERRORS,
 };
@@ -185,50 +187,6 @@ fn emit_global_ctors<'ctx>(
         LLVMSetInitializer(gv.as_value_ref(), array_ref);
     }
     gv.set_linkage(Linkage::Appending);
-
-    Ok(())
-}
-
-pub fn generate_c_runtime_integration<'ctx>(
-    context: &'ctx Context,
-    module: &Module<'ctx>,
-    builder: &Builder<'ctx>,
-    source_file: &Path,
-) -> Result<()> {
-    let start_fn_type = context.void_type().fn_type(&[], false);
-    let start_fn = module.add_function("_start", start_fn_type, None);
-
-    let entry_bb = context.append_basic_block(start_fn, "entry");
-    builder.position_at_end(entry_bb);
-
-    if let Some(init_fn) = module.get_function("__module_init") {
-        builder.build_call(init_fn, &[], "init_call")?;
-    }
-
-    if let Some(main_fn) = module.get_function("main") {
-        let main_result = builder.build_call(main_fn, &[], "main_call")?;
-        let result_value = main_result
-            .try_as_basic_value()
-            .left()
-            .ok_or_else(|| anyhow!("Expected main to return a basic value"))?;
-
-        create_exit_syscall(context, builder, result_value)?;
-    } else {
-        ERRORS.lock().add(
-            CompilationError::new(ErrorLevel::Fatal, "Main function not found".to_string())
-                .with_code(CodeLine::new(
-                    1,
-                    "pub fn main() void {}".to_string(),
-                    CodeType::Add,
-                ))
-                .with_info(InfoBlock::new(
-                    "Add a main function or compile with `--no-link`".to_string(),
-                ))
-                .with_location(SourceLocation::new(source_file.to_path_buf(), 1, 1, 1)),
-        );
-    }
-
-    builder.build_unreachable()?;
 
     Ok(())
 }

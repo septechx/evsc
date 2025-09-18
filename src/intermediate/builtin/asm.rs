@@ -1,17 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use inkwell::{
-    builder::Builder,
-    context::Context,
-    module::Module,
-    types::BasicMetadataTypeEnum,
-    values::{BasicMetadataValueEnum, BasicValue},
-    InlineAsmDialect,
+    builder::Builder, context::Context, module::Module, types::BasicMetadataTypeEnum,
+    values::BasicMetadataValueEnum, InlineAsmDialect,
 };
 
 use crate::{
     ast::{ast::Expression, expressions::FunctionCallExpr},
     intermediate::{
         compile_expr::compile_expression_to_value,
+        compile_type::compile_arch_size_type,
         compiler::CompilationContext,
         pointer::{get_value, SmartValue},
     },
@@ -39,7 +36,7 @@ pub fn handle_asm_call<'ctx>(
         operands.push(val.into());
     }
 
-    let fn_type = context.void_type().fn_type(&metadata_types, false);
+    let fn_type = compile_arch_size_type(context).fn_type(&metadata_types, false);
 
     let inline_asm = context.create_inline_asm(
         fn_type,
@@ -51,9 +48,12 @@ pub fn handle_asm_call<'ctx>(
         false,
     );
 
-    builder.build_indirect_call(fn_type, inline_asm, &operands, "asm")?;
+    let call_site_value = builder.build_indirect_call(fn_type, inline_asm, &operands, "asm")?;
 
     Ok(SmartValue::from_value(
-        context.i32_type().const_int(0, false).as_basic_value_enum(),
+        call_site_value
+            .try_as_basic_value()
+            .left()
+            .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
     ))
 }

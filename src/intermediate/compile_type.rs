@@ -1,6 +1,6 @@
 use inkwell::{
     context::Context,
-    types::{BasicType, BasicTypeEnum, FunctionType},
+    types::{BasicType, BasicTypeEnum, FunctionType, IntType},
     AddressSpace,
 };
 
@@ -9,13 +9,12 @@ use crate::{
     intermediate::{arch::is_64, compiler::CompilationContext},
 };
 
-fn compile_arch_size_type<'ctx>(context: &'ctx Context) -> BasicTypeEnum<'ctx> {
+pub fn compile_arch_size_type<'ctx>(context: &'ctx Context) -> IntType<'ctx> {
     if is_64() {
         context.i64_type()
     } else {
         context.i32_type()
     }
-    .as_basic_type_enum()
 }
 
 pub fn compile_type<'ctx>(
@@ -37,7 +36,7 @@ pub fn compile_type<'ctx>(
                 "f32" => context.f32_type().as_basic_type_enum(),
                 "f64" => context.f64_type().as_basic_type_enum(),
                 "f128" => context.f128_type().as_basic_type_enum(),
-                "usize" | "isize" => compile_arch_size_type(context),
+                "usize" | "isize" => compile_arch_size_type(context).as_basic_type_enum(),
                 // Any should map to *void
                 "any" => context
                     .ptr_type(AddressSpace::default())

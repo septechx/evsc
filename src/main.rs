@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn run_tests() {
         let test_path = Path::new("./tests");
-        let test_count = 8;
+        let test_count = 9;
 
         let mut failed = false;
 

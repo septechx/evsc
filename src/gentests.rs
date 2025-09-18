@@ -18,9 +18,8 @@ pub fn check() -> anyhow::Result<()> {
             println!("Cleaned tests");
             gen_tests()?;
             println!("Generated tests");
+            std::process::exit(0);
         }
-
-        panic!("Done");
     }
 
     Ok(())

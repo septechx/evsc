@@ -35,6 +35,6 @@ entry:
   %load_ptr2 = load %Slice, ptr %str1, align 8
   %loaded_struct3 = load %Slice, ptr %str1, align 8
   %field4 = extractvalue %Slice %loaded_struct3, 1
-  call void asm sideeffect inteldialect "\0A      mov rax, 1\0A      mov rdi, 1\0A      mov rsi, $0\0A      mov rdx, $1\0A      syscall\0A    ", "r,r,~{rax},~{rdi},~{rsi},~{rdx},~{rcx},~{r11},~{cc}"(ptr %field, i64 %field4)
+  %asm = call i64 asm sideeffect inteldialect "mov rax, 1\0Amov rdi, 1\0Amov rsi, $0\0Amov rdx, $1\0Asyscall", "r,r,~{rax},~{rdi},~{rsi},~{rdx},~{rcx},~{r11},~{cc}"(ptr %field, i64 %field4)
   ret void
 }

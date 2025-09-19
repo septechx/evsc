@@ -1,12 +1,7 @@
 pub fn print(str: []const u8) void {
-    @asm("
-      mov rax, 1
-      mov rdi, 1
-      mov rsi, $0
-      mov rdx, $1
-      syscall
-    ",
-    "r,r,~{rax},~{rdi},~{rsi},~{rdx},~{rcx},~{r11},~{cc}",
-    str.ptr, str.len
+    @asm(
+      "mov rax, 1\nmov rdi, 1\nmov rsi, $0\nmov rdx, $1\nsyscall",
+      "r,r,~{rax},~{rdi},~{rsi},~{rdx},~{rcx},~{r11},~{cc}",
+      str.ptr, str.len
     );
 }

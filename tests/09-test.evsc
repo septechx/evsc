@@ -1,0 +1,3 @@
+pub fn main() []const u8 {
+    return "Hello world!\n";
+}

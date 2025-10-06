@@ -14,6 +14,7 @@ use crate::{
         types::SliceType,
     },
     intermediate::{
+        arch::compile_arch_size_type,
         builtin,
         compile_type::compile_type,
         compiler::CompilationContext,
@@ -58,7 +59,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 context.ptr_type(AddressSpace::default()),
                 "string_ptr",
             )?;
-            let len_val = context.i64_type().const_int(s.value.len() as u64, false);
+            let len_val = compile_arch_size_type(context).const_int(s.value.len() as u64, false);
 
             let slice_val = builder.build_insert_value(slice_val, ptr_val, 0, "slice_ptr")?;
             let slice_val = builder.build_insert_value(slice_val, len_val, 1, "slice_len")?;
@@ -158,6 +159,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                             expr,
                             compilation_context,
                         );
+                    }
+                    "@sizeof" => {
+                        return builtin::handle_sizeof_call(context, expr, compilation_context);
                     }
                     "@import" => {
                         return import_module(context, module, builder, expr, compilation_context);
@@ -345,12 +349,12 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     elem_smart_val.value
                 };
 
-                let index = context.i32_type().const_int(i as u64, false);
+                let index = compile_arch_size_type(context).const_int(i as u64, false);
                 let elem_ptr = unsafe {
                     builder.build_gep(
                         array_ty,
                         array_ptr,
-                        &[context.i32_type().const_int(0, false), index],
+                        &[compile_arch_size_type(context).const_int(0, false), index],
                         "elem_ptr",
                     )?
                 };
@@ -363,8 +367,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     array_ty,
                     array_ptr,
                     &[
-                        context.i32_type().const_int(0, false),
-                        context.i32_type().const_int(0, false),
+                        compile_arch_size_type(context).const_int(0, false),
+                        compile_arch_size_type(context).const_int(0, false),
                     ],
                     "first_elem_ptr",
                 )?
@@ -381,7 +385,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => bail!("Slice type did not compile to a struct"),
             };
 
-            let len_val = context.i64_type().const_int(len as u64, false);
+            let len_val = compile_arch_size_type(context).const_int(len as u64, false);
 
             let slice_val = slice_struct.get_undef();
 

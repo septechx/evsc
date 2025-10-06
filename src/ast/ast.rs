@@ -23,6 +23,7 @@ pub enum Expression {
     FixedArrayLiteral(FixedArrayLiteralExpr),
     FunctionCall(FunctionCallExpr),
     MemberAccess(MemberAccessExpr),
+    Type(TypeExpr),
 }
 
 #[derive(Debug, Clone)]

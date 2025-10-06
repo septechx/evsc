@@ -10,6 +10,7 @@ use crate::{
             parse_array_literal_expr, parse_assignment_expr, parse_binary_expr,
             parse_function_call_expr, parse_grouping_expr, parse_member_access_expr,
             parse_prefix_expr, parse_primary_expr, parse_struct_instantiation_expr,
+            parse_type_expr,
         },
         parser::Parser,
         stmt::{
@@ -92,7 +93,7 @@ pub fn create_token_lookups() {
     led(T::Plus, BP::Additive, parse_binary_expr);
     led(T::Dash, BP::Additive, parse_binary_expr);
 
-    // MUltiplicative
+    // Multiplicative
     led(T::Star, BP::Multiplicative, parse_binary_expr);
     led(T::Slash, BP::Multiplicative, parse_binary_expr);
     led(T::Percent, BP::Multiplicative, parse_binary_expr);
@@ -104,6 +105,7 @@ pub fn create_token_lookups() {
     nud(T::OpenParen, parse_grouping_expr);
     nud(T::Dash, parse_prefix_expr);
     nud(T::Reference, parse_prefix_expr);
+    nud(T::Dollar, parse_type_expr);
 
     // Call & Member
     led(T::OpenCurly, BP::Call, parse_struct_instantiation_expr);

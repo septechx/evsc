@@ -32,7 +32,7 @@ use crate::{
     },
     errors::{CompilationError, ErrorLevel},
     intermediate::{
-        compiler::CompilationContext, emmiter::emit_to_file,
+        arch::compile_arch_size_type, compiler::CompilationContext, emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
     ERRORS,
@@ -64,7 +64,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     let builder = context.create_builder();
 
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
-    inject_builtins(&context, &mut cc);
+    inject_builtins(&context, &mut cc)?;
 
     let init_fn = setup_module(&context, &module, &builder)?;
     compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
@@ -114,8 +114,10 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     Ok(())
 }
 
-fn inject_builtins<'ctx>(context: &'ctx Context, cc: &mut CompilationContext<'ctx>) {
-    builtin::create_slice_struct(context, cc);
+fn inject_builtins<'ctx>(context: &'ctx Context, cc: &mut CompilationContext<'ctx>) -> Result<()> {
+    builtin::create_slice_struct(context, cc)?;
+
+    Ok(())
 }
 
 fn setup_module<'ctx>(
@@ -147,11 +149,11 @@ fn emit_global_ctors<'ctx>(
         builder.build_return(None)?;
     }
 
-    let priority = context.i32_type().const_int(65535, false);
+    let priority = compile_arch_size_type(context).const_int(65535, false);
 
     let ctor_entry_ty = context.struct_type(
         &[
-            context.i32_type().into(),
+            compile_arch_size_type(context).into(),
             context.ptr_type(AddressSpace::default()).into(),
             context.ptr_type(AddressSpace::default()).into(),
         ],

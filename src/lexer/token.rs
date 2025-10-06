@@ -62,6 +62,7 @@ pub enum TokenKind {
     LessEquals,
     MoreEquals,
     Reference,
+    Dollar,
 
     // Literals
     Identifier,

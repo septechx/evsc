@@ -5,6 +5,9 @@ pub extern fn @asm(asm: []const u8, constraints: []const u8, ...) isize;
 pub extern fn @import(path: []const u8) any;
 
 #[internal]
+pub extern fn @sizeof(type: $) isize;
+
+#[internal]
 pub struct Slice<T> {
   ptr: *const T,
   len: usize,

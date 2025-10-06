@@ -9,7 +9,7 @@ use crate::{
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr,
-            SymbolExpr,
+            SymbolExpr, TypeExpr,
         },
     },
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
@@ -318,4 +318,11 @@ pub fn parse_member_access_expr(
         base: Box::new(base),
         member,
     }))
+}
+
+pub fn parse_type_expr(parser: &mut Parser) -> Result<Expression> {
+    parser.expect(TokenKind::Dollar)?;
+
+    let underlying = parse_type(parser, BindingPower::DefaultBp)?;
+    Ok(Expression::Type(TypeExpr { underlying }))
 }

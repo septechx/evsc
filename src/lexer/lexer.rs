@@ -230,5 +230,6 @@ lazy_static! {
         regex_handler!(r"^#", def T::Hash),
         regex_handler!(r"^>", def T::More),
         regex_handler!(r"^<", def T::Less),
+        regex_handler!(r"^\$", def T::Dollar),
     ];
 }

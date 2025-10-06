@@ -1,21 +1,13 @@
 use inkwell::{
     context::Context,
-    types::{BasicType, BasicTypeEnum, FunctionType, IntType},
+    types::{BasicType, BasicTypeEnum, FunctionType},
     AddressSpace,
 };
 
 use crate::{
     ast::ast::Type,
-    intermediate::{arch::is_64, compiler::CompilationContext},
+    intermediate::{arch::compile_arch_size_type, compiler::CompilationContext},
 };
-
-pub fn compile_arch_size_type<'ctx>(context: &'ctx Context) -> IntType<'ctx> {
-    if is_64() {
-        context.i64_type()
-    } else {
-        context.i32_type()
-    }
-}
 
 pub fn compile_type<'ctx>(
     context: &'ctx Context,

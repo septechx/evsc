@@ -7,7 +7,7 @@ source_filename = "07-test.evsc"
 @inst_Module_std = private constant %Module_std { ptr @print }
 @std = private global %Module_std zeroinitializer
 @str = private constant [11 x i8] c"Hello world"
-@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__module_init, ptr null }]
+@llvm.global_ctors = appending global [1 x { i64, ptr, ptr }] [{ i64, ptr, ptr } { i64 65535, ptr @__module_init, ptr null }]
 
 define void @__module_init() {
 entry:

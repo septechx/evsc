@@ -7,8 +7,8 @@ use inkwell::{
 use crate::{
     ast::{ast::Expression, expressions::FunctionCallExpr},
     intermediate::{
+        arch::compile_arch_size_type,
         compile_expr::compile_expression_to_value,
-        compile_type::compile_arch_size_type,
         compiler::CompilationContext,
         pointer::{get_value, SmartValue},
     },

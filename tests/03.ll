@@ -1,7 +1,7 @@
 ; ModuleID = '03-test.evsc'
 source_filename = "03-test.evsc"
 
-@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__module_init, ptr null }]
+@llvm.global_ctors = appending global [1 x { i64, ptr, ptr }] [{ i64, ptr, ptr } { i64 65535, ptr @__module_init, ptr null }]
 
 define void @__module_init() {
 entry:

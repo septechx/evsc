@@ -69,3 +69,8 @@ pub struct MemberAccessExpr {
     pub base: Box<Expression>,
     pub member: SymbolExpr,
 }
+
+#[derive(Debug, Clone)]
+pub struct TypeExpr {
+    pub underlying: Type,
+}

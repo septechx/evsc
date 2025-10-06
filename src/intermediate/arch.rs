@@ -1,3 +1,5 @@
+use inkwell::{context::Context, types::IntType};
+
 use crate::{
     errors::{CompilationError, ErrorLevel},
     ERRORS,
@@ -16,5 +18,13 @@ pub fn is_64() -> bool {
             ));
             unreachable!()
         }
+    }
+}
+
+pub fn compile_arch_size_type<'ctx>(context: &'ctx Context) -> IntType<'ctx> {
+    if is_64() {
+        context.i64_type()
+    } else {
+        context.i32_type()
     }
 }

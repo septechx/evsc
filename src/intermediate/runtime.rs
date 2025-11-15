@@ -31,7 +31,7 @@ pub fn generate_c_runtime_integration<'ctx>(
         let main_result = builder.build_call(main_fn, &[], "main_call")?;
         let result_value = main_result
             .try_as_basic_value()
-            .left()
+            .basic()
             .ok_or_else(|| anyhow!("Expected main to return a basic value"))?;
 
         create_exit_syscall(context, builder, result_value)?;

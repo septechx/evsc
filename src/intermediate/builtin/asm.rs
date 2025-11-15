@@ -53,7 +53,7 @@ pub fn handle_asm_call<'ctx>(
     Ok(SmartValue::from_value(
         call_site_value
             .try_as_basic_value()
-            .left()
+            .basic()
             .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
     ))
 }

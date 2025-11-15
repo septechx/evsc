@@ -213,7 +213,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             SmartValue::from_value(
                 call_site_value
                     .try_as_basic_value()
-                    .left()
+                    .basic()
                     .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
             )
         }

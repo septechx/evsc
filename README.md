@@ -21,7 +21,7 @@ pub fn main() isize {
 - LLVM 18.1.x
 - just
 
-**Compiling:**
+**Usage:**
 
 - LLVM 18.1.x
 

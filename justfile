@@ -19,6 +19,8 @@ clean:
     rm -rf include/*.a include/*.o tests/*-test.ll
     cargo clean
 
+install:
+    cargo install --path .
 
 bindings:
     clang++ -c -fPIC include/llvm_bindings.cpp -o include/llvm_bindings.o $(llvm-config-18 --cxxflags)

@@ -9,8 +9,6 @@ pub mod linkers {
 use anyhow::{anyhow, bail, Result};
 use std::{path::Path, process::Command};
 
-
-
 #[derive(Debug, Clone)]
 pub struct LinkerOptions {
     pub output_path: String,
@@ -84,7 +82,7 @@ fn run_linker(linker: &impl Linker) -> Result<()> {
     let output = Command::new(linker.command())
         .args(linker.args())
         .output()
-        .map_err(|e| anyhow!("Failed to execute linker '{}': {}", linker.command(), e))?;
+        .map_err(|e| anyhow!("{}: {}", linker.command(), e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

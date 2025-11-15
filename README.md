@@ -18,12 +18,12 @@ pub fn main() isize {
 
 - Rust
 - Clang
-- LLVM 18.1.x
+- LLVM 21.1.x
 - just
 
 **Usage:**
 
-- LLVM 18.1.x
+- LLVM 21.1.x
 
 ## Building
 

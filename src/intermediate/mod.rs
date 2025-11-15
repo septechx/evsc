@@ -9,9 +9,12 @@ mod pointer;
 mod resolve_lib;
 mod runtime;
 
-use std::path::Path;
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -90,10 +93,18 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
                 unreachable!()
             };
 
-            let temp_obj_path = opts.output_file.with_extension("o");
-            build_object_file(&temp_obj_path, &module, opts.backend_options)?;
+            let tmp_dir = get_tmp_dir()?;
+            let obj_filename = opts
+                .output_file
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("Invalid output file path"))?
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 in output file name"))?;
+            let tmp_obj_path = tmp_dir.join("o").join(format!("{obj_filename}.o"));
 
-            let object_files = vec![temp_obj_path.as_path()];
+            build_object_file(&tmp_obj_path, &module, opts.backend_options)?;
+
+            let object_files = vec![tmp_obj_path.as_path()];
             build_executable(
                 &object_files,
                 opts.output_file,
@@ -101,17 +112,36 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
                 opts.pic,
                 linker_kind,
             )?;
-
-            if let Err(e) = std::fs::remove_file(&temp_obj_path) {
-                ERRORS.lock().add(CompilationError::new(
-                    ErrorLevel::Warning,
-                    format!("Failed to remove temporary object file: {e}"),
-                ));
-            }
         }
     }
 
     Ok(())
+}
+
+fn get_tmp_dir() -> Result<PathBuf> {
+    let dir =
+        PathBuf::from(std::env::var("EVSC_CACHE_DIR").unwrap_or_else(|_| String::from(".evsc")));
+
+    let status = fs::create_dir_all(&dir).map_err(|e| match e.kind() {
+        io::ErrorKind::AlreadyExists => anyhow::Ok(()),
+        _ => bail!("Failed to create cache directory: {e}"),
+    });
+
+    if status.is_err() {
+        bail!("Failed to create cache directory: {status:?}");
+    }
+
+    let obj_dir = dir.join("o");
+    let status = fs::create_dir_all(&obj_dir).map_err(|e| match e.kind() {
+        io::ErrorKind::AlreadyExists => anyhow::Ok(()),
+        _ => bail!("Failed to create object cache directory: {e}"),
+    });
+
+    if status.is_err() {
+        bail!("Failed to create object cache directory: {status:?}");
+    }
+
+    Ok(dir)
 }
 
 fn inject_builtins<'ctx>(context: &'ctx Context, cc: &mut CompilationContext<'ctx>) -> Result<()> {

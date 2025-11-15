@@ -1,4 +1,4 @@
-LLVM_SYS_181_PREFIX := "$(llvm-config-18 --bindir)"
+LLVM_SYS_211_PREFIX := "$(llvm-config --bindir)"
 
 build: bindings
     cargo build --release
@@ -19,7 +19,9 @@ clean:
     rm -rf include/*.a include/*.o tests/*-test.ll
     cargo clean
 
+install:
+    cargo install --path .
 
 bindings:
-    clang++ -c -fPIC include/llvm_bindings.cpp -o include/llvm_bindings.o $(llvm-config-18 --cxxflags)
+    clang++ -c -fPIC include/llvm_bindings.cpp -o include/llvm_bindings.o $(llvm-config --cxxflags)
     ar rcs include/libllvm_bindings.a include/llvm_bindings.o

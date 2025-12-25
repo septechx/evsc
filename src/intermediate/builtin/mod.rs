@@ -44,7 +44,12 @@ pub fn get_builtin<'ctx>(
         Ok(found.clone())
     } else {
         compilation_context.builtins.insert(builtin);
-        Ok(builtin.create(context, compilation_context)?)
+        let struct_def = builtin.create(context, compilation_context)?;
+        compilation_context
+            .type_context
+            .struct_defs
+            .insert(builtin.name().to_string(), struct_def.clone());
+        Ok(struct_def)
     }
 }
 

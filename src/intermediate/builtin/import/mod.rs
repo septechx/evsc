@@ -14,7 +14,7 @@ use crate::{
     bindings::llvm_bindings::create_named_struct,
     intermediate::{
         builtin::BuiltinFunction,
-        compiler::{self, CompilationContext},
+        compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,
         resolve_lib::resolve_std_lib,
     },
@@ -33,6 +33,7 @@ impl BuiltinFunction for ImportBuiltin {
         expr: &FunctionCallExpr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
+        // Resolve path
         if expr.arguments.len() != 1 {
             bail!("Expected one argument to @import");
         }
@@ -53,7 +54,9 @@ impl BuiltinFunction for ImportBuiltin {
             .parent()
             .unwrap()
             .join(module_path);
+        // Resolve path
 
+        // Compile module
         let file = fs::read_to_string(&module_path)?;
 
         let tokens = tokenize(file, &module_path)?;
@@ -62,11 +65,24 @@ impl BuiltinFunction for ImportBuiltin {
         let mut mod_compilation_context = CompilationContext::new(module_path);
 
         compiler::compile(context, module, builder, &ast, &mut mod_compilation_context)?;
+        // Compile module
 
+        // Transfer builtins
         compilation_context
             .builtins
             .extend(mod_compilation_context.builtins);
 
+        compilation_context.type_context.struct_defs.extend(
+            mod_compilation_context
+                .type_context
+                .struct_defs
+                .into_iter()
+                .filter(|(_, def)| def.is_builtin)
+                .collect::<HashMap<_, _>>(),
+        );
+        // Transfer builtins
+
+        // Create module struct
         let entries: Vec<(String, BasicTypeEnum)> = mod_compilation_context
             .symbol_table
             .iter()
@@ -106,7 +122,9 @@ impl BuiltinFunction for ImportBuiltin {
         }
 
         let const_struct = context.const_struct(&const_fields, false);
+        // Create module struct
 
+        // Instantiate module struct
         let gv = module.add_global(struct_ty, None, &format!("inst_{module_name}"));
         gv.set_initializer(&const_struct);
         gv.set_linkage(Linkage::Private);
@@ -117,5 +135,6 @@ impl BuiltinFunction for ImportBuiltin {
             gv_ptr,
             struct_ty.as_basic_type_enum(),
         ))
+        // Instantiate module struct
     }
 }

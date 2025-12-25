@@ -25,7 +25,7 @@ impl BuiltinFunction for SizeofBuiltin {
             _ => bail!("First argument must be a type expression"),
         };
 
-        let llvm_ty = compile_type(context, &ty, compilation_context);
+        let llvm_ty = compile_type(context, &ty, compilation_context)?;
 
         let size = llvm_ty
             .size_of()

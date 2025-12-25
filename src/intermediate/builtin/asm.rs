@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use inkwell::{
-    builder::Builder, context::Context, module::Module, types::BasicMetadataTypeEnum,
-    values::BasicMetadataValueEnum, InlineAsmDialect,
+    InlineAsmDialect, builder::Builder, context::Context, module::Module,
+    types::BasicMetadataTypeEnum, values::BasicMetadataValueEnum,
 };
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
         builtin::BuiltinFunction,
         compile_expr::compile_expression_to_value,
         compiler::CompilationContext,
-        pointer::{get_value, SmartValue},
+        pointer::{SmartValue, get_value},
     },
 };
 

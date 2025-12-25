@@ -1,13 +1,13 @@
 pub mod linker;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use inkwell::{
+    OptimizationLevel,
     llvm_sys::target_machine::LLVMGetDefaultTargetTriple,
     module::Module,
     targets::{
         CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
     },
-    OptimizationLevel,
 };
 use std::{ffi::CStr, path::Path};
 

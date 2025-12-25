@@ -1,8 +1,8 @@
 use std::process::Command;
 
 use crate::{
-    errors::{CompilationError, ErrorLevel},
     ERRORS,
+    errors::{CompilationError, ErrorLevel},
 };
 
 use super::Linker;

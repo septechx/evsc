@@ -6,7 +6,7 @@ pub mod linkers {
     pub use super::ld::LdLinker;
 }
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::{path::Path, process::Command};
 
 #[derive(Debug, Clone)]

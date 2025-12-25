@@ -1,6 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 use clap::Parser;
 use inkwell::OptimizationLevel;
 

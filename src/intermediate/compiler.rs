@@ -136,7 +136,7 @@ pub fn compile<'a, 'ctx>(
                     &fn_decl.explicit_type,
                     &param_types,
                     compilation_context,
-                );
+                )?;
 
                 let function = module.add_function(&fn_decl.name, fn_type, None);
                 compilation_context
@@ -354,7 +354,7 @@ fn compile_struct_decl<'ctx>(
     let mut field_indices = HashMap::new();
 
     for (index, property) in struct_decl.properties.iter().enumerate() {
-        let field_ty = compile_type(context, &property.explicit_type, compilation_context);
+        let field_ty = compile_type(context, &property.explicit_type, compilation_context)?;
         field_types.push(field_ty);
         field_indices.insert(property.name.clone(), index as u32);
     }
@@ -373,7 +373,7 @@ fn compile_struct_decl<'ctx>(
             &method.explicit_type,
             &param_types,
             compilation_context,
-        );
+        )?;
 
         let function = module.add_function(&method.name, fn_type, None);
         compilation_context

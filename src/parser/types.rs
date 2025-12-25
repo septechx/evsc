@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::{collections::HashMap, sync::Mutex};
 
 use colored::Colorize;
@@ -63,7 +63,7 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
             parser.expect(T::CloseBracket)?;
             let underlying = parse_type(parser, BP::DefaultBp)?;
             Ok(Type::FixedArray(FixedArrayType {
-                length: length as usize,
+                length,
                 underlying: Box::new(underlying),
             }))
         }
@@ -74,12 +74,14 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
                 underlying: Box::new(underlying),
             }))
         }
-        _ => Err(anyhow!(format!(
-            "Expected number or ']' in array type, got {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold())),
+        _ => Err(anyhow!(
+            format!(
+                "Expected number or ']' in array type, got {:?}",
+                parser.current_token()
+            )
+            .red()
+            .bold()
+        )),
     }
 }
 
@@ -147,9 +149,11 @@ fn parse_function_type(parser: &mut Parser) -> Result<Type> {
         if parser.current_token().kind == TokenKind::Comma {
             parser.advance();
         } else if parser.current_token().kind != TokenKind::CloseParen {
-            bail!("Expected comma or closing parenthesis in function type"
-                .red()
-                .bold());
+            bail!(
+                "Expected comma or closing parenthesis in function type"
+                    .red()
+                    .bold()
+            );
         }
     }
     parser.expect(TokenKind::CloseParen)?;

@@ -1,11 +1,11 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use inkwell::{
+    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum},
     values::{BasicMetadataValueEnum, BasicValue},
-    AddressSpace,
 };
 
 use crate::{
@@ -15,10 +15,10 @@ use crate::{
     },
     intermediate::{
         arch::compile_arch_size_type,
-        builtin::Builtin,
+        builtin::{Builtin, get_builtin},
         compile_type::compile_type,
         compiler::CompilationContext,
-        pointer::{get_value, SmartValue},
+        pointer::{SmartValue, get_value},
     },
     lexer::token::TokenKind,
 };
@@ -44,12 +44,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             global.set_constant(true);
             global.set_linkage(Linkage::Private);
 
-            let slice_ty = compilation_context
-                .type_context
-                .struct_defs
-                .get("Slice")
-                .unwrap()
-                .llvm_type;
+            let slice_ty = get_builtin(context, compilation_context, Builtin::Slice)?.llvm_type;
 
             let slice_val = slice_ty.get_undef();
 
@@ -148,18 +143,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             }
         }
         Expression::FunctionCall(expr) => {
-            if let Expression::Symbol(sym) = expr.callee.as_ref() {
-                if let Some(builtin) = sym.value.strip_prefix("@") {
-                    if let Some(builtin) = Builtin::from_str(builtin) {
-                        return builtin.handle_call(
-                            context,
-                            module,
-                            builder,
-                            expr,
-                            compilation_context,
-                        );
-                    }
-                }
+            if let Expression::Symbol(sym) = expr.callee.as_ref()
+                && let Some(builtin) = sym.value.strip_prefix("@")
+                && let Some(builtin) = Builtin::from_str(builtin)
+            {
+                return builtin.handle_call(context, module, builder, expr, compilation_context);
             }
 
             let callee_val = compile_expression_to_value(
@@ -315,7 +303,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             SmartValue::from_value(val.as_basic_value_enum())
         }
         Expression::ArrayLiteral(expr) => {
-            let element_ty = compile_type(context, &expr.underlying, compilation_context);
+            let element_ty = compile_type(context, &expr.underlying, compilation_context)?;
             let len = expr.contents.len();
 
             let array_ty = element_ty.array_type(len as u32);
@@ -370,7 +358,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 underlying: Box::new(expr.underlying.clone()),
             });
 
-            let slice_llvm_type = compile_type(context, &slice_ty, compilation_context);
+            let slice_llvm_type = compile_type(context, &slice_ty, compilation_context)?;
 
             let slice_struct = match slice_llvm_type {
                 BasicTypeEnum::StructType(ty) => ty,

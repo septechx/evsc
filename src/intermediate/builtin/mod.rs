@@ -27,10 +27,25 @@ pub trait BuiltinFunction {
 pub trait BuiltinStruct {
     fn create<'ctx>(
         context: &'ctx Context,
-        module: &Module<'ctx>,
-        builder: &Builder<'ctx>,
         compilation_context: &mut CompilationContext<'ctx>,
-    ) -> Result<(String, StructDef<'ctx>)>;
+    ) -> Result<StructDef<'ctx>>;
+}
+
+pub fn get_builtin<'ctx>(
+    context: &'ctx Context,
+    compilation_context: &mut CompilationContext<'ctx>,
+    builtin: Builtin,
+) -> Result<StructDef<'ctx>> {
+    if let Some(found) = compilation_context
+        .type_context
+        .struct_defs
+        .get(builtin.name())
+    {
+        Ok(found.clone())
+    } else {
+        compilation_context.builtins.insert(builtin);
+        Ok(builtin.create(context, compilation_context)?)
+    }
 }
 
 macro_rules! define_builtins {
@@ -42,18 +57,25 @@ macro_rules! define_builtins {
             $( $StVar:ident => $StTy:path => $st_name:expr ),* $(,)?
         }
     ) => {
-        #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+        #[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
         pub enum Builtin {
-            $( $FnVar($FnTy), )*
-            $( $StVar($StTy), )*
+            $( $FnVar, )*
+            $( $StVar, )*
         }
 
         impl Builtin {
             pub fn from_str(s: &str) -> Option<Self> {
                 match s {
-                    $( $fn_name => Some(Builtin::$FnVar(<$FnTy>::default())), )*
-                    $( $st_name => Some(Builtin::$StVar(<$StTy>::default())), )*
+                    $( $fn_name => Some(Builtin::$FnVar), )*
+                    $( $st_name => Some(Builtin::$StVar), )*
                     _ => None,
+                }
+            }
+
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $( Builtin::$FnVar => $fn_name, )*
+                    $( Builtin::$StVar => $st_name, )*
                 }
             }
 
@@ -66,21 +88,19 @@ macro_rules! define_builtins {
                 compilation_context: &mut CompilationContext<'ctx>,
             ) -> Result<SmartValue<'ctx>> {
                 match self {
-                    $( Builtin::$FnVar(_) => <$FnTy>::handle_call(context, module, builder, expr, compilation_context), )*
-                    $( Builtin::$StVar(_) => panic!("`{}` is not a function builtin", $st_name), )*
+                    $( Builtin::$FnVar => <$FnTy>::handle_call(context, module, builder, expr, compilation_context), )*
+                    $( Builtin::$StVar => panic!("`{}` is not a function builtin", $st_name), )*
                 }
             }
 
             pub fn create<'ctx>(
                 &self,
                 context: &'ctx Context,
-                module: &Module<'ctx>,
-                builder: &Builder<'ctx>,
                 compilation_context: &mut CompilationContext<'ctx>,
-            ) -> Result<(String, StructDef<'ctx>)> {
+            ) -> Result<StructDef<'ctx>> {
                 match self {
-                    $( Builtin::$StVar(_) => <$StTy>::create(context, module, builder, compilation_context), )*
-                    $( Builtin::$FnVar(_) => panic!("`{}` is not a struct builtin", $fn_name), )*
+                    $( Builtin::$StVar => <$StTy>::create(context, compilation_context), )*
+                    $( Builtin::$FnVar => panic!("`{}` is not a struct builtin", $fn_name), )*
                 }
             }
         }
@@ -94,6 +114,6 @@ define_builtins! {
         Import => import::ImportBuiltin => "import",
     }
     structs {
-        Slice => slice::SliceBuiltin => "slice",
+        Slice => slice::SliceBuiltin => "Slice",
     }
 }

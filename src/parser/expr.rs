@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use colored::Colorize;
 
 use crate::{
+    ERRORS,
     ast::{
         ast::Expression,
         expressions::{
@@ -18,12 +19,11 @@ use crate::{
         verify::build_line_with_positions,
     },
     parser::{
-        lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
+        lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
         parser::Parser,
         string::process_string,
         types::parse_type,
     },
-    ERRORS,
 };
 
 fn handle_unexpected_token(parser: &mut Parser, token: Token) -> ! {
@@ -102,12 +102,14 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
             parser.advance();
             Ok(Expression::Symbol(SymbolExpr { value }))
         }
-        _ => bail!(format!(
-            "Cannot create primary expression from {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold()),
+        _ => bail!(
+            format!(
+                "Cannot create primary expression from {:?}",
+                parser.current_token()
+            )
+            .red()
+            .bold()
+        ),
     }
 }
 
@@ -259,13 +261,15 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             parser.expect(TokenKind::CloseCurly)?;
 
             if contents.len() != length {
-                bail!(format!(
-                    "Fixed array literal has {} elements but expected {}",
-                    contents.len(),
-                    length
-                )
-                .red()
-                .bold());
+                bail!(
+                    format!(
+                        "Fixed array literal has {} elements but expected {}",
+                        contents.len(),
+                        length
+                    )
+                    .red()
+                    .bold()
+                );
             }
 
             Ok(Expression::FixedArrayLiteral(FixedArrayLiteralExpr {
@@ -296,12 +300,14 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
                 contents,
             }))
         }
-        _ => Err(anyhow!(format!(
-            "Expected number or ']' in array literal, got {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold())),
+        _ => Err(anyhow!(
+            format!(
+                "Expected number or ']' in array literal, got {:?}",
+                parser.current_token()
+            )
+            .red()
+            .bold()
+        )),
     }
 }
 

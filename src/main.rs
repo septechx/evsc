@@ -74,13 +74,13 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
 
     let (extension, emit) = if cli.no_link {
         match (cli.emit_llvm, cli.emit_asm) {
-            (true, _) => ("ll", EmitType::LLVM),
+            (true, _) => ("ll", EmitType::Llvm),
             (false, true) => ("s", EmitType::Assembly),
             _ => ("o", EmitType::Object),
         }
     } else {
         match (cli.emit_llvm, cli.emit_asm) {
-            (true, _) => ("ll", EmitType::LLVM),
+            (true, _) => ("ll", EmitType::Llvm),
             (false, true) => ("s", EmitType::Assembly),
             _ => {
                 if cli.shared {
@@ -250,7 +250,7 @@ mod tests {
                     source_dir: test_path,
                     source_file: &path,
                     output_file: &test_path.join(format!("{i:02}-test.ll")),
-                    emit: &EmitType::LLVM,
+                    emit: &EmitType::Llvm,
                     backend_options: &BackendOptions::default(),
                     pic: true, // Doesn't matter with EmitType::LLVM
                     linker_kind: None,

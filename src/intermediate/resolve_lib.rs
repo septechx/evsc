@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub fn resolve_std_lib() -> Result<PathBuf> {
     let env_var = env::var("EVSC_LIB_PATH");

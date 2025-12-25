@@ -54,7 +54,7 @@ pub struct CompileOptions<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum EmitType {
-    LLVM,
+    Llvm,
     Assembly,
     Object,
     Executable,
@@ -76,7 +76,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     }
 
     match opts.emit {
-        EmitType::LLVM => emit_to_file(opts.output_file, &module)?,
+        EmitType::Llvm => emit_to_file(opts.output_file, &module)?,
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Executable => {

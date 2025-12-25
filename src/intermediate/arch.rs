@@ -1,8 +1,8 @@
 use inkwell::{context::Context, types::IntType};
 
 use crate::{
-    errors::{CompilationError, ErrorLevel},
     ERRORS,
+    errors::{CompilationError, ErrorLevel},
 };
 
 pub fn is_64() -> bool {

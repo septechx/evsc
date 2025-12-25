@@ -1,7 +1,7 @@
 use crate::{
+    ERRORS,
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
     lexer::token::{Token, TokenKind},
-    ERRORS,
 };
 
 pub fn verify_tokens(tokens: &[Token]) {

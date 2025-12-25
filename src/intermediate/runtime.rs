@@ -1,14 +1,14 @@
 use std::path::Path;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use inkwell::{
-    builder::Builder, context::Context, module::Module, values::BasicValueEnum, InlineAsmDialect,
+    InlineAsmDialect, builder::Builder, context::Context, module::Module, values::BasicValueEnum,
 };
 
 use crate::{
+    ERRORS,
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock, SourceLocation},
     intermediate::arch::is_64,
-    ERRORS,
 };
 
 pub fn generate_c_runtime_integration<'ctx>(

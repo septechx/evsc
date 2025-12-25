@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use inkwell::module::Module;
 
 pub fn emit_to_file(file: &Path, module: &Module) -> Result<()> {

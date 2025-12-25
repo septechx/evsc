@@ -66,24 +66,24 @@ impl Lexer {
             let current_column = self.column;
 
             for handler in REGEXES.iter() {
-                if let Some(mat) = handler.regex.find(remaining) {
-                    if mat.start() == 0 {
-                        let matched_text = mat.as_str();
-                        if let Some(token) = (handler.handler)(
-                            matched_text,
-                            SourceLocation::new(
-                                file_path.to_path_buf(),
-                                current_line,
-                                current_column,
-                                match_len,
-                            ),
-                        )? {
-                            tokens.push(token);
-                        }
-                        match_len = matched_text.len();
-                        matched = true;
-                        break;
+                if let Some(mat) = handler.regex.find(remaining)
+                    && mat.start() == 0
+                {
+                    let matched_text = mat.as_str();
+                    if let Some(token) = (handler.handler)(
+                        matched_text,
+                        SourceLocation::new(
+                            file_path.to_path_buf(),
+                            current_line,
+                            current_column,
+                            match_len,
+                        ),
+                    )? {
+                        tokens.push(token);
                     }
+                    match_len = matched_text.len();
+                    matched = true;
+                    break;
                 }
             }
 

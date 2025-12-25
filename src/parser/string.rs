@@ -1,7 +1,7 @@
 use crate::{
+    ERRORS,
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel, SourceLocation},
     lexer::{token::Token, verify::build_line_with_positions},
-    ERRORS,
 };
 
 pub fn process_string(str: &str, location: SourceLocation, tokens: &[Token]) -> String {

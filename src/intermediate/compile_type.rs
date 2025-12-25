@@ -1,3 +1,4 @@
+use anyhow::Result;
 use inkwell::{
     context::Context,
     types::{BasicType, BasicTypeEnum, FunctionType},
@@ -6,17 +7,21 @@ use inkwell::{
 
 use crate::{
     ast::ast::Type,
-    intermediate::{arch::compile_arch_size_type, compiler::CompilationContext},
+    intermediate::{
+        arch::compile_arch_size_type,
+        builtin::{get_builtin, Builtin},
+        compiler::CompilationContext,
+    },
 };
 
 pub fn compile_type<'ctx>(
     context: &'ctx Context,
     ty: &Type,
     compilation_context: &mut CompilationContext<'ctx>,
-) -> BasicTypeEnum<'ctx> {
-    match ty {
+) -> Result<BasicTypeEnum<'ctx>> {
+    Ok(match ty {
         // Skip const as LLVM does not support it
-        Type::Const(inner) => compile_type(context, &inner.underlying, compilation_context),
+        Type::Const(inner) => compile_type(context, &inner.underlying, compilation_context)?,
         Type::Symbol(sym) => {
             match sym.name.as_str() {
                 "u8" | "i8" => context.i8_type().as_basic_type_enum(),
@@ -36,35 +41,14 @@ pub fn compile_type<'ctx>(
                 tyname => unimplemented!("{tyname}"),
             }
         }
-        Type::Slice(_) => compilation_context
-            .type_context
-            .struct_defs
-            .get("Slice")
-            .unwrap()
+        Type::Slice(_) => get_builtin(context, compilation_context, Builtin::Slice)?
             .llvm_type
             .as_basic_type_enum(),
-
-        Type::Function(_func_ty) => {
-            /*
-            let param_types: Vec<BasicTypeEnum> = func_ty
-                .parameters
-                .iter()
-                .map(|ty| compile_type(context, ty, compilation_context))
-                .collect();
-            let return_type = compile_type(context, &func_ty.return_type, compilation_context);
-
-            let fn_type = return_type.fn_type(
-                &param_types.iter().map(|&ty| ty.into()).collect::<Vec<_>>(),
-                false,
-            );
-            */
-
-            context
-                .ptr_type(AddressSpace::default())
-                .as_basic_type_enum()
-        }
+        Type::Function(_func_ty) => context
+            .ptr_type(AddressSpace::default())
+            .as_basic_type_enum(),
         ty => unimplemented!("{ty:#?}"),
-    }
+    })
 }
 
 pub fn compile_function_type<'ctx>(
@@ -72,20 +56,23 @@ pub fn compile_function_type<'ctx>(
     return_type: &Type,
     param_types: &[Type],
     compilation_context: &mut CompilationContext<'ctx>,
-) -> FunctionType<'ctx> {
+) -> Result<FunctionType<'ctx>> {
     let return_llvm_type: Option<BasicTypeEnum> = match return_type {
         Type::Symbol(sym) if sym.name == "void" => None,
-        _ => Some(compile_type(context, return_type, compilation_context)),
+        _ => Some(compile_type(context, return_type, compilation_context)?),
     };
 
     let param_llvm_types: Vec<_> = param_types
         .iter()
-        .map(|ty| compile_type(context, ty, compilation_context).into())
+        .map(|ty| compile_type(context, ty, compilation_context))
+        .collect::<Result<Vec<_>>>()?
+        .iter()
+        .map(|&ty| ty.into())
         .collect();
 
-    if let Some(ret_ty) = return_llvm_type {
+    Ok(if let Some(ret_ty) = return_llvm_type {
         ret_ty.fn_type(&param_llvm_types, false)
     } else {
         context.void_type().fn_type(&param_llvm_types, false)
-    }
+    })
 }

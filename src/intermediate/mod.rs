@@ -4,7 +4,6 @@ mod compile_expr;
 mod compile_type;
 mod compiler;
 mod emmiter;
-mod import;
 mod pointer;
 mod resolve_lib;
 mod runtime;
@@ -14,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -55,7 +54,7 @@ pub struct CompileOptions<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum EmitType {
-    LLVM,
+    Llvm,
     Assembly,
     Object,
     Executable,
@@ -67,7 +66,6 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     let builder = context.create_builder();
 
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
-    inject_builtins(&context, &mut cc)?;
 
     let init_fn = setup_module(&context, &module, &builder)?;
     compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
@@ -78,7 +76,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     }
 
     match opts.emit {
-        EmitType::LLVM => emit_to_file(opts.output_file, &module)?,
+        EmitType::Llvm => emit_to_file(opts.output_file, &module)?,
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Executable => {
@@ -142,12 +140,6 @@ fn get_tmp_dir() -> Result<PathBuf> {
     }
 
     Ok(dir)
-}
-
-fn inject_builtins<'ctx>(context: &'ctx Context, cc: &mut CompilationContext<'ctx>) -> Result<()> {
-    builtin::create_slice_struct(context, cc)?;
-
-    Ok(())
 }
 
 fn setup_module<'ctx>(

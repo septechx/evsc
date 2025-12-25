@@ -74,7 +74,7 @@ pub fn gen_tests() -> anyhow::Result<()> {
                     source_dir: test_path,
                     output_file: &test_path.join(format!("{name}.ll")),
                     source_file: &path,
-                    emit: &EmitType::LLVM,
+                    emit: &EmitType::Llvm,
                     backend_options: &BackendOptions::default(),
                     pic: true, // Doesn't matter with EmitType::LLVM
                     linker_kind: None,

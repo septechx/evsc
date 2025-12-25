@@ -1,12 +1,12 @@
-mod ast;
-mod backend;
-mod bindings;
-mod cli;
-mod errors;
-mod intermediate;
-mod lexer;
-mod macros;
-mod parser;
+pub mod ast;
+pub mod backend;
+pub mod bindings;
+pub mod cli;
+pub mod errors;
+pub mod intermediate;
+pub mod lexer;
+pub mod macros;
+pub mod parser;
 
 #[cfg(debug_assertions)]
 mod gentests;

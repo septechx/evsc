@@ -28,6 +28,7 @@ pub struct StructProperty {
 
 #[derive(Debug, Clone)]
 pub struct StructMethod {
+    pub is_static: bool,
     pub fn_decl: FnDeclStmt,
 }
 

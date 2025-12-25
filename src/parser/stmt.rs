@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use colored::Colorize;
 
 use crate::{
@@ -9,13 +9,15 @@ use crate::{
             StructProperty, VarDeclStmt,
         },
     },
-    lexer::token::TokenKind,
+    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock},
+    lexer::{token::TokenKind, verify::build_line_with_positions},
     parser::{
         expr::parse_expr,
         lookups::{BindingPower, STMT_LU},
         parser::Parser,
         types::parse_type,
     },
+    ERRORS,
 };
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Statement> {
@@ -83,11 +85,9 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
     parser.expect(TokenKind::Semicolon)?;
 
     if is_constant && assigned_value.is_none() {
-        anyhow::bail!(
-            "Cannot define constant without providing a value"
-                .red()
-                .bold()
-        );
+        anyhow::bail!("Cannot define constant without providing a value"
+            .red()
+            .bold());
     }
 
     Ok(Statement::VarDecl(VarDeclStmt {
@@ -113,8 +113,12 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
         }
 
         let is_public = parser.current_token().kind == TokenKind::Pub;
-
         if is_public {
+            parser.advance();
+        }
+
+        let is_static = parser.current_token().kind == TokenKind::Static;
+        if is_static {
             parser.advance();
         }
 
@@ -126,10 +130,27 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
                         is_public,
                         ..fn_decl
                     },
+                    is_static,
                 }),
                 _ => unreachable!(),
             }
             continue;
+        }
+
+        if is_static {
+            let location = parser.current_token().location;
+            ERRORS.lock().add(
+                CompilationError::new(
+                    ErrorLevel::Error,
+                    "Only struct methods are allowed to be static".to_string(),
+                )
+                .with_location(location.clone())
+                .with_code(CodeLine::new(
+                    location.line,
+                    build_line_with_positions(parser.tokens(), location.line),
+                    CodeType::None,
+                )),
+            )
         }
 
         if parser.current_token().kind == TokenKind::Identifier {
@@ -168,14 +189,12 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        bail!(
-            format!(
-                "Unexpected token in struct declaration: {:?}",
-                parser.current_token()
-            )
-            .red()
-            .bold()
-        );
+        bail!(format!(
+            "Unexpected token in struct declaration: {:?}",
+            parser.current_token()
+        )
+        .red()
+        .bold());
     }
 
     parser.expect(TokenKind::CloseCurly)?;
@@ -251,14 +270,12 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        bail!(
-            format!(
-                "Unexpected token in function declaration: {:?}",
-                parser.current_token()
-            )
-            .red()
-            .bold()
-        );
+        bail!(format!(
+            "Unexpected token in function declaration: {:?}",
+            parser.current_token()
+        )
+        .red()
+        .bold());
     }
 
     parser.expect(TokenKind::CloseParen)?;

@@ -16,8 +16,13 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install LLVM and Clang
-        run: sudo apt-get install -y llvm llvm-dev clang
+      - name: Install LLVM 21
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "21.1"
+
+      - name: Install Clang
+        run: sudo apt-get install -y clang
 
       - name: Install just
         run: cargo install just

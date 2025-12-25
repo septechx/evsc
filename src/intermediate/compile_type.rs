@@ -1,15 +1,15 @@
 use anyhow::Result;
 use inkwell::{
+    AddressSpace,
     context::Context,
     types::{BasicType, BasicTypeEnum, FunctionType},
-    AddressSpace,
 };
 
 use crate::{
     ast::ast::Type,
     intermediate::{
         arch::compile_arch_size_type,
-        builtin::{get_builtin, Builtin},
+        builtin::{Builtin, get_builtin},
         compiler::CompilationContext,
     },
 };

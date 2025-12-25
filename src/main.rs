@@ -185,12 +185,12 @@ mod tests {
     use std::{fs, path::Path};
 
     use crate::{
+        ERRORS,
         backend::BackendOptions,
         errors::ErrorLevel,
         intermediate::{self, CompileOptions, EmitType},
         lexer::lexer::tokenize,
         parser::parser::parse,
-        ERRORS,
     };
 
     fn status(task: &str, file: &str, ok: bool) -> bool {

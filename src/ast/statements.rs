@@ -53,6 +53,7 @@ pub struct FnDeclStmt {
     pub body: Vec<Statement>,
     pub explicit_type: Type,
     pub is_public: bool,
+    pub is_extern: bool,
 }
 
 #[derive(Debug, Clone)]

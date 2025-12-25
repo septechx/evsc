@@ -3,14 +3,14 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use inkwell::{
+    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
-    AddressSpace,
 };
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
         builtin::Builtin,
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
-        pointer::{get_value, SmartValue},
+        pointer::{SmartValue, get_value},
     },
 };
 
@@ -197,6 +197,10 @@ fn compile_function<'ctx>(
     fn_decl: &FnDeclStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
+    if fn_decl.is_extern {
+        return Ok(());
+    }
+
     let mut symbol_table: HashMap<String, SymbolTableEntry> = HashMap::new();
 
     let entry_bb = context.append_basic_block(function, "entry");

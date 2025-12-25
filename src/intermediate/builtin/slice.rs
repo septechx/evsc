@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use inkwell::{context::Context, AddressSpace};
+use inkwell::{AddressSpace, context::Context};
 
 use crate::{
     bindings::llvm_bindings::create_named_struct,

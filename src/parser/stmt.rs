@@ -1,7 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use colored::Colorize;
 
 use crate::{
+    ERRORS,
     ast::{
         ast::{Expression, Statement, Type},
         statements::{
@@ -17,7 +18,6 @@ use crate::{
         parser::Parser,
         types::parse_type,
     },
-    ERRORS,
 };
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Statement> {
@@ -85,9 +85,11 @@ pub fn parse_var_decl_statement(parser: &mut Parser) -> Result<Statement> {
     parser.expect(TokenKind::Semicolon)?;
 
     if is_constant && assigned_value.is_none() {
-        anyhow::bail!("Cannot define constant without providing a value"
-            .red()
-            .bold());
+        anyhow::bail!(
+            "Cannot define constant without providing a value"
+                .red()
+                .bold()
+        );
     }
 
     Ok(Statement::VarDecl(VarDeclStmt {
@@ -127,6 +129,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             match fn_decl {
                 Statement::FnDecl(fn_decl) => methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
+                        is_extern: false,
                         is_public,
                         ..fn_decl
                     },
@@ -189,12 +192,14 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        bail!(format!(
-            "Unexpected token in struct declaration: {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold());
+        bail!(
+            format!(
+                "Unexpected token in struct declaration: {:?}",
+                parser.current_token()
+            )
+            .red()
+            .bold()
+        );
     }
 
     parser.expect(TokenKind::CloseCurly)?;
@@ -270,12 +275,14 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             continue;
         }
 
-        bail!(format!(
-            "Unexpected token in function declaration: {:?}",
-            parser.current_token()
-        )
-        .red()
-        .bold());
+        bail!(
+            format!(
+                "Unexpected token in function declaration: {:?}",
+                parser.current_token()
+            )
+            .red()
+            .bold()
+        );
     }
 
     parser.expect(TokenKind::CloseParen)?;
@@ -297,6 +304,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
         body,
         explicit_type,
         is_public: false,
+        is_extern: false,
     }))
 }
 

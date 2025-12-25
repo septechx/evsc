@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use anyhow::{bail, Result};
 use inkwell::{
@@ -19,14 +22,36 @@ use crate::{
     },
     bindings::llvm_bindings::create_named_struct,
     intermediate::{
+        builtin::Builtin,
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
         pointer::{get_value, SmartValue},
     },
 };
 
-pub type FunctionTable<'ctx> = HashMap<String, FunctionValue<'ctx>>;
+pub type FunctionTable<'ctx> = HashMap<String, FunctionTableEntry<'ctx>>;
 pub type SymbolTable<'ctx> = HashMap<String, SymbolTableEntry<'ctx>>;
+
+#[derive(Clone, Debug)]
+pub struct FunctionTableEntry<'ctx> {
+    pub function: FunctionValue<'ctx>,
+    pub is_builtin: bool,
+}
+
+impl<'ctx> From<FunctionValue<'ctx>> for FunctionTableEntry<'ctx> {
+    fn from(function: FunctionValue<'ctx>) -> Self {
+        Self {
+            function,
+            is_builtin: false,
+        }
+    }
+}
+
+impl<'ctx> From<FunctionTableEntry<'ctx>> for FunctionValue<'ctx> {
+    fn from(entry: FunctionTableEntry<'ctx>) -> Self {
+        entry.function
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct SymbolTableEntry<'ctx> {
@@ -64,6 +89,7 @@ pub struct TypeContext<'ctx> {
 pub struct StructDef<'ctx> {
     pub llvm_type: inkwell::types::StructType<'ctx>,
     pub field_indices: HashMap<String, u32>,
+    pub is_builtin: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -72,6 +98,7 @@ pub struct CompilationContext<'ctx> {
     pub function_table: FunctionTable<'ctx>,
     pub type_context: TypeContext<'ctx>,
     pub module_path: PathBuf,
+    pub builtins: HashSet<Builtin>,
 }
 
 impl<'ctx> CompilationContext<'ctx> {
@@ -81,6 +108,7 @@ impl<'ctx> CompilationContext<'ctx> {
             function_table: HashMap::new(),
             type_context: TypeContext::default(),
             module_path: path,
+            builtins: HashSet::new(),
         }
     }
 }
@@ -113,7 +141,7 @@ pub fn compile<'a, 'ctx>(
                 let function = module.add_function(&fn_decl.name, fn_type, None);
                 compilation_context
                     .function_table
-                    .insert(fn_decl.name.clone(), function);
+                    .insert(fn_decl.name.clone(), function.into());
             }
             Statement::StructDecl(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
@@ -127,7 +155,13 @@ pub fn compile<'a, 'ctx>(
         match stmt {
             Statement::FnDecl(fn_decl) => {
                 if let Some(function) = compilation_context.function_table.get(&fn_decl.name) {
-                    compile_function(context, module, *function, fn_decl, compilation_context)?;
+                    compile_function(
+                        context,
+                        module,
+                        function.clone().into(),
+                        fn_decl,
+                        compilation_context,
+                    )?;
                 }
             }
             Statement::Return(ret_stmt) => {
@@ -344,7 +378,7 @@ fn compile_struct_decl<'ctx>(
         let function = module.add_function(&method.name, fn_type, None);
         compilation_context
             .function_table
-            .insert(method.name.clone(), function);
+            .insert(method.name.clone(), function.into());
 
         compile_function(context, module, function, &method, compilation_context)?;
     }
@@ -355,6 +389,7 @@ fn compile_struct_decl<'ctx>(
         struct_decl.name.clone(),
         StructDef {
             llvm_type: struct_ty,
+            is_builtin: false,
             field_indices,
         },
     );

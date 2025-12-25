@@ -5,6 +5,7 @@ mod cli;
 mod errors;
 mod intermediate;
 mod lexer;
+mod macros;
 mod parser;
 
 #[cfg(debug_assertions)]

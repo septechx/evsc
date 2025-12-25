@@ -15,10 +15,9 @@ use crate::{
     },
     intermediate::{
         arch::compile_arch_size_type,
-        builtin,
+        builtin::Builtin,
         compile_type::compile_type,
         compiler::CompilationContext,
-        import::import_module,
         pointer::{get_value, SmartValue},
     },
     lexer::token::TokenKind,
@@ -150,9 +149,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         }
         Expression::FunctionCall(expr) => {
             if let Expression::Symbol(sym) = expr.callee.as_ref() {
-                match sym.value.as_str() {
-                    "@asm" => {
-                        return builtin::handle_asm_call(
+                if let Some(builtin) = sym.value.strip_prefix("@") {
+                    if let Some(builtin) = Builtin::from_str(builtin) {
+                        return builtin.handle_call(
                             context,
                             module,
                             builder,
@@ -160,13 +159,6 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                             compilation_context,
                         );
                     }
-                    "@sizeof" => {
-                        return builtin::handle_sizeof_call(context, expr, compilation_context);
-                    }
-                    "@import" => {
-                        return import_module(context, module, builder, expr, compilation_context);
-                    }
-                    _ => (),
                 }
             }
 

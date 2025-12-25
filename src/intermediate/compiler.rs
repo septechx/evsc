@@ -94,11 +94,15 @@ pub struct StructDef<'ctx> {
 
 #[derive(Clone, Debug, Default)]
 pub struct CompilationContext<'ctx> {
+    /// Stores all symbols (functions, globals)
     pub symbol_table: SymbolTable<'ctx>,
+    /// Stores all function declarations
     pub function_table: FunctionTable<'ctx>,
+    /// Stores all type declarations (structs)
     pub type_context: TypeContext<'ctx>,
-    pub module_path: PathBuf,
+    /// Keeps track of all used builtins, currently unused
     pub builtins: HashSet<Builtin>,
+    pub module_path: PathBuf,
 }
 
 impl<'ctx> CompilationContext<'ctx> {
@@ -107,8 +111,8 @@ impl<'ctx> CompilationContext<'ctx> {
             symbol_table: HashMap::new(),
             function_table: HashMap::new(),
             type_context: TypeContext::default(),
-            module_path: path,
             builtins: HashSet::new(),
+            module_path: path,
         }
     }
 }
@@ -197,6 +201,18 @@ fn compile_function<'ctx>(
     fn_decl: &FnDeclStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
+    compilation_context.symbol_table.insert(
+        fn_decl.name.clone(),
+        SymbolTableEntry::from_value(
+            function.as_global_value().as_basic_value_enum(),
+            function
+                .as_global_value()
+                .as_pointer_value()
+                .get_type()
+                .as_basic_type_enum(),
+        ),
+    );
+
     if fn_decl.is_extern {
         return Ok(());
     }

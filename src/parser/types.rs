@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 
 use crate::{
     ast::{
-        ast::Type,
+        Type,
         types::{ConstType, FixedArrayType, FunctionType, SliceType, SymbolType},
     },
     lexer::token::TokenKind::{self, self as T},

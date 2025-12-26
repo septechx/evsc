@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, bail};
 use inkwell::{context::Context, types::BasicType, values::BasicValue};
 
 use crate::{
-    ast::{ast::Expression, expressions::FunctionCallExpr},
+    ast::{Expression, expressions::FunctionCallExpr},
     intermediate::{
         builtin::BuiltinFunction, compile_type::compile_type, compiler::CompilationContext,
         pointer::SmartValue,

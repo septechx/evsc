@@ -1,5 +1,11 @@
 use crate::ast::{expressions::*, statements::*, types::*};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attribute {
+    pub name: String,
+    pub arguments: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Statement {
     Block(BlockStmt),

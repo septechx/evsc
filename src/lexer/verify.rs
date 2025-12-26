@@ -1,5 +1,4 @@
 use crate::{
-    ERRORS,
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
     lexer::token::{Token, TokenKind},
 };
@@ -10,11 +9,13 @@ pub fn verify_tokens(tokens: &[Token]) {
             let line = build_line_with_positions(tokens, token.location.line);
             let c = token.value.chars().next().unwrap_or('\0');
 
-            ERRORS.lock().add(
-                CompilationError::new(ErrorLevel::Fatal, format!("Illegal token: {c}"))
-                    .with_location(token.location.clone())
-                    .with_code(CodeLine::new(token.location.line, line, CodeType::None)),
-            );
+            crate::ERRORS.with(|e| {
+                e.collector.borrow_mut().add(
+                    CompilationError::new(ErrorLevel::Fatal, format!("Illegal token: {c}"))
+                        .with_location(token.location.clone())
+                        .with_code(CodeLine::new(token.location.line, line, CodeType::None)),
+                );
+            });
         }
     }
 }

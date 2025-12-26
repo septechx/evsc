@@ -4,9 +4,8 @@ use anyhow::{Result, anyhow, bail};
 use colored::Colorize;
 
 use crate::{
-    ERRORS,
     ast::{
-        ast::Expression,
+        Expression,
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr,
@@ -27,18 +26,20 @@ use crate::{
 };
 
 fn handle_unexpected_token(parser: &mut Parser, token: Token) -> ! {
-    ERRORS.lock().add(
-        CompilationError::new(
-            ErrorLevel::Fatal,
-            format!("Syntax error: Unexpected token `{}`", token.value),
-        )
-        .with_location(parser.current_token().location.clone())
-        .with_code(CodeLine::new(
-            token.location.line,
-            build_line_with_positions(parser.tokens(), token.location.line),
-            CodeType::None,
-        )),
-    );
+    crate::ERRORS.with(|e| {
+        e.collector.borrow_mut().add(
+            CompilationError::new(
+                ErrorLevel::Fatal,
+                format!("Syntax error: Unexpected token `{}`", token.value),
+            )
+            .with_location(parser.current_token().location.clone())
+            .with_code(CodeLine::new(
+                token.location.line,
+                build_line_with_positions(parser.tokens(), token.location.line),
+                CodeType::None,
+            )),
+        );
+    });
 
     unreachable!()
 }
@@ -47,7 +48,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
     let token = parser.current_token();
 
     let nud_fn = {
-        let nud_lu = NUD_LU.lock().unwrap();
+        let nud_lu = NUD_LU.lock();
         nud_lu
             .get(&token.kind)
             .cloned()
@@ -58,7 +59,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
 
     loop {
         let current_bp = {
-            let bp_lu = BP_LU.lock().unwrap();
+            let bp_lu = BP_LU.lock();
             *bp_lu
                 .get(&parser.current_token().kind)
                 .unwrap_or(&BindingPower::DefaultBp)
@@ -70,7 +71,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
 
         let token_kind = parser.current_token();
         let led_fn = {
-            let led_lu = LED_LU.lock().unwrap();
+            let led_lu = LED_LU.lock();
             led_lu
                 .get(&token_kind.kind)
                 .cloned()

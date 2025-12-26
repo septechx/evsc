@@ -91,9 +91,11 @@ fn run_linker(linker: &impl Linker) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        ERRORS
-            .lock()
-            .add(CompilationError::new(ErrorLevel::Fatal, stderr.to_string()));
+        crate::ERRORS.with(|e| {
+            e.collector
+                .borrow_mut()
+                .add(CompilationError::new(ErrorLevel::Fatal, stderr.to_string()));
+        });
     }
 
     Ok(())

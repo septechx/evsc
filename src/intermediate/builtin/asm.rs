@@ -5,7 +5,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{ast::Expression, expressions::FunctionCallExpr},
+    ast::{Expression, expressions::FunctionCallExpr},
     intermediate::{
         arch::compile_arch_size_type,
         builtin::BuiltinFunction,

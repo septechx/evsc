@@ -273,13 +273,13 @@ impl ErrorCollector {
 
     pub fn print_all(&self) {
         for error in &self.errors {
-            eprintln!("{}", error);
+            eprint!("{}", error);
         }
     }
 
     pub fn print_errors(&self, min_level: ErrorLevel) {
         for error in self.get_errors(min_level) {
-            eprintln!("{}", error);
+            eprint!("{}", error);
         }
     }
 

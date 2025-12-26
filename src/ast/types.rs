@@ -1,4 +1,4 @@
-use crate::ast::ast::Type;
+use crate::ast::Type;
 
 #[derive(Debug, Clone)]
 pub struct SymbolType {

@@ -9,10 +9,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{
-        ast::{Expression, Type},
-        types::SliceType,
-    },
+    ast::{Expression, Type, types::SliceType},
     intermediate::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},

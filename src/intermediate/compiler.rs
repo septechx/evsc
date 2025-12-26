@@ -15,7 +15,7 @@ use inkwell::{
 
 use crate::{
     ast::{
-        ast::{Statement, Type},
+        Statement, Type,
         statements::{
             BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt,
         },

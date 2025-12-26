@@ -6,7 +6,6 @@ use inkwell::{
 };
 
 use crate::{
-    ERRORS,
     errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock, SourceLocation},
     intermediate::arch::is_64,
 };
@@ -36,21 +35,21 @@ pub fn generate_c_runtime_integration<'ctx>(
 
         create_exit_syscall(context, builder, result_value)?;
     } else {
-        ERRORS.lock().add(
-            CompilationError::new(ErrorLevel::Fatal, "Main function not found".to_string())
-                .with_code(CodeLine::new(
-                    1,
-                    "pub fn main() void {}".to_string(),
-                    CodeType::Add,
-                ))
-                .with_info(InfoBlock::new(
-                    "Add a main function or compile with `--no-link`".to_string(),
-                ))
-                .with_location(SourceLocation::new(source_file.to_path_buf(), 1, 1, 1)),
-        );
+        crate::ERRORS.with(|e| {
+            e.collector.borrow_mut().add(
+                CompilationError::new(ErrorLevel::Error, "Main function not found".to_string())
+                    .with_code(CodeLine::new(
+                        1,
+                        "pub fn main() isize {}".to_string(),
+                        CodeType::Add,
+                    ))
+                    .with_info(InfoBlock::new(
+                        "Add a main function or compile with `--no-link`".to_string(),
+                    ))
+                    .with_location(SourceLocation::new(source_file.to_path_buf(), 1, 1, 1)),
+            );
+        });
     }
-
-    builder.build_unreachable()?;
 
     Ok(())
 }

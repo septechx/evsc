@@ -3,8 +3,9 @@ use evscc::{
     backend::BackendOptions,
     errors::ErrorLevel,
     intermediate::{self, CompileOptions, EmitType},
-    lexer::lexer::tokenize,
-    parser::parser::parse,
+    lexer::tokenize,
+    parser::parse,
+    typecheck::TypeChecker,
 };
 use std::{
     env, fs,
@@ -128,7 +129,7 @@ impl Drop for Test {
 
         check_for_errors(self.should_compile);
 
-        let ast = match parse(tokens) {
+        let ast = match parse(tokens.clone()) {
             Ok(a) => a,
             Err(e) => {
                 if self.should_compile == Some(false) {
@@ -137,6 +138,19 @@ impl Drop for Test {
                 panic!("Parsing failed: {}", e);
             }
         };
+
+        check_for_errors(self.should_compile);
+
+        let typechecker = TypeChecker::new(main_path.clone(), tokens);
+        match typechecker.check(&ast.body) {
+            Ok(_) => {}
+            Err(e) => {
+                if self.should_compile == Some(false) {
+                    return;
+                }
+                panic!("Type checking failed: {}", e);
+            }
+        }
 
         check_for_errors(self.should_compile);
 
@@ -261,8 +275,8 @@ impl Drop for Test {
 }
 
 fn check_for_errors(should_compile: Option<bool>) {
-    if ERRORS.lock().has_errors() {
-        ERRORS.lock().print_errors(ErrorLevel::Error);
+    if ERRORS.with(|e| e.collector.borrow().has_errors()) {
+        ERRORS.with(|e| e.collector.borrow().print_errors(ErrorLevel::Error));
         if should_compile == Some(false) {
             return;
         }

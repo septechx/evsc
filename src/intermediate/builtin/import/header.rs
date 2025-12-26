@@ -6,7 +6,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        ast::{Statement, Type},
+        Statement, Type,
         statements::{BlockStmt, FnArgument, FnDeclStmt},
     },
     intermediate::{
@@ -14,8 +14,8 @@ use crate::{
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
-    lexer::lexer::tokenize,
-    parser::{parser::Parser, types::parse_symbol_type},
+    lexer::tokenize,
+    parser::{Parser, types::parse_symbol_type},
 };
 
 pub fn compile_header<'ctx>(
@@ -69,6 +69,7 @@ pub fn compile_header<'ctx>(
                 explicit_type: ty.0,
                 is_public: true,
                 is_extern: true,
+                attributes: Vec::new(),
             };
 
             functions.push(stmt);

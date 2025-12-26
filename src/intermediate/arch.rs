@@ -1,21 +1,21 @@
 use inkwell::{context::Context, types::IntType};
 
-use crate::{
-    ERRORS,
-    errors::{CompilationError, ErrorLevel},
-};
+use crate::errors::{CompilationError, ErrorLevel};
 
 pub fn is_64() -> bool {
     match std::env::consts::ARCH {
         "x86" | "arm" | "m68k" | "mips" | "mips32r6" | "csky" | "powerpc" | "riscv32" | "s390x"
-        | "sparc" | "hexagon" => false,
-        "x86_64" | "aarch64" | "mips64" | "mips64r6" | "powerpc64" | "riscv64" | "sparc64"
-        | "loongarch64" => true,
+        | "hexagon" => false,
+        "x86_64" | "aarch64" | "mips64" | "mips64r6" | "powerpc64" | "riscv64" | "loongarch64" => {
+            true
+        }
         _ => {
-            ERRORS.lock().add(CompilationError::new(
-                ErrorLevel::Fatal,
-                format!("Unknown architecture `{}`", std::env::consts::ARCH),
-            ));
+            crate::ERRORS.with(|e| {
+                e.collector.borrow_mut().add(CompilationError::new(
+                    ErrorLevel::Fatal,
+                    format!("Unknown architecture `{}`", std::env::consts::ARCH),
+                ));
+            });
             unreachable!()
         }
     }

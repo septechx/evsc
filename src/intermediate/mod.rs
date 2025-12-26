@@ -28,14 +28,13 @@ use inkwell::{
 };
 
 use crate::{
-    ERRORS,
     ast::statements::BlockStmt,
     backend::{
         BackendOptions, LinkerKind, build_assembly_file, build_executable, build_object_file,
     },
     errors::{CompilationError, ErrorLevel},
     intermediate::{
-        compiler::CompilationContext, emmiter::emit_to_file,
+        compiler::CompilationContext, compiler::compile as compile_ast, emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
 };
@@ -69,8 +68,12 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
 
     let init_fn = setup_module(&context, &module, &builder)?;
-    compiler::compile(&context, &module, &builder, &ast, &mut cc)?;
+    compile_ast(&context, &module, &builder, &ast, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
+
+    if crate::ERRORS.with(|e| e.collector.borrow().has_errors()) {
+        return Err(anyhow::anyhow!("Type checking failed"));
+    }
 
     if *opts.emit == EmitType::Executable {
         generate_c_runtime_integration(&context, &module, &builder, opts.source_file)?;
@@ -84,10 +87,12 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             let linker_kind = if let Some(linker_kind) = opts.linker_kind {
                 linker_kind
             } else {
-                ERRORS.lock().add(CompilationError::new(
-                    ErrorLevel::Fatal,
-                    "Linker kind not specified for executable".to_string(),
-                ));
+                crate::ERRORS.with(|e| {
+                    e.collector.borrow_mut().add(CompilationError::new(
+                        ErrorLevel::Fatal,
+                        "Linker kind not specified for executable".to_string(),
+                    ));
+                });
 
                 unreachable!()
             };

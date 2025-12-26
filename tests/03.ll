@@ -1,14 +1,14 @@
-; ModuleID = '03-test.evsc'
-source_filename = "03-test.evsc"
+; ModuleID = 'main'
+source_filename = "main"
 
-@llvm.global_ctors = appending global [1 x { i64, ptr, ptr }] [{ i64, ptr, ptr } { i64 65535, ptr @__module_init, ptr null }]
+@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__module_init, ptr null }]
 
 define void @__module_init() {
 entry:
   ret void
 }
 
-define void @main() {
+define i64 @main() {
 entry:
   %a = alloca i32, align 4
   store i32 1, ptr %a, align 4
@@ -19,5 +19,6 @@ entry:
   %sumtmp = add i32 %load_ptr, %load_ptr1
   %c = alloca i32, align 4
   store i32 %sumtmp, ptr %c, align 4
-  ret void
+  %load_ptr2 = load i32, ptr %c, align 4
+  ret i32 %load_ptr2
 }

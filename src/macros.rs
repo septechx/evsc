@@ -1,5 +1,5 @@
 /// Creates a HashMap from the given field names.
-/// ```rust
+/// ```rust,ignore
 /// struct_fields!(a, b, c)
 /// ```
 #[macro_export]

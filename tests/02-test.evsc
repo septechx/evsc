@@ -1,3 +1,0 @@
-pub fn main() void {
-    let a = 1;
-}

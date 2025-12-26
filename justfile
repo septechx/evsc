@@ -6,8 +6,8 @@ build: bindings
 run *ARGS: bindings
     env EVSC_LIB_PATH="$(pwd)/lib" cargo run -- {{ARGS}}
 
-gen-tests: bindings
-    env EVSC_LIB_PATH="$(pwd)/lib" IS_DEV=1 cargo run gen_tests
+test-debug: bindings
+    env EVSC_DEBUG_TESTS=1 EVSC_LIB_PATH="$(pwd)/lib" cargo test
 
 test: bindings
     env EVSC_LIB_PATH="$(pwd)/lib" cargo test

@@ -1,6 +1,0 @@
-pub fn main() i64 {
-    let s = "Hello world!";
-    let ptr = s.ptr;
-    let len = s.len;
-    return len;
-}

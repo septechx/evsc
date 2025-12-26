@@ -37,10 +37,10 @@ pub fn generate_c_runtime_integration<'ctx>(
         create_exit_syscall(context, builder, result_value)?;
     } else {
         ERRORS.lock().add(
-            CompilationError::new(ErrorLevel::Fatal, "Main function not found".to_string())
+            CompilationError::new(ErrorLevel::Error, "Main function not found".to_string())
                 .with_code(CodeLine::new(
                     1,
-                    "pub fn main() void {}".to_string(),
+                    "pub fn main() isize {}".to_string(),
                     CodeType::Add,
                 ))
                 .with_info(InfoBlock::new(
@@ -49,8 +49,6 @@ pub fn generate_c_runtime_integration<'ctx>(
                 .with_location(SourceLocation::new(source_file.to_path_buf(), 1, 1, 1)),
         );
     }
-
-    builder.build_unreachable()?;
 
     Ok(())
 }

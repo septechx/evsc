@@ -12,7 +12,7 @@ use crate::{
             SymbolExpr, TypeExpr,
         },
     },
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
+    errors::{CodeLine, CodeType, builders},
     lexer::{
         token::{Token, TokenKind},
         verify::build_line_with_positions,
@@ -28,16 +28,13 @@ use crate::{
 fn handle_unexpected_token(parser: &mut Parser, token: Token) -> ! {
     crate::ERRORS.with(|e| {
         e.collector.borrow_mut().add(
-            CompilationError::new(
-                ErrorLevel::Fatal,
-                format!("Syntax error: Unexpected token `{}`", token.value),
-            )
-            .with_location(parser.current_token().location.clone())
-            .with_code(CodeLine::new(
-                token.location.line,
-                build_line_with_positions(parser.tokens(), token.location.line),
-                CodeType::None,
-            )),
+            builders::fatal(format!("Syntax error: Unexpected token `{}`", token.value))
+                .with_location(parser.current_token().location.clone())
+                .with_code(CodeLine::new(
+                    token.location.line,
+                    build_line_with_positions(parser.tokens(), token.location.line),
+                    CodeType::None,
+                )),
         );
     });
 

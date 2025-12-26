@@ -6,7 +6,7 @@ use inkwell::{
 };
 
 use crate::{
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock, SourceLocation},
+    errors::{CodeLine, CodeType, InfoBlock, builders},
     intermediate::arch::is_64,
 };
 
@@ -14,7 +14,7 @@ pub fn generate_c_runtime_integration<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
-    source_file: &Path,
+    _source_file: &Path,
 ) -> Result<()> {
     let start_fn_type = context.void_type().fn_type(&[], false);
     let start_fn = module.add_function("_start", start_fn_type, None);
@@ -37,16 +37,11 @@ pub fn generate_c_runtime_integration<'ctx>(
     } else {
         crate::ERRORS.with(|e| {
             e.collector.borrow_mut().add(
-                CompilationError::new(ErrorLevel::Error, "Main function not found".to_string())
-                    .with_code(CodeLine::new(
-                        1,
-                        "pub fn main() isize {}".to_string(),
-                        CodeType::Add,
-                    ))
+                builders::error("Main function not found")
+                    .with_code(CodeLine::new(1, "pub fn main() isize {}", CodeType::Add))
                     .with_info(InfoBlock::new(
-                        "Add a main function or compile with `--no-link`".to_string(),
-                    ))
-                    .with_location(SourceLocation::new(source_file.to_path_buf(), 1, 1, 1)),
+                        "Add a main function or compile with `--no-link`",
+                    )),
             );
         });
     }

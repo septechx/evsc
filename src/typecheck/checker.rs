@@ -6,7 +6,7 @@ use crate::{
         Statement,
         statements::{FnDeclStmt, StructDeclStmt},
     },
-    errors::{CompilationError, ErrorLevel},
+    errors::builders,
     lexer::token::Token,
 };
 
@@ -76,9 +76,8 @@ impl TypeChecker {
         if !is_builtin {
             crate::ERRORS.with(|e| {
                 e.collector.borrow_mut().add(
-                    CompilationError::new(
-                        ErrorLevel::Error,
-                        "Cannot use `#[internal]` attribute in user code. This attribute is only allowed in builtin library files.".to_string(),
+                    builders::error(
+                        "Cannot use `#[internal]` attribute in user code. This attribute is only allowed in builtin library files.",
                     ),
                 );
             });

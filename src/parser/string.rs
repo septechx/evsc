@@ -1,5 +1,5 @@
 use crate::{
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, SourceLocation},
+    errors::{CodeLine, CodeType, SourceLocation, builders},
     lexer::{token::Token, verify::build_line_with_positions},
 };
 
@@ -17,21 +17,18 @@ pub fn process_string(str: &str, location: SourceLocation, tokens: &[Token]) -> 
                 '\\' => builder.push('\\'),
                 _ => crate::ERRORS.with(|e| {
                     e.collector.borrow_mut().add(
-                        CompilationError::new(
-                            ErrorLevel::Warning,
-                            format!("Unknown escape sequence \\{c}"),
-                        )
-                        .with_location(SourceLocation::new(
-                            location.file.clone(),
-                            location.line,
-                            location.column + i,
-                            2,
-                        ))
-                        .with_code(CodeLine::new(
-                            location.line,
-                            build_line_with_positions(tokens, location.line),
-                            CodeType::None,
-                        )),
+                        builders::warning(format!("Unknown escape sequence \\{c}"))
+                            .with_location(SourceLocation::new(
+                                location.file.clone(),
+                                location.line,
+                                location.column + i,
+                                2,
+                            ))
+                            .with_code(CodeLine::new(
+                                location.line,
+                                build_line_with_positions(tokens, location.line),
+                                CodeType::None,
+                            )),
                     );
                 }),
             }

@@ -1,5 +1,5 @@
 use crate::{
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
+    errors::{CodeLine, CodeType, builders},
     lexer::token::{Token, TokenKind},
 };
 
@@ -11,7 +11,7 @@ pub fn verify_tokens(tokens: &[Token]) {
 
             crate::ERRORS.with(|e| {
                 e.collector.borrow_mut().add(
-                    CompilationError::new(ErrorLevel::Fatal, format!("Illegal token: {c}"))
+                    builders::fatal(format!("Illegal token: {c}"))
                         .with_location(token.location.clone())
                         .with_code(CodeLine::new(token.location.line, line, CodeType::None)),
                 );

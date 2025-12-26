@@ -32,9 +32,10 @@ use crate::{
     backend::{
         BackendOptions, LinkerKind, build_assembly_file, build_executable, build_object_file,
     },
-    errors::{CompilationError, ErrorLevel},
+    errors::builders,
     intermediate::{
-        compiler::CompilationContext, compiler::compile as compile_ast, emmiter::emit_to_file,
+        compiler::{CompilationContext, compile as compile_ast},
+        emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
 };
@@ -88,10 +89,9 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
                 linker_kind
             } else {
                 crate::ERRORS.with(|e| {
-                    e.collector.borrow_mut().add(CompilationError::new(
-                        ErrorLevel::Fatal,
-                        "Linker kind not specified for executable".to_string(),
-                    ));
+                    e.collector
+                        .borrow_mut()
+                        .add(builders::fatal("Linker kind not specified for executable"));
                 });
 
                 unreachable!()

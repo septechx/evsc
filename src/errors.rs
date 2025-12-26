@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
     fmt::{self, Display, Formatter},
     path::PathBuf,
-    process,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -60,8 +59,10 @@ pub struct InfoBlock {
 }
 
 impl InfoBlock {
-    pub fn new(title: String) -> Self {
-        Self { title }
+    pub fn new(title: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+        }
     }
 }
 
@@ -88,11 +89,11 @@ pub struct CodeLine {
 }
 
 impl CodeLine {
-    pub fn new(line: usize, code: String, code_type: CodeType) -> Self {
+    pub fn new(line: usize, code: impl Into<String>, code_type: CodeType) -> Self {
         Self {
             line,
-            code,
             code_type,
+            code: code.into(),
         }
     }
 }
@@ -140,7 +141,7 @@ impl CompilationError {
                 writeln!(
                     f,
                     "{}{} {}",
-                    " ".repeat(code.line.to_string().len()),
+                    " ".repeat(code.line.ilog10() as usize + 1),
                     "-->".purple(),
                     location
                 )?;
@@ -237,13 +238,10 @@ impl ErrorCollector {
         self.errors.push(error);
 
         if self.errors.len() >= self.max_errors {
-            let max_error = CompilationError::new(
-                ErrorLevel::Fatal,
-                format!(
-                    "Too many errors ({}), stopping compilation",
-                    self.max_errors
-                ),
-            );
+            let max_error = builders::fatal(format!(
+                "Too many errors ({}), stopping compilation",
+                self.max_errors
+            ));
             panic!("{}", max_error);
         }
     }
@@ -319,26 +317,6 @@ pub mod builders {
 
     pub fn fatal(message: impl Into<String>) -> CompilationError {
         CompilationError::new(ErrorLevel::Fatal, message.into())
-    }
-
-    pub fn error_at(
-        message: impl Into<String>,
-        file: PathBuf,
-        line: usize,
-        column: usize,
-    ) -> CompilationError {
-        CompilationError::new(ErrorLevel::Error, message.into())
-            .with_location(SourceLocation::simple(file, line, column))
-    }
-
-    pub fn warning_at(
-        message: impl Into<String>,
-        file: PathBuf,
-        line: usize,
-        column: usize,
-    ) -> CompilationError {
-        CompilationError::new(ErrorLevel::Warning, message.into())
-            .with_location(SourceLocation::simple(file, line, column))
     }
 }
 

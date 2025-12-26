@@ -22,7 +22,7 @@ use crate::{
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Statement> {
     let stmt_fn = {
-        let stmt_lu = STMT_LU.lock().unwrap();
+        let stmt_lu = STMT_LU.lock();
         stmt_lu.get(&parser.current_token().kind).cloned()
     };
 

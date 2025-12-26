@@ -47,7 +47,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
     let token = parser.current_token();
 
     let nud_fn = {
-        let nud_lu = NUD_LU.lock().unwrap();
+        let nud_lu = NUD_LU.lock();
         nud_lu
             .get(&token.kind)
             .cloned()
@@ -58,7 +58,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
 
     loop {
         let current_bp = {
-            let bp_lu = BP_LU.lock().unwrap();
+            let bp_lu = BP_LU.lock();
             *bp_lu
                 .get(&parser.current_token().kind)
                 .unwrap_or(&BindingPower::DefaultBp)
@@ -70,7 +70,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
 
         let token_kind = parser.current_token();
         let led_fn = {
-            let led_lu = LED_LU.lock().unwrap();
+            let led_lu = LED_LU.lock();
             led_lu
                 .get(&token_kind.kind)
                 .cloned()

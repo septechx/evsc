@@ -1,6 +1,7 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
 use lazy_static::lazy_static;
+use parking_lot::Mutex;
 
 use crate::{
     ast::ast::{Expression, Statement},
@@ -54,17 +55,17 @@ lazy_static! {
 }
 
 fn led(kind: TokenKind, bp: BindingPower, led_fn: LedHandler) {
-    BP_LU.lock().unwrap().insert(kind, bp);
-    LED_LU.lock().unwrap().insert(kind, led_fn);
+    BP_LU.lock().insert(kind, bp);
+    LED_LU.lock().insert(kind, led_fn);
 }
 
 fn nud(kind: TokenKind, nud_fn: NudHandler) {
-    NUD_LU.lock().unwrap().insert(kind, nud_fn);
+    NUD_LU.lock().insert(kind, nud_fn);
 }
 
 fn stmt(kind: TokenKind, stmt_fn: StmtHandler) {
-    BP_LU.lock().unwrap().insert(kind, BindingPower::DefaultBp);
-    STMT_LU.lock().unwrap().insert(kind, stmt_fn);
+    BP_LU.lock().insert(kind, BindingPower::DefaultBp);
+    STMT_LU.lock().insert(kind, stmt_fn);
 }
 
 pub fn create_token_lookups() {

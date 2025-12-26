@@ -25,6 +25,7 @@ pub fn main() isize {
 
 - LLVM 21.1
 - libclang >=10.0
+- Mold, lld, gold or ld
 
 ## Building
 

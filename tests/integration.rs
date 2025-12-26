@@ -3,7 +3,7 @@ mod common;
 use common::it;
 
 #[test]
-fn test_internal_attribute_fails_in_user_code() {
+fn internal_attribute_fails_in_user_code() {
     it(
         "should error when #[internal] is used in user code",
         |ctx| {
@@ -21,7 +21,7 @@ fn test_internal_attribute_fails_in_user_code() {
 }
 
 #[test]
-fn test_internal_attribute_on_struct_fails() {
+fn internal_attribute_on_struct_fails() {
     it(
         "should error when #[internal] is used on struct in user code",
         |ctx| {
@@ -39,7 +39,7 @@ fn test_internal_attribute_on_struct_fails() {
 }
 
 #[test]
-fn test_test_attribute_works() {
+fn test_attribute_works() {
     it("should parse attribute successfully", |ctx| {
         ctx.add_source(
             r#"
@@ -57,7 +57,7 @@ fn test_test_attribute_works() {
 }
 
 #[test]
-fn test_attribute_with_arguments() {
+fn attribute_with_arguments() {
     it("should parse attributes with arguments", |ctx| {
         ctx.add_source(
             r#"
@@ -75,7 +75,7 @@ fn test_attribute_with_arguments() {
 }
 
 #[test]
-fn test_multiple_attributes() {
+fn multiple_attributes() {
     it("should parse multiple attributes on function", |ctx| {
         ctx.add_source(
             r#"
@@ -94,7 +94,7 @@ fn test_multiple_attributes() {
 }
 
 #[test]
-fn test_01_main_fn_declaration() {
+fn main_fn_declaration() {
     it(
         "should compile a main function declaration correctly",
         |ctx| {
@@ -115,7 +115,7 @@ fn test_01_main_fn_declaration() {
 }
 
 #[test]
-fn test_02_variable_declaration() {
+fn variable_declaration() {
     it(
         "should handle variable declarations in main function",
         |ctx| {
@@ -137,7 +137,7 @@ fn test_02_variable_declaration() {
 }
 
 #[test]
-fn test_03_multiple_variables_and_addition() {
+fn multiple_variables_and_addition() {
     it(
         "should handle multiple variables and addition operations",
         |ctx| {
@@ -161,7 +161,7 @@ fn test_03_multiple_variables_and_addition() {
 }
 
 #[test]
-fn test_05_struct_declaration_and_initialization() {
+fn struct_declaration_and_initialization() {
     it(
         "should handle struct declaration and initialization",
         |ctx| {
@@ -190,7 +190,7 @@ fn test_05_struct_declaration_and_initialization() {
 }
 
 #[test]
-fn test_06_string_literals_and_slice_operations() {
+fn string_literals_and_slice_operations() {
     it(
         "should handle string literals and slice operations",
         |ctx| {
@@ -214,7 +214,7 @@ fn test_06_string_literals_and_slice_operations() {
 }
 
 #[test]
-fn test_07_import_and_print_function() {
+fn import_and_print_function() {
     it("should handle import and std print function", |ctx| {
         ctx.add_source(
             r#"
@@ -236,7 +236,7 @@ fn test_07_import_and_print_function() {
 }
 
 #[test]
-fn test_08_struct_with_methods() {
+fn struct_with_methods() {
     it("should handle struct declaration with methods", |ctx| {
         ctx.add_source(
             r#"
@@ -266,7 +266,7 @@ fn test_08_struct_with_methods() {
 }
 
 #[test]
-fn test_09_return_string_literal() {
+fn return_string_literal() {
     it("should handle returning string literals", |ctx| {
         ctx.add_source(
             r#"
@@ -281,7 +281,7 @@ fn test_09_return_string_literal() {
 }
 
 #[test]
-fn test_10_sizeof_builtin() {
+fn sizeof_builtin() {
     it("should handle @sizeof builtin operator", |ctx| {
         ctx.add_source(
             r#"

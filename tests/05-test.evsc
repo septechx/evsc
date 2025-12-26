@@ -1,9 +1,0 @@
-struct Foo {
-    a: i32,
-}
-
-pub fn main() void {
-    let foo = Foo {
-        a: 1,
-    };
-}

@@ -1,3 +1,0 @@
-pub fn main() isize {
-    return @sizeof($u16);
-}

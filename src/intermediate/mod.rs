@@ -35,7 +35,7 @@ use crate::{
     },
     errors::{CompilationError, ErrorLevel},
     intermediate::{
-        arch::compile_arch_size_type, compiler::CompilationContext, emmiter::emit_to_file,
+        compiler::CompilationContext, emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
 };
@@ -50,6 +50,7 @@ pub struct CompileOptions<'a> {
     pub backend_options: &'a BackendOptions,
     pub pic: bool,
     pub linker_kind: Option<LinkerKind>,
+    pub cache_dir: Option<&'a Path>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -91,7 +92,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
                 unreachable!()
             };
 
-            let tmp_dir = get_tmp_dir()?;
+            let tmp_dir = get_tmp_dir(opts.cache_dir)?;
             let obj_filename = opts
                 .output_file
                 .file_name()
@@ -116,9 +117,12 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     Ok(())
 }
 
-fn get_tmp_dir() -> Result<PathBuf> {
-    let dir =
-        PathBuf::from(std::env::var("EVSC_CACHE_DIR").unwrap_or_else(|_| String::from(".evsc")));
+fn get_tmp_dir(custom_path: Option<&Path>) -> Result<PathBuf> {
+    let dir = if let Some(p) = custom_path {
+        p.to_path_buf()
+    } else {
+        PathBuf::from(std::env::var("EVSC_CACHE_DIR").unwrap_or_else(|_| String::from(".evsc")))
+    };
 
     let status = fs::create_dir_all(&dir).map_err(|e| match e.kind() {
         io::ErrorKind::AlreadyExists => anyhow::Ok(()),
@@ -171,11 +175,11 @@ fn emit_global_ctors<'ctx>(
         builder.build_return(None)?;
     }
 
-    let priority = compile_arch_size_type(context).const_int(65535, false);
+    let priority = context.i32_type().const_int(65535, false);
 
     let ctor_entry_ty = context.struct_type(
         &[
-            compile_arch_size_type(context).into(),
+            context.i32_type().into(),
             context.ptr_type(AddressSpace::default()).into(),
             context.ptr_type(AddressSpace::default()).into(),
         ],

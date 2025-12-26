@@ -1,7 +1,0 @@
-static std = @import("std");
-
-pub fn main() i32 {
-    std.print("Hello world");
-
-    return 0;
-}

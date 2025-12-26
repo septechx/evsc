@@ -1,9 +1,9 @@
-; ModuleID = '08-test.evsc'
-source_filename = "08-test.evsc"
+; ModuleID = 'main'
+source_filename = "main"
 
 %Foo = type { i32 }
 
-@llvm.global_ctors = appending global [1 x { i64, ptr, ptr }] [{ i64, ptr, ptr } { i64 65535, ptr @__module_init, ptr null }]
+@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__module_init, ptr null }]
 
 define void @__module_init() {
 entry:
@@ -22,7 +22,7 @@ entry:
   ret i32 %subtmp
 }
 
-define i32 @main() {
+define i64 @main() {
 entry:
   %inst_Foo = alloca %Foo, align 8
   %a_ptr = getelementptr inbounds nuw %Foo, ptr %inst_Foo, i32 0, i32 0

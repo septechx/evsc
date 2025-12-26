@@ -10,7 +10,7 @@ use crate::{
             StructProperty, VarDeclStmt,
         },
     },
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock},
+    errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
     lexer::{token::TokenKind, verify::build_line_with_positions},
     parser::{
         expr::parse_expr,

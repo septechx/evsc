@@ -231,8 +231,7 @@ impl ErrorCollector {
 
     pub fn add(&mut self, error: CompilationError) {
         if error.level == ErrorLevel::Fatal && self.should_panic_on_fatal {
-            eprintln!("{}", error);
-            process::exit(1);
+            panic!("{}", error);
         }
 
         self.errors.push(error);
@@ -245,8 +244,7 @@ impl ErrorCollector {
                     self.max_errors
                 ),
             );
-            eprintln!("{}", max_error);
-            process::exit(1);
+            panic!("{}", max_error);
         }
     }
 

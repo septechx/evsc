@@ -1,14 +1,14 @@
-; ModuleID = '01-test.evsc'
-source_filename = "01-test.evsc"
+; ModuleID = 'main'
+source_filename = "main"
 
-@llvm.global_ctors = appending global [1 x { i64, ptr, ptr }] [{ i64, ptr, ptr } { i64 65535, ptr @__module_init, ptr null }]
+@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__module_init, ptr null }]
 
 define void @__module_init() {
 entry:
   ret void
 }
 
-define void @main() {
+define i64 @main() {
 entry:
-  ret void
+  ret i32 0
 }

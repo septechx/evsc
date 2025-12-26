@@ -28,6 +28,7 @@ pub struct StructProperty {
 
 #[derive(Debug, Clone)]
 pub struct StructMethod {
+    pub is_static: bool,
     pub fn_decl: FnDeclStmt,
 }
 
@@ -52,6 +53,7 @@ pub struct FnDeclStmt {
     pub body: Vec<Statement>,
     pub explicit_type: Type,
     pub is_public: bool,
+    pub is_extern: bool,
 }
 
 #[derive(Debug, Clone)]

@@ -13,8 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use inkwell::{
+    AddressSpace,
     builder::Builder,
     context::Context,
     llvm_sys::{
@@ -24,20 +25,19 @@ use inkwell::{
     module::{Linkage, Module},
     types::AsTypeRef,
     values::{AsValueRef, BasicValue, FunctionValue},
-    AddressSpace,
 };
 
 use crate::{
+    ERRORS,
     ast::statements::BlockStmt,
     backend::{
-        build_assembly_file, build_executable, build_object_file, BackendOptions, LinkerKind,
+        BackendOptions, LinkerKind, build_assembly_file, build_executable, build_object_file,
     },
     errors::{CompilationError, ErrorLevel},
     intermediate::{
         arch::compile_arch_size_type, compiler::CompilationContext, emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
-    ERRORS,
 };
 
 #[derive(Debug)]

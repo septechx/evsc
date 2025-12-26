@@ -47,7 +47,7 @@ pub fn create_token_type_lookups() {
     type_nud(T::OpenParen, parse_function_type);
 }
 
-fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
+pub fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
     Ok(Type::Symbol(SymbolType {
         name: parser.expect(T::Identifier)?.value,
     }))

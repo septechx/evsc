@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use colored::Colorize;
 
 use crate::{
+    ERRORS,
     ast::{
         ast::{Expression, Statement, Type},
         statements::{
@@ -9,7 +10,8 @@ use crate::{
             StructProperty, VarDeclStmt,
         },
     },
-    lexer::token::TokenKind,
+    errors::{CodeLine, CodeType, CompilationError, ErrorLevel, InfoBlock},
+    lexer::{token::TokenKind, verify::build_line_with_positions},
     parser::{
         expr::parse_expr,
         lookups::{BindingPower, STMT_LU},
@@ -113,8 +115,12 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
         }
 
         let is_public = parser.current_token().kind == TokenKind::Pub;
-
         if is_public {
+            parser.advance();
+        }
+
+        let is_static = parser.current_token().kind == TokenKind::Static;
+        if is_static {
             parser.advance();
         }
 
@@ -123,13 +129,31 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser) -> Result<Statement> {
             match fn_decl {
                 Statement::FnDecl(fn_decl) => methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
+                        is_extern: false,
                         is_public,
                         ..fn_decl
                     },
+                    is_static,
                 }),
                 _ => unreachable!(),
             }
             continue;
+        }
+
+        if is_static {
+            let location = parser.current_token().location;
+            ERRORS.lock().add(
+                CompilationError::new(
+                    ErrorLevel::Error,
+                    "Only struct methods are allowed to be static".to_string(),
+                )
+                .with_location(location.clone())
+                .with_code(CodeLine::new(
+                    location.line,
+                    build_line_with_positions(parser.tokens(), location.line),
+                    CodeType::None,
+                )),
+            )
         }
 
         if parser.current_token().kind == TokenKind::Identifier {
@@ -280,6 +304,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser) -> Result<Statement> {
         body,
         explicit_type,
         is_public: false,
+        is_extern: false,
     }))
 }
 

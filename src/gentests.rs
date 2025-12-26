@@ -1,12 +1,12 @@
 use std::{fs, path::Path};
 
 use crate::{
+    ERRORS,
     backend::BackendOptions,
     errors::ErrorLevel,
     intermediate::{self, CompileOptions, EmitType},
     lexer::lexer::tokenize,
     parser::parser::parse,
-    ERRORS,
 };
 
 pub fn check() -> anyhow::Result<()> {

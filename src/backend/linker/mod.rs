@@ -6,8 +6,13 @@ pub mod linkers {
     pub use super::ld::LdLinker;
 }
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use std::{path::Path, process::Command};
+
+use crate::{
+    ERRORS,
+    errors::{CompilationError, ErrorLevel},
+};
 
 #[derive(Debug, Clone)]
 pub struct LinkerOptions {
@@ -86,7 +91,9 @@ fn run_linker(linker: &impl Linker) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("Linker failed:\n{}", stderr);
+        ERRORS
+            .lock()
+            .add(CompilationError::new(ErrorLevel::Fatal, stderr.to_string()));
     }
 
     Ok(())

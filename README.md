@@ -1,5 +1,7 @@
 # evscc
 
+![](https://github.com/septechx/evsc/actions/workflows/test.yml/badge.svg)
+
 Evscc is a compiler for the Evsc programming language.
 
 ```zig

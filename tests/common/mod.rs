@@ -239,7 +239,10 @@ impl Drop for Test {
 
             let output = match Command::new(&exe_path).output() {
                 Ok(o) => o,
-                Err(e) => panic!("Failed to execute test: {}", e),
+                Err(e) => {
+                    eprintln!("Tried to execute: {exe_path:?}");
+                    panic!("Failed to execute test: {}", e);
+                }
             };
 
             let result = ExecutionResult {

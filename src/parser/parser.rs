@@ -1,7 +1,7 @@
 use colored::Colorize;
 
 use crate::{
-    ast::{ast::Statement, statements::BlockStmt},
+    ast::{Statement, statements::BlockStmt},
     lexer::token::{Token, TokenKind},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
 };

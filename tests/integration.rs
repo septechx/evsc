@@ -3,6 +3,97 @@ mod common;
 use common::it;
 
 #[test]
+fn test_internal_attribute_fails_in_user_code() {
+    it(
+        "should error when #[internal] is used in user code",
+        |ctx| {
+            ctx.add_source(
+                r#"
+                #[internal]
+                pub fn internal_fn() isize {
+                    return 0;
+                }
+                "#,
+            )
+            .compiles(false);
+        },
+    )
+}
+
+#[test]
+fn test_internal_attribute_on_struct_fails() {
+    it(
+        "should error when #[internal] is used on struct in user code",
+        |ctx| {
+            ctx.add_source(
+                r#"
+                #[internal]
+                pub struct InternalStruct {
+                    value: i32,
+                }
+                "#,
+            )
+            .compiles(false);
+        },
+    )
+}
+
+#[test]
+fn test_test_attribute_works() {
+    it("should parse attribute successfully", |ctx| {
+        ctx.add_source(
+            r#"
+                #[test]
+                pub fn main() isize {
+                    return 42;
+                }
+                "#,
+        )
+        .compiles(true)
+        .execute(|res| {
+            res.exit_code(42);
+        });
+    })
+}
+
+#[test]
+fn test_attribute_with_arguments() {
+    it("should parse attributes with arguments", |ctx| {
+        ctx.add_source(
+            r#"
+                #[foo(bar, baz)]
+                pub fn main() isize {
+                    return 10;
+                }
+                "#,
+        )
+        .compiles(true)
+        .execute(|res| {
+            res.exit_code(10);
+        });
+    })
+}
+
+#[test]
+fn test_multiple_attributes() {
+    it("should parse multiple attributes on function", |ctx| {
+        ctx.add_source(
+            r#"
+                #[test]
+                #[foo]
+                pub fn main() isize {
+                    return 5;
+                }
+                "#,
+        )
+        .compiles(true)
+        .execute(|res| {
+            res.exit_code(5);
+        });
+    })
+}
+
+#[test]
 fn test_01_main_fn_declaration() {
     it(
         "should compile a main function declaration correctly",

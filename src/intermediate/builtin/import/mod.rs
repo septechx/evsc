@@ -10,7 +10,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{ast::Expression, expressions::FunctionCallExpr},
+    ast::{Expression, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
     intermediate::{
         builtin::{BuiltinFunction, import::header::compile_header},
@@ -18,8 +18,8 @@ use crate::{
         pointer::SmartValue,
         resolve_lib::resolve_std_lib,
     },
-    lexer::lexer::tokenize,
-    parser::parser::parse,
+    lexer::tokenize,
+    parser::parse,
 };
 
 mod header;

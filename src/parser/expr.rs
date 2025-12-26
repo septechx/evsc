@@ -4,9 +4,8 @@ use anyhow::{Result, anyhow, bail};
 use colored::Colorize;
 
 use crate::{
-    ERRORS,
     ast::{
-        ast::Expression,
+        Expression,
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr,
@@ -27,18 +26,20 @@ use crate::{
 };
 
 fn handle_unexpected_token(parser: &mut Parser, token: Token) -> ! {
-    ERRORS.lock().add(
-        CompilationError::new(
-            ErrorLevel::Fatal,
-            format!("Syntax error: Unexpected token `{}`", token.value),
-        )
-        .with_location(parser.current_token().location.clone())
-        .with_code(CodeLine::new(
-            token.location.line,
-            build_line_with_positions(parser.tokens(), token.location.line),
-            CodeType::None,
-        )),
-    );
+    crate::ERRORS.with(|e| {
+        e.collector.borrow_mut().add(
+            CompilationError::new(
+                ErrorLevel::Fatal,
+                format!("Syntax error: Unexpected token `{}`", token.value),
+            )
+            .with_location(parser.current_token().location.clone())
+            .with_code(CodeLine::new(
+                token.location.line,
+                build_line_with_positions(parser.tokens(), token.location.line),
+                CodeType::None,
+            )),
+        );
+    });
 
     unreachable!()
 }

@@ -1,5 +1,5 @@
 use crate::{
-    ast::ast::{Expression, Type},
+    ast::{Expression, Type},
     lexer::token::Token,
 };
 use std::collections::HashMap;

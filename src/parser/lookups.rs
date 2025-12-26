@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use parking_lot::Mutex;
 
 use crate::{
-    ast::ast::{Expression, Statement},
+    ast::{Attribute, Expression, Statement},
     lexer::token::TokenKind::{self, self as T},
     parser::{
         expr::{
@@ -38,7 +38,7 @@ pub enum BindingPower {
 }
 use BindingPower as BP;
 
-type StmtHandler = fn(&mut Parser) -> anyhow::Result<Statement>;
+type StmtHandler = fn(&mut Parser, Vec<Attribute>) -> anyhow::Result<Statement>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expression>;
 type LedHandler = fn(&mut Parser, Expression, BindingPower) -> anyhow::Result<Expression>;
 

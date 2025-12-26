@@ -7,30 +7,36 @@ pub mod intermediate;
 pub mod lexer;
 pub mod macros;
 pub mod parser;
+pub mod typecheck;
 
 use std::{
+    cell::RefCell,
     env, fs,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use clap::Parser;
 use colored::Colorize;
 use inkwell::targets::{CodeModel, RelocMode};
-use lazy_static::lazy_static;
-use parking_lot::Mutex;
 
 use crate::{
     backend::{BackendOptions, LinkerKind},
     cli::{Cli, OptLevel},
     errors::ErrorCollector,
     intermediate::{CompileOptions, EmitType},
-    lexer::lexer::tokenize,
-    parser::parser::parse,
+    lexer::tokenize,
+    parser::parse,
+    typecheck::TypeChecker,
 };
 
-lazy_static! {
-    pub static ref ERRORS: Arc<Mutex<ErrorCollector>> = Arc::new(Mutex::new(ErrorCollector::new()));
+pub struct ErrorState {
+    pub collector: RefCell<ErrorCollector>,
+}
+
+thread_local! {
+    pub static ERRORS: ErrorState = ErrorState {
+        collector: RefCell::new(ErrorCollector::new()),
+    };
 }
 
 fn main() -> anyhow::Result<()> {
@@ -44,14 +50,18 @@ fn main() -> anyhow::Result<()> {
         .clone(); // $1/$2.evsc
     build_file(file_path, &cli)?;
 
-    ERRORS.lock().print_all();
+    ERRORS.with(|e| {
+        e.collector.borrow().print_all();
+    });
 
     Ok(())
 }
 
 fn check_for_errors() {
-    if ERRORS.lock().has_errors() {
-        ERRORS.lock().print_all();
+    if ERRORS.with(|e| e.collector.borrow().has_errors()) {
+        ERRORS.with(|e| {
+            e.collector.borrow().print_all();
+        });
         std::process::exit(1);
     }
 }
@@ -142,10 +152,14 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
 
     let source_text = fs::read_to_string(&file_path)?;
 
-    let tokens = tokenize(source_text, &file_path)?;
+    let tokens = tokenize(source_text.clone(), &file_path)?;
     check_for_errors();
 
-    let ast = parse(tokens)?;
+    let ast = parse(tokens.clone())?;
+    check_for_errors();
+
+    let typechecker = TypeChecker::new(file_path.clone(), tokens);
+    typechecker.check(&ast.body)?;
     check_for_errors();
 
     intermediate::compile(ast, &opts)?;

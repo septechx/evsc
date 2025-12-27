@@ -1,6 +1,6 @@
 use inkwell::{context::Context, types::IntType};
 
-use crate::errors::{CompilationError, ErrorLevel};
+use crate::errors::builders;
 
 pub fn is_64() -> bool {
     match std::env::consts::ARCH {
@@ -11,10 +11,10 @@ pub fn is_64() -> bool {
         }
         _ => {
             crate::ERRORS.with(|e| {
-                e.collector.borrow_mut().add(CompilationError::new(
-                    ErrorLevel::Fatal,
-                    format!("Unknown architecture `{}`", std::env::consts::ARCH),
-                ));
+                e.collector.borrow_mut().add(builders::fatal(format!(
+                    "Unknown architecture `{}`",
+                    std::env::consts::ARCH
+                )));
             });
             unreachable!()
         }

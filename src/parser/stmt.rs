@@ -9,7 +9,7 @@ use crate::{
             StructProperty, VarDeclStmt,
         },
     },
-    errors::{CodeLine, CodeType, CompilationError, ErrorLevel},
+    errors::{CodeLine, CodeType, builders},
     lexer::{token::TokenKind, verify::build_line_with_positions},
     parser::{
         attributes::parse_attributes,
@@ -155,16 +155,13 @@ pub fn parse_struct_decl_stmt(
             let location = parser.current_token().location;
             crate::ERRORS.with(|e| {
                 e.collector.borrow_mut().add(
-                    CompilationError::new(
-                        ErrorLevel::Error,
-                        "Only struct methods are allowed to be static".to_string(),
-                    )
-                    .with_location(location.clone())
-                    .with_code(CodeLine::new(
-                        location.line,
-                        build_line_with_positions(parser.tokens(), location.line),
-                        CodeType::None,
-                    )),
+                    builders::error("Only struct methods are allowed to be static")
+                        .with_location(location.clone())
+                        .with_code(CodeLine::new(
+                            location.line,
+                            build_line_with_positions(parser.tokens(), location.line),
+                            CodeType::None,
+                        )),
                 );
             })
         }

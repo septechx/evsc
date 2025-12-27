@@ -1,20 +1,21 @@
-use std::path::Path;
-
 use anyhow::{Result, anyhow};
 use inkwell::{
-    InlineAsmDialect, builder::Builder, context::Context, module::Module, values::BasicValueEnum,
+    InlineAsmDialect,
+    builder::Builder,
+    context::Context,
+    module::Module,
+    values::{BasicValue, BasicValueEnum},
 };
 
 use crate::{
     errors::{CodeLine, CodeType, InfoBlock, builders},
-    intermediate::arch::is_64,
+    intermediate::arch::{compile_arch_size_type, is_64},
 };
 
 pub fn generate_c_runtime_integration<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
-    _source_file: &Path,
 ) -> Result<()> {
     let start_fn_type = context.void_type().fn_type(&[], false);
     let start_fn = module.add_function("_start", start_fn_type, None);
@@ -22,16 +23,38 @@ pub fn generate_c_runtime_integration<'ctx>(
     let entry_bb = context.append_basic_block(start_fn, "entry");
     builder.position_at_end(entry_bb);
 
-    if let Some(init_fn) = module.get_function("__module_init") {
-        builder.build_call(init_fn, &[], "init_call")?;
-    }
+    let init_fn = module
+        .get_function("__module_init")
+        .expect("module init function not found");
+    builder.build_call(init_fn, &[], "init_call")?;
 
     if let Some(main_fn) = module.get_function("main") {
+        let main_ty = main_fn.get_type();
+        let ret_ty = main_ty.get_return_type();
+
         let main_result = builder.build_call(main_fn, &[], "main_call")?;
-        let result_value = main_result
-            .try_as_basic_value()
-            .basic()
-            .ok_or_else(|| anyhow!("Expected main to return a basic value"))?;
+
+        // main() returns void => None
+        let result_value = if let Some(ret_ty) = ret_ty {
+            // TODO: Move this check to the type checker
+            if !ret_ty.is_int_type() {
+                crate::ERRORS.with(|e| {
+                    e.collector.borrow_mut().add(builders::fatal(
+                        "Main function must return an integer or void",
+                    ));
+                });
+                unreachable!();
+            }
+
+            main_result
+                .try_as_basic_value()
+                .basic()
+                .ok_or_else(|| anyhow!("Expected main to return a basic value"))?
+        } else {
+            compile_arch_size_type(context)
+                .const_zero()
+                .as_basic_value_enum()
+        };
 
         create_exit_syscall(context, builder, result_value)?;
     } else {
@@ -49,7 +72,7 @@ pub fn generate_c_runtime_integration<'ctx>(
     Ok(())
 }
 
-pub fn create_exit_syscall<'ctx>(
+fn create_exit_syscall<'ctx>(
     context: &'ctx Context,
     builder: &Builder<'ctx>,
     exit_code: BasicValueEnum<'ctx>,

@@ -43,6 +43,8 @@ pub trait Linker {
     fn add_static(&mut self);
     fn add_shared(&mut self);
     fn add_pie(&mut self);
+    fn add_no_pie(&mut self);
+    fn add_dynamic_linker(&mut self);
     fn command(&self) -> &str;
     fn args(&self) -> &[String];
 }
@@ -62,6 +64,12 @@ pub fn link_executable(linker: &mut impl Linker, options: &LinkerOptions) -> Res
 
     if options.pie {
         linker.add_pie();
+    } else {
+        linker.add_no_pie();
+    }
+
+    if options.pie && !options.static_linking {
+        linker.add_dynamic_linker();
     }
 
     run_linker(linker)
@@ -101,6 +109,7 @@ pub fn link_object_files<T: Linker>(
     output_path: &Path,
     is_shared: bool,
     pie: bool,
+    static_linking: bool,
 ) -> Result<()> {
     let object_paths: Vec<String> = object_files
         .iter()
@@ -111,7 +120,7 @@ pub fn link_object_files<T: Linker>(
         output_path: output_path.to_string_lossy().to_string(),
         object_files: object_paths,
         libraries: Vec::new(),
-        static_linking: false,
+        static_linking,
         strip_symbols: false,
         pie,
     };

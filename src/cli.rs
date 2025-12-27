@@ -69,6 +69,9 @@ pub struct Cli {
     #[clap(long = "no-pie", help = "Disable position independent executable")]
     pub no_pie: bool,
 
+    #[clap(long = "no-pic", help = "Disable position independent code")]
+    pub no_pic: bool,
+
     #[clap(long = "shared", help = "Generate a shared library")]
     pub shared: bool,
 

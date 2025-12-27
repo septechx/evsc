@@ -45,6 +45,12 @@ impl Linker for GccLinker {
         self.args.push("-pie".to_string());
     }
 
+    fn add_no_pie(&mut self) {
+        self.args.push("-no-pie".to_string());
+    }
+
+    fn add_dynamic_linker(&mut self) {}
+
     fn command(&self) -> &str {
         &self.command
     }

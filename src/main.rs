@@ -12,6 +12,7 @@ pub mod typecheck;
 use std::{
     cell::RefCell,
     env, fs,
+    marker::PhantomData,
     path::{Path, PathBuf},
 };
 
@@ -21,7 +22,13 @@ use colored::Colorize;
 use inkwell::targets::{CodeModel, RelocMode};
 
 use crate::{
-    backend::{BackendOptions, LinkerKind},
+    backend::{
+        BackendOptions,
+        linker::{
+            Linker, link_object_files,
+            linkers::{GccLinker, LdLinker},
+        },
+    },
     cli::{Cli, OptLevel},
     errors::{ErrorCollector, builders},
     intermediate::{CompileOptions, EmitType},
@@ -49,7 +56,12 @@ pub fn main() -> Result<()> {
         .find(|file| file.extension().unwrap() == "evsc")
         .ok_or(anyhow::anyhow!("No evsc files specified".red().bold()))?
         .clone(); // $1/$2.evsc
-    build_file(file_path, &cli)?;
+
+    if cli.use_gcc_linker {
+        build_file::<GccLinker>(file_path, &cli)?;
+    } else {
+        build_file::<LdLinker>(file_path, &cli)?;
+    }
 
     ERRORS.with(|e| {
         e.collector.borrow().print_all();
@@ -67,7 +79,7 @@ fn check_for_errors() {
     }
 }
 
-fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
+fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let source_dir = file_path
         .parent()
         .expect("source file must have a parent directory"); // $1/
@@ -125,12 +137,6 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
         RelocMode::Default
     };
 
-    let linker_kind = if cli.use_gcc_linker {
-        LinkerKind::Gcc
-    } else {
-        LinkerKind::Ld
-    };
-
     let backend_opts = BackendOptions {
         code_model: CodeModel::Default,
         opt_level: opt.into(),
@@ -148,8 +154,8 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
         backend_options: &backend_opts,
         pie: !cli.no_pie && !cli.static_ && !cli.no_pic,
         static_linking: cli.static_,
-        linker_kind: Some(linker_kind),
         cache_dir: None,
+        linker_kind: PhantomData::<T>,
     };
 
     let source_text = fs::read_to_string(&file_path);
@@ -189,13 +195,12 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
             let temp_obj_path = output.with_extension("o");
             let mut all_objects = vec![temp_obj_path.as_path()];
             all_objects.extend(additional_objects);
-            backend::build_executable(
+            link_object_files::<T>(
                 &all_objects,
                 &output.with_extension(""),
                 cli.shared,
                 !cli.no_pie && !cli.static_ && !cli.no_pic,
                 cli.static_,
-                linker_kind,
             )?;
         }
     }

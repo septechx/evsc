@@ -23,7 +23,7 @@ use inkwell::targets::{CodeModel, RelocMode};
 use crate::{
     backend::{BackendOptions, LinkerKind},
     cli::{Cli, OptLevel},
-    errors::ErrorCollector,
+    errors::{ErrorCollector, builders},
     intermediate::{CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
@@ -115,14 +115,14 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let features = cli.features.clone().unwrap_or_else(|| "+avx2".to_string());
     let opt = cli.opt.unwrap_or(OptLevel::O3);
 
-    let reloc_mode = if cli.no_pie {
-        RelocMode::Default
+    let reloc_mode = if !cli.no_pic {
+        RelocMode::PIC
     } else if cli.shared {
         RelocMode::DynamicNoPic
     } else if cli.static_ {
         RelocMode::Static
     } else {
-        RelocMode::PIC
+        RelocMode::Default
     };
 
     let linker_kind = if cli.use_gcc_linker {
@@ -146,12 +146,24 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
         output_file: &output,
         source_file: &file_path,
         backend_options: &backend_opts,
-        pic: !cli.no_pie,
+        pie: !cli.no_pie && !cli.static_ && !cli.no_pic,
+        static_linking: cli.static_,
         linker_kind: Some(linker_kind),
         cache_dir: None,
     };
 
-    let source_text = fs::read_to_string(&file_path)?;
+    let source_text = fs::read_to_string(&file_path);
+    if let Err(err) = source_text {
+        ERRORS.with(|e| {
+            e.collector.borrow_mut().add(builders::fatal(format!(
+                "Source file `{}` not found: {}",
+                file_path.display(),
+                err
+            )));
+        });
+        unreachable!();
+    }
+    let source_text = source_text.unwrap();
 
     let tokens = tokenize(source_text.clone(), &file_path)?;
     check_for_errors();
@@ -181,7 +193,8 @@ fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
                 &all_objects,
                 &output.with_extension(""),
                 cli.shared,
-                !cli.no_pie,
+                !cli.no_pie && !cli.static_ && !cli.no_pic,
+                cli.static_,
                 linker_kind,
             )?;
         }

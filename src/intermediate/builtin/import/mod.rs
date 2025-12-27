@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, iter::Extend, path::PathBuf};
+use std::{collections::HashMap, fs, iter::Extend};
 
 use anyhow::{Result, bail};
 use inkwell::{
@@ -12,17 +12,21 @@ use inkwell::{
 use crate::{
     ast::{Expression, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
+    errors::builders,
     intermediate::{
-        builtin::{BuiltinFunction, import::header::compile_header},
+        builtin::{
+            BuiltinFunction,
+            import::{header::compile_header, resolve_lib::resolve_std_lib},
+        },
         compiler::{self, CompilationContext},
         pointer::SmartValue,
-        resolve_lib::resolve_std_lib,
     },
     lexer::tokenize,
     parser::parse,
 };
 
 mod header;
+mod resolve_lib;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct ImportBuiltin;
@@ -68,18 +72,28 @@ fn compile_evsc_module<'ctx>(
     let module_path = if module_name == "std" {
         resolve_std_lib()?
     } else {
-        PathBuf::from(&module_name)
+        compilation_context
+            .module_path
+            .parent()
+            .unwrap()
+            .join(&module_name)
     };
-
-    let module_path = compilation_context
-        .module_path
-        .parent()
-        .unwrap()
-        .join(module_path);
     // Resolve path
 
     // Compile module
-    let file = fs::read_to_string(&module_path)?;
+    let file = fs::read_to_string(&module_path);
+    if let Err(err) = file {
+        crate::ERRORS.with(|e| {
+            e.collector.borrow_mut().add(builders::fatal(format!(
+                "Module `{}` (resolved to {}) not found: {}",
+                module_name,
+                module_path.display(),
+                err
+            )));
+        });
+        unreachable!();
+    }
+    let file = file.unwrap();
 
     let tokens = tokenize(file, &module_path)?;
     let ast = parse(tokens)?;

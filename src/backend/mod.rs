@@ -97,14 +97,23 @@ pub fn build_executable(
     output_path: &Path,
     is_shared: bool,
     pie: bool,
+    static_linking: bool,
     linker_kind: LinkerKind,
 ) -> Result<()> {
     match linker_kind {
-        LinkerKind::Ld => {
-            linker::link_object_files::<LdLinker>(object_files, output_path, is_shared, pie)
-        }
-        LinkerKind::Gcc => {
-            linker::link_object_files::<GccLinker>(object_files, output_path, is_shared, pie)
-        }
+        LinkerKind::Ld => linker::link_object_files::<LdLinker>(
+            object_files,
+            output_path,
+            is_shared,
+            pie,
+            static_linking,
+        ),
+        LinkerKind::Gcc => linker::link_object_files::<GccLinker>(
+            object_files,
+            output_path,
+            is_shared,
+            pie,
+            static_linking,
+        ),
     }
 }

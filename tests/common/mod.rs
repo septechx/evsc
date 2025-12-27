@@ -162,7 +162,8 @@ impl Drop for Test {
             source_file: &main_path,
             emit: &EmitType::Llvm,
             backend_options: &BackendOptions::default(),
-            pic: true,
+            pie: true,
+            static_linking: false,
             linker_kind: None,
             cache_dir: Some(&test_dir),
         };
@@ -240,7 +241,8 @@ impl Drop for Test {
                 source_file: &main_path,
                 emit: &EmitType::Executable,
                 backend_options: &BackendOptions::default(),
-                pic: true,
+                pie: true,
+                static_linking: false,
                 linker_kind: Some(evscc::backend::LinkerKind::Ld),
                 cache_dir: Some(&test_dir),
             };

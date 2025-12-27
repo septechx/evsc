@@ -35,10 +35,7 @@ impl Linker for LdLinker {
     fn new() -> Self {
         let command = Self::find_linker();
         Self {
-            args: vec![
-                "--dynamic-linker".to_string(),
-                "/usr/lib/ld-linux-x86-64.so.2".to_string(),
-            ],
+            args: Vec::new(),
             command,
         }
     }
@@ -72,6 +69,15 @@ impl Linker for LdLinker {
 
     fn add_pie(&mut self) {
         self.args.push("--pie".to_string());
+    }
+
+    fn add_no_pie(&mut self) {
+        self.args.push("--no-pie".to_string());
+    }
+
+    fn add_dynamic_linker(&mut self) {
+        self.args.push("--dynamic-linker".to_string());
+        self.args.push("/lib64/ld-linux-x86-64.so.2".to_string());
     }
 
     fn command(&self) -> &str {

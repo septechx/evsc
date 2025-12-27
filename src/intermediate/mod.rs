@@ -5,7 +5,6 @@ mod compile_type;
 mod compiler;
 mod emmiter;
 mod pointer;
-mod resolve_lib;
 mod runtime;
 
 use std::{
@@ -47,7 +46,8 @@ pub struct CompileOptions<'a> {
     pub source_file: &'a Path,
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
-    pub pic: bool,
+    pub pie: bool,
+    pub static_linking: bool,
     pub linker_kind: Option<LinkerKind>,
     pub cache_dir: Option<&'a Path>,
 }
@@ -104,7 +104,8 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
                 &object_files,
                 opts.output_file,
                 false,
-                opts.pic,
+                opts.pie,
+                opts.static_linking,
                 linker_kind,
             )?;
         }

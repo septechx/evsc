@@ -42,9 +42,7 @@ pub fn compile_header<'ctx>(
             let name = parse_function_name(e.get_display_name().expect("function has no name"))
                 .expect("function has no name");
             let ty = parse_function_type(
-                e.get_type()
-                    .expect("function has no type")
-                    .get_display_name(),
+                e.get_type().expect("function has no type"),
                 &e.get_location()
                     .expect("function has no location")
                     .get_file_location()
@@ -96,20 +94,17 @@ fn parse_function_name(name: String) -> Option<String> {
     name.split_once('(').map(|(name, _)| name.to_string())
 }
 
-fn parse_function_type(ty: String, file_path: &Path) -> Result<(Type, Vec<Type>)> {
-    let (return_type, args) = ty.split_once(' ').expect("function type is not valid");
-    let args = args
-        .strip_prefix('(')
-        .and_then(|args| args.strip_suffix(')'))
-        .expect("function type is not valid");
-    let args: Vec<&str> = args.split(',').map(|arg| arg.trim()).collect();
+fn parse_function_type(ty: clang::Type, file_path: &Path) -> Result<(Type, Vec<Type>)> {
+    let return_type = ty.get_result_type().expect("function type is not valid");
+    let args = ty.get_argument_types().unwrap_or_default();
 
+    let args: Vec<String> = args.iter().map(|arg| arg.get_display_name()).collect();
     let arg_types: Vec<Type> = args
         .iter()
         .map(|arg| parse_type(arg, file_path))
         .collect::<Result<Vec<Type>>>()?;
 
-    let return_type = parse_type(return_type, file_path)?;
+    let return_type = parse_type(&return_type.get_display_name(), file_path)?;
 
     Ok((return_type, arg_types))
 }
@@ -122,6 +117,7 @@ fn parse_type(ty: &str, file_path: &Path) -> Result<Type> {
 
 fn map_c_type(ty: &str) -> &str {
     match ty {
+        "void" => "void",
         "char" => "i8",
         "short" => "i16",
         "int" => "i32",

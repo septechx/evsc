@@ -32,7 +32,6 @@ use crate::{
     backend::{
         BackendOptions, LinkerKind, build_assembly_file, build_executable, build_object_file,
     },
-    errors::builders,
     intermediate::{
         compiler::{CompilationContext, compile as compile_ast},
         emmiter::emit_to_file,
@@ -77,7 +76,7 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
     }
 
     if *opts.emit == EmitType::Executable {
-        generate_c_runtime_integration(&context, &module, &builder, opts.source_file)?;
+        generate_c_runtime_integration(&context, &module, &builder)?;
     }
 
     match opts.emit {
@@ -85,17 +84,9 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Executable => {
-            let linker_kind = if let Some(linker_kind) = opts.linker_kind {
-                linker_kind
-            } else {
-                crate::ERRORS.with(|e| {
-                    e.collector
-                        .borrow_mut()
-                        .add(builders::fatal("Linker kind not specified for executable"));
-                });
-
-                unreachable!()
-            };
+            let linker_kind = opts
+                .linker_kind
+                .expect("Linker kind not specified for executable");
 
             let tmp_dir = get_tmp_dir(opts.cache_dir)?;
             let obj_filename = opts

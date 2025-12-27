@@ -1,7 +1,11 @@
 use anyhow::{Result, anyhow, bail};
 use inkwell::{
-    InlineAsmDialect, builder::Builder, context::Context, module::Module,
-    types::BasicMetadataTypeEnum, values::BasicMetadataValueEnum,
+    InlineAsmDialect,
+    builder::Builder,
+    context::Context,
+    module::Module,
+    types::BasicMetadataTypeEnum,
+    values::{BasicMetadataValueEnum, BasicValue},
 };
 
 use crate::{
@@ -42,7 +46,12 @@ impl BuiltinFunction for AsmBuiltin {
             operands.push(val.into());
         }
 
-        let fn_type = compile_arch_size_type(context).fn_type(&metadata_types, false);
+        let ret_void = !constraints.value.contains('=');
+        let fn_type = if ret_void {
+            context.void_type().fn_type(&metadata_types, false)
+        } else {
+            compile_arch_size_type(context).fn_type(&metadata_types, false)
+        };
 
         let inline_asm = context.create_inline_asm(
             fn_type,
@@ -56,11 +65,15 @@ impl BuiltinFunction for AsmBuiltin {
 
         let call_site_value = builder.build_indirect_call(fn_type, inline_asm, &operands, "asm")?;
 
-        Ok(SmartValue::from_value(
-            call_site_value
-                .try_as_basic_value()
-                .basic()
-                .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
-        ))
+        Ok(if ret_void {
+            SmartValue::from_value(context.i32_type().const_zero().as_basic_value_enum())
+        } else {
+            SmartValue::from_value(
+                call_site_value
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
+            )
+        })
     }
 }

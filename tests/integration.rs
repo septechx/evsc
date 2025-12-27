@@ -297,3 +297,19 @@ fn sizeof_builtin() {
         });
     })
 }
+
+#[test]
+fn main_function_return_void() {
+    it("should exit with code 0 successfully", |ctx| {
+        ctx.add_source(
+            r#"
+            pub fn main() void {}
+        "#,
+        )
+        .compiles(true)
+        .ir_eq("11.ll")
+        .execute(|res| {
+            res.exit_code(0);
+        });
+    })
+}

@@ -15,6 +15,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use inkwell::targets::{CodeModel, RelocMode};
@@ -39,7 +40,7 @@ thread_local! {
     };
 }
 
-fn main() -> anyhow::Result<()> {
+pub fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let file_path = cli
@@ -66,7 +67,7 @@ fn check_for_errors() {
     }
 }
 
-fn build_file(file_path: PathBuf, cli: &Cli) -> anyhow::Result<()> {
+fn build_file(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let source_dir = file_path
         .parent()
         .expect("source file must have a parent directory"); // $1/

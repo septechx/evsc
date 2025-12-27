@@ -232,7 +232,8 @@ impl ErrorCollector {
 
     pub fn add(&mut self, error: CompilationError) {
         if error.level == ErrorLevel::Fatal && self.should_panic_on_fatal {
-            panic!("{}", error);
+            eprintln!("{}", error);
+            std::process::exit(1);
         }
 
         self.errors.push(error);
@@ -242,7 +243,8 @@ impl ErrorCollector {
                 "Too many errors ({}), stopping compilation",
                 self.max_errors
             ));
-            panic!("{}", max_error);
+            eprintln!("{}", max_error);
+            std::process::exit(1);
         }
     }
 

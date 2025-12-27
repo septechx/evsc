@@ -203,7 +203,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let base_type = get_value(builder, &base)?.get_type();
+            let base_type = base.pointee_ty.unwrap_or(base.value.get_type());
 
             let struct_ty = base_type.into_struct_type();
             let struct_name = struct_ty

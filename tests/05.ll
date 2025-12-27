@@ -18,7 +18,6 @@ entry:
   %load_inst = load %Foo, ptr %inst_Foo, align 4
   %foo = alloca %Foo, align 8
   store %Foo %load_inst, ptr %foo, align 4
-  %load_ptr = load %Foo, ptr %foo, align 4
   %loaded_struct = load %Foo, ptr %foo, align 4
   %field = extractvalue %Foo %loaded_struct, 0
   ret i32 %field

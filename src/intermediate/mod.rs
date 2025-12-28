@@ -4,6 +4,7 @@ mod compile_expr;
 mod compile_type;
 mod compiler;
 mod emmiter;
+mod inkwell_ext;
 mod pointer;
 mod runtime;
 

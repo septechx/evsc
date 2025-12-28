@@ -1,9 +1,13 @@
 use anyhow::Result;
-use inkwell::context::{AsContextRef, Context};
-use inkwell::llvm_sys::prelude::*;
-use inkwell::types::{AsTypeRef, BasicTypeEnum, StructType};
-use std::ffi::CString;
-use std::os::raw::{c_char, c_uint};
+use inkwell::{
+    context::{AsContextRef, Context},
+    llvm_sys::prelude::*,
+    types::{AsTypeRef, BasicTypeEnum, StructType},
+};
+use std::{
+    ffi::CString,
+    os::raw::{c_char, c_uint},
+};
 
 #[link(name = "llvm_bindings")]
 unsafe extern "C" {

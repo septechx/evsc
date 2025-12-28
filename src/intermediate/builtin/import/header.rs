@@ -74,7 +74,6 @@ pub fn compile_header<'ctx>(
 
     create_module(
         context,
-        module,
         module_name,
         compilation_context,
         mod_compilation_context,

@@ -137,7 +137,7 @@ impl Drop for Test {
 
         check_for_errors(self);
 
-        let ast = match parse(tokens.clone()) {
+        let ast = match parse(tokens) {
             Ok(a) => a,
             Err(e) => {
                 if self.should_compile == Some(false) {
@@ -150,7 +150,7 @@ impl Drop for Test {
         check_for_errors(self);
 
         let typechecker_options = CheckOptions { no_link: false };
-        let typechecker = TypeChecker::new(main_path.clone(), tokens, typechecker_options);
+        let typechecker = TypeChecker::new(main_path.clone(), typechecker_options);
         typechecker.check(&ast.body);
         check_for_errors(self);
 

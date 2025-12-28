@@ -1,3 +1,4 @@
+use anyhow::Result;
 use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
 
 #[derive(Clone, Debug)]
@@ -20,16 +21,13 @@ impl<'ctx> SmartValue<'ctx> {
             pointee_ty: Some(pointee_ty),
         }
     }
-}
 
-pub fn get_value<'ctx>(
-    builder: &Builder<'ctx>,
-    ptr: &SmartValue<'ctx>,
-) -> anyhow::Result<BasicValueEnum<'ctx>> {
-    Ok(if let Some(pointee_ty) = ptr.pointee_ty {
-        let ret_ptr = ptr.value.into_pointer_value();
-        builder.build_load(pointee_ty, ret_ptr, "load_ptr")?
-    } else {
-        ptr.value
-    })
+    pub fn unwrap(&self, builder: &Builder<'ctx>) -> Result<BasicValueEnum<'ctx>> {
+        Ok(if let Some(pointee_ty) = self.pointee_ty {
+            let ret_ptr = self.value.into_pointer_value();
+            builder.build_load(pointee_ty, ret_ptr, "load_ptr")?
+        } else {
+            self.value
+        })
+    }
 }

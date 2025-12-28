@@ -25,7 +25,8 @@ use crate::{
         builtin::Builtin,
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
-        pointer::{SmartValue, get_value},
+        inkwell_ext::add_global_constant,
+        pointer::SmartValue,
     },
 };
 
@@ -290,7 +291,7 @@ fn compile_return<'ctx>(
     if let Some(expr) = &ret_stmt.value {
         let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
 
-        let ret_val = get_value(builder, &ret)?;
+        let ret_val = ret.unwrap(builder)?;
 
         builder.build_return(Some(&ret_val))?;
     } else {
@@ -330,14 +331,13 @@ fn compile_var_decl<'a, 'ctx>(
         bail!("Variable must have an initial value");
     };
 
-    if var_decl.is_static {
-        let value = get_value(builder, &value)?;
+    let value = value.unwrap(builder)?;
 
-        let gv = module.add_global(value.get_type(), None, &var_decl.variable_name);
-        gv.set_initializer(&value.get_type().const_zero());
+    if var_decl.is_static {
+        let gv = add_global_constant(module, value.get_type(), &var_decl.variable_name, value)?;
         gv.set_linkage(Linkage::Private);
 
-        builder.build_store(gv.as_pointer_value(), value)?;
+        //builder.build_store(gv.as_pointer_value(), value)?;
 
         compilation_context.symbol_table.insert(
             var_decl.variable_name.clone(),
@@ -350,8 +350,6 @@ fn compile_var_decl<'a, 'ctx>(
 
         return Ok(());
     }
-
-    let value = get_value(builder, &value)?;
 
     let alloca = builder.build_alloca(value.get_type(), &var_decl.variable_name)?;
     builder.build_store(alloca, value)?;

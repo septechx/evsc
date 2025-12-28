@@ -158,29 +158,30 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
         linker_kind: PhantomData::<T>,
     };
 
-    let source_text = fs::read_to_string(&file_path);
-    if let Err(err) = source_text {
-        ERRORS.with(|e| {
-            e.collector.borrow_mut().add(builders::fatal(format!(
-                "Source file `{}` not found: {}",
-                file_path.display(),
-                err
-            )));
-        });
-        unreachable!();
-    }
-    let source_text = source_text.unwrap();
+    let source_text = match fs::read_to_string(&file_path) {
+        Err(err) => {
+            ERRORS.with(|e| {
+                e.collector.borrow_mut().add(builders::fatal(format!(
+                    "Source file `{}` not found: {}",
+                    file_path.display(),
+                    err
+                )));
+            });
+            unreachable!();
+        }
+        Ok(source_text) => source_text,
+    };
 
-    let tokens = tokenize(source_text.clone(), &file_path)?;
+    let tokens = tokenize(source_text, &file_path)?;
     check_for_errors();
 
-    let ast = parse(tokens.clone())?;
+    let ast = parse(tokens)?;
     check_for_errors();
 
     let typechecker_options = CheckOptions {
         no_link: cli.no_link,
     };
-    let typechecker = TypeChecker::new(file_path.clone(), tokens, typechecker_options);
+    let typechecker = TypeChecker::new(file_path.clone(), typechecker_options);
     typechecker.check(&ast.body);
     check_for_errors();
 

@@ -15,7 +15,7 @@ use crate::{
         builtin::{Builtin, get_builtin},
         compile_type::compile_type,
         compiler::CompilationContext,
-        pointer::{SmartValue, get_value},
+        pointer::SmartValue,
     },
     lexer::token::TokenKind,
 };
@@ -102,8 +102,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let left = get_value(builder, &left)?;
-            let right = get_value(builder, &right)?;
+            let left = left.unwrap(builder)?;
+            let right = right.unwrap(builder)?;
 
             match expr.operator.kind {
                 TokenKind::Plus => {
@@ -178,7 +178,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     arg_expr,
                     compilation_context,
                 )?;
-                let loaded_val = get_value(builder, &arg_val)?;
+                let loaded_val = arg_val.unwrap(builder)?;
                 args.push(loaded_val.into());
                 arg_types.push(loaded_val.get_type().into());
             }

@@ -1,12 +1,11 @@
 use evscc::{
     ERRORS,
-    backend::BackendOptions,
-    backend::linker::linkers::LdLinker,
+    backend::{BackendOptions, linker::linkers::LdLinker},
     errors::ErrorLevel,
     intermediate::{self, CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
-    typecheck::TypeChecker,
+    typecheck::{CheckOptions, TypeChecker},
 };
 use std::{
     env, fs,
@@ -22,6 +21,7 @@ pub struct Test {
     should_compile: Option<bool>,
     expected_ir: Option<String>,
     execute: Option<Box<dyn FnOnce(ExecutionResult)>>,
+    fail_on_level: ErrorLevel,
 }
 
 impl Test {
@@ -32,6 +32,7 @@ impl Test {
             should_compile: None,
             expected_ir: None,
             execute: None,
+            fail_on_level: ErrorLevel::Warning,
         }
     }
 
@@ -56,6 +57,11 @@ impl Test {
         F: FnOnce(ExecutionResult) + 'static,
     {
         self.execute = Some(Box::new(f));
+        self
+    }
+
+    pub fn fail_on_level(&mut self, level: ErrorLevel) -> &mut Self {
+        self.fail_on_level = level;
         self
     }
 }
@@ -129,7 +135,7 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
         let ast = match parse(tokens.clone()) {
             Ok(a) => a,
@@ -141,11 +147,12 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
-        let typechecker = TypeChecker::new(main_path.clone(), tokens);
+        let typechecker_options = CheckOptions { no_link: false };
+        let typechecker = TypeChecker::new(main_path.clone(), tokens, typechecker_options);
         typechecker.check(&ast.body);
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
         let module_name = "main";
         let opts = CompileOptions {
@@ -175,7 +182,7 @@ impl Drop for Test {
             }
         }
 
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
         if let Some(expected_ir_file) = &self.expected_ir {
             let expected_path = Path::new("tests").join(expected_ir_file);
@@ -244,7 +251,7 @@ impl Drop for Test {
                 panic!("Failed to compile executable: {}", e);
             }
 
-            check_for_errors(self.should_compile);
+            check_for_errors(self);
 
             let output = match Command::new(&exe_path).output() {
                 Ok(o) => o,
@@ -269,13 +276,17 @@ impl Drop for Test {
     }
 }
 
-fn check_for_errors(should_compile: Option<bool>) {
-    if ERRORS.with(|e| e.collector.borrow().has_errors()) {
-        ERRORS.with(|e| e.collector.borrow().print_errors(ErrorLevel::Error));
-        if should_compile == Some(false) {
+fn check_for_errors(test: &Test) {
+    if ERRORS.with(|e| {
+        e.collector
+            .borrow()
+            .has_errors_above_level(test.fail_on_level)
+    }) {
+        ERRORS.with(|e| e.collector.borrow().print_errors(ErrorLevel::Info));
+        if test.should_compile == Some(false) {
             return;
         }
-        panic!("Compilation had errors");
+        panic!("Compilation had errors or warnings above threshold");
     }
 }
 

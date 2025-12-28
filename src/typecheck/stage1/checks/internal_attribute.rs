@@ -1,11 +1,18 @@
 use crate::{
     ast::{Attribute, Statement},
     errors::builders,
-    typecheck::Check,
+    typecheck::{Check, CheckOptions},
 };
 
-#[derive(Default)]
-pub struct InternalAttributeChecker;
+pub struct InternalAttributeChecker {
+    _options: CheckOptions,
+}
+
+impl InternalAttributeChecker {
+    pub fn new(options: CheckOptions) -> Self {
+        Self { _options: options }
+    }
+}
 
 impl Check for InternalAttributeChecker {
     fn check(&self, ast: &[Statement]) {

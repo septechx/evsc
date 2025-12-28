@@ -34,7 +34,7 @@ use crate::{
     intermediate::{CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
-    typecheck::TypeChecker,
+    typecheck::{CheckOptions, TypeChecker},
 };
 
 pub struct ErrorState {
@@ -177,7 +177,10 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let ast = parse(tokens.clone())?;
     check_for_errors();
 
-    let typechecker = TypeChecker::new(file_path.clone(), tokens);
+    let typechecker_options = CheckOptions {
+        no_link: cli.no_link,
+    };
+    let typechecker = TypeChecker::new(file_path.clone(), tokens, typechecker_options);
     typechecker.check(&ast.body);
     check_for_errors();
 

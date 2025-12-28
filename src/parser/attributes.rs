@@ -5,7 +5,7 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Vec<Attribute>> {
     let mut attributes = Vec::new();
 
     while parser.current_token().kind == TokenKind::Hash {
-        parser.advance();
+        let hash_token = parser.advance();
         parser.expect(TokenKind::OpenBracket)?;
 
         let name = parser.expect(TokenKind::Identifier)?.value;
@@ -30,7 +30,11 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Vec<Attribute>> {
 
         parser.expect(TokenKind::CloseBracket)?;
 
-        attributes.push(Attribute { name, arguments });
+        attributes.push(Attribute {
+            name,
+            arguments,
+            location: hash_token.location,
+        });
     }
 
     Ok(attributes)

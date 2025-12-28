@@ -294,6 +294,10 @@ impl ErrorCollector {
     pub fn can_continue(&self) -> bool {
         !self.errors.iter().any(|e| e.level == ErrorLevel::Fatal)
     }
+
+    pub fn has_errors_above_level(&self, min_level: ErrorLevel) -> bool {
+        self.errors.iter().any(|e| e.level >= min_level)
+    }
 }
 
 impl Default for ErrorCollector {

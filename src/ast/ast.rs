@@ -1,9 +1,13 @@
-use crate::ast::{expressions::*, statements::*, types::*};
+use crate::{
+    ast::{expressions::*, statements::*, types::*},
+    errors::SourceLocation,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
     pub name: String,
     pub arguments: Option<Vec<String>>,
+    pub location: SourceLocation,
 }
 
 #[derive(Debug, Clone)]

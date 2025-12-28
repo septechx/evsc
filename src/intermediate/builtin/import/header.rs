@@ -8,6 +8,7 @@ use crate::{
         statements::{BlockStmt, FnArgument, FnDeclStmt},
         types::SymbolType,
     },
+    errors::SourceLocation,
     intermediate::{
         builtin::import::create_module,
         compiler::{self, CompilationContext},
@@ -57,6 +58,7 @@ pub fn compile_header<'ctx>(
                 is_public: true,
                 is_extern: true,
                 attributes: Vec::new(),
+                location: e.get_location().expect("function has no location").into(),
             };
 
             functions.push(stmt);
@@ -119,5 +121,17 @@ fn map_c_type(ty: &str) -> &str {
         "float" => "f32",
         "double" => "f64",
         sym => sym,
+    }
+}
+
+impl<'a> From<clang::source::SourceLocation<'a>> for SourceLocation {
+    fn from(location: clang::source::SourceLocation) -> Self {
+        let loc = location.get_file_location();
+        SourceLocation::new(
+            loc.file.expect("file location has no file").get_path(),
+            loc.line as usize,
+            loc.column as usize,
+            loc.offset as usize,
+        )
     }
 }

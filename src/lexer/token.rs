@@ -76,10 +76,10 @@ pub enum TokenKind {
     Struct,
     Fn,
     Return,
-    Const,
     Pub,
     Static,
     Mut,
+    Extern,
 
     // Special
     Eof,
@@ -96,10 +96,10 @@ lazy_static! {
         m.insert("struct", T::Struct);
         m.insert("fn", T::Fn);
         m.insert("return", T::Return);
-        m.insert("const", T::Const);
         m.insert("pub", T::Pub);
         m.insert("static", T::Static);
         m.insert("mut", T::Mut);
+        m.insert("extern", T::Extern);
         m
     };
 }

@@ -6,6 +6,11 @@ pub struct SymbolType {
 }
 
 #[derive(Debug, Clone)]
+pub struct PointerType {
+    pub underlying: Box<Type>,
+}
+
+#[derive(Debug, Clone)]
 pub struct SliceType {
     pub underlying: Box<Type>,
 }
@@ -17,7 +22,7 @@ pub struct FixedArrayType {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConstType {
+pub struct MutType {
     pub underlying: Box<Type>,
 }
 

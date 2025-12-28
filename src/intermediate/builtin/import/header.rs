@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::{Result, anyhow};
 use clang::{Clang, EntityKind, Index};
 use inkwell::{builder::Builder, context::Context, module::Module};
@@ -8,14 +6,13 @@ use crate::{
     ast::{
         Statement, Type,
         statements::{BlockStmt, FnArgument, FnDeclStmt},
+        types::SymbolType,
     },
     intermediate::{
         builtin::import::create_module,
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
-    lexer::tokenize,
-    parser::{Parser, types::parse_symbol_type},
 };
 
 pub fn compile_header<'ctx>(
@@ -41,15 +38,7 @@ pub fn compile_header<'ctx>(
         if e.get_kind() == EntityKind::FunctionDecl {
             let name = parse_function_name(e.get_display_name().expect("function has no name"))
                 .expect("function has no name");
-            let ty = parse_function_type(
-                e.get_type().expect("function has no type"),
-                &e.get_location()
-                    .expect("function has no location")
-                    .get_file_location()
-                    .file
-                    .expect("function has no location")
-                    .get_path(),
-            )?;
+            let ty = parse_function_type(e.get_type().expect("function has no type"))?;
 
             let arguments =
                 ty.1.iter()
@@ -94,25 +83,24 @@ fn parse_function_name(name: String) -> Option<String> {
     name.split_once('(').map(|(name, _)| name.to_string())
 }
 
-fn parse_function_type(ty: clang::Type, file_path: &Path) -> Result<(Type, Vec<Type>)> {
+fn parse_function_type(ty: clang::Type) -> Result<(Type, Vec<Type>)> {
     let return_type = ty.get_result_type().expect("function type is not valid");
     let args = ty.get_argument_types().unwrap_or_default();
 
     let args: Vec<String> = args.iter().map(|arg| arg.get_display_name()).collect();
-    let arg_types: Vec<Type> = args
-        .iter()
-        .map(|arg| parse_type(arg, file_path))
-        .collect::<Result<Vec<Type>>>()?;
+    let arg_types: Vec<Type> = args.iter().map(|arg| parse_type(arg)).collect();
 
-    let return_type = parse_type(&return_type.get_display_name(), file_path)?;
+    let return_type = parse_type(&return_type.get_display_name());
 
     Ok((return_type, arg_types))
 }
 
-fn parse_type(ty: &str, file_path: &Path) -> Result<Type> {
-    let tokens = tokenize(map_c_type(ty).to_string(), file_path)?;
-    let mut parser = Parser::new(tokens);
-    parse_symbol_type(&mut parser)
+fn parse_type(ty: &str) -> Type {
+    let ty = map_c_type(ty);
+
+    Type::Symbol(SymbolType {
+        name: ty.to_string(),
+    })
 }
 
 fn map_c_type(ty: &str) -> &str {

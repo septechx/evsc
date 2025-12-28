@@ -1,6 +1,7 @@
 use evscc::{
     ERRORS,
     backend::BackendOptions,
+    backend::linker::linkers::LdLinker,
     errors::ErrorLevel,
     intermediate::{self, CompileOptions, EmitType},
     lexer::tokenize,
@@ -10,6 +11,7 @@ use evscc::{
 use std::{
     env, fs,
     hash::{DefaultHasher, Hash, Hasher},
+    marker::PhantomData,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -142,16 +144,7 @@ impl Drop for Test {
         check_for_errors(self.should_compile);
 
         let typechecker = TypeChecker::new(main_path.clone(), tokens);
-        match typechecker.check(&ast.body) {
-            Ok(_) => {}
-            Err(e) => {
-                if self.should_compile == Some(false) {
-                    return;
-                }
-                panic!("Type checking failed: {}", e);
-            }
-        }
-
+        typechecker.check(&ast.body);
         check_for_errors(self.should_compile);
 
         let module_name = "main";
@@ -164,7 +157,7 @@ impl Drop for Test {
             backend_options: &BackendOptions::default(),
             pie: true,
             static_linking: false,
-            linker_kind: None,
+            linker_kind: PhantomData::<LdLinker>,
             cache_dir: Some(&test_dir),
         };
 
@@ -243,7 +236,7 @@ impl Drop for Test {
                 backend_options: &BackendOptions::default(),
                 pie: true,
                 static_linking: false,
-                linker_kind: Some(evscc::backend::LinkerKind::Ld),
+                linker_kind: PhantomData::<LdLinker>,
                 cache_dir: Some(&test_dir),
             };
 

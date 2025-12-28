@@ -9,6 +9,7 @@ mod runtime;
 
 use std::{
     fs, io,
+    marker::PhantomData,
     path::{Path, PathBuf},
 };
 
@@ -29,7 +30,8 @@ use inkwell::{
 use crate::{
     ast::statements::BlockStmt,
     backend::{
-        BackendOptions, LinkerKind, build_assembly_file, build_executable, build_object_file,
+        BackendOptions, build_assembly_file, build_object_file,
+        linker::{Linker, link_object_files},
     },
     intermediate::{
         compiler::{CompilationContext, compile as compile_ast},
@@ -39,7 +41,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct CompileOptions<'a> {
+pub struct CompileOptions<'a, T: Linker> {
     pub module_name: &'a str,
     pub source_dir: &'a Path,
     pub output_file: &'a Path,
@@ -48,8 +50,8 @@ pub struct CompileOptions<'a> {
     pub backend_options: &'a BackendOptions,
     pub pie: bool,
     pub static_linking: bool,
-    pub linker_kind: Option<LinkerKind>,
     pub cache_dir: Option<&'a Path>,
+    pub linker_kind: PhantomData<T>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -60,7 +62,7 @@ pub enum EmitType {
     Executable,
 }
 
-pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
+pub fn compile<T: Linker>(ast: BlockStmt, opts: &CompileOptions<T>) -> Result<()> {
     let context = Context::create();
     let module = context.create_module(opts.module_name);
     let builder = context.create_builder();
@@ -84,10 +86,6 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
         EmitType::Assembly => build_assembly_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Object => build_object_file(opts.output_file, &module, opts.backend_options)?,
         EmitType::Executable => {
-            let linker_kind = opts
-                .linker_kind
-                .expect("Linker kind not specified for executable");
-
             let tmp_dir = get_tmp_dir(opts.cache_dir)?;
             let obj_filename = opts
                 .output_file
@@ -100,13 +98,12 @@ pub fn compile(ast: BlockStmt, opts: &CompileOptions) -> Result<()> {
             build_object_file(&tmp_obj_path, &module, opts.backend_options)?;
 
             let object_files = vec![tmp_obj_path.as_path()];
-            build_executable(
+            link_object_files::<T>(
                 &object_files,
                 opts.output_file,
                 false,
                 opts.pie,
                 opts.static_linking,
-                linker_kind,
             )?;
         }
     }

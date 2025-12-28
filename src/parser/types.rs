@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use crate::{
     ast::{
         Type,
-        types::{ConstType, FixedArrayType, FunctionType, SliceType, SymbolType},
+        types::{FixedArrayType, FunctionType, MutType, PointerType, SliceType, SymbolType},
     },
     lexer::token::TokenKind::{self, self as T},
     parser::{
@@ -43,13 +43,22 @@ fn type_nud(kind: TokenKind, nud_fn: TypeNudHandler) {
 pub fn create_token_type_lookups() {
     type_nud(T::Identifier, parse_symbol_type);
     type_nud(T::OpenBracket, parse_array_type);
-    type_nud(T::Const, parse_const_type);
+    type_nud(T::Mut, parse_mut_type);
     type_nud(T::OpenParen, parse_function_type);
+    type_nud(T::Reference, parse_pointer_type);
 }
 
-pub fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
+fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
     Ok(Type::Symbol(SymbolType {
         name: parser.expect(T::Identifier)?.value,
+    }))
+}
+
+fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {
+    parser.expect(T::Reference)?;
+    let underlying = parse_type(parser, BindingPower::DefaultBp)?;
+    Ok(Type::Pointer(PointerType {
+        underlying: Box::new(underlying),
     }))
 }
 
@@ -131,10 +140,10 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
     Ok(left)
 }
 
-fn parse_const_type(parser: &mut Parser) -> Result<Type> {
-    parser.expect(TokenKind::Const)?;
+fn parse_mut_type(parser: &mut Parser) -> Result<Type> {
+    parser.expect(TokenKind::Mut)?;
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
-    Ok(Type::Const(ConstType {
+    Ok(Type::Mut(MutType {
         underlying: Box::new(underlying),
     }))
 }

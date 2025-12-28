@@ -189,6 +189,7 @@ pub fn compile<'a, 'ctx>(
                 )?;
             }
             Statement::StructDecl(_) => (), // Structs are compiled during the first pass
+            Statement::InterfaceDecl(_) => todo!(),
         }
     }
 
@@ -336,8 +337,6 @@ fn compile_var_decl<'a, 'ctx>(
     if var_decl.is_static {
         let gv = add_global_constant(module, value.get_type(), &var_decl.variable_name, value)?;
         gv.set_linkage(Linkage::Private);
-
-        //builder.build_store(gv.as_pointer_value(), value)?;
 
         compilation_context.symbol_table.insert(
             var_decl.variable_name.clone(),

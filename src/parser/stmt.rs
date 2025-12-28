@@ -5,8 +5,8 @@ use crate::{
     ast::{
         Attribute, Expression, Statement, Type,
         statements::{
-            ExpressionStmt, FnArgument, FnDeclStmt, ReturnStmt, StructDeclStmt, StructMethod,
-            StructProperty, VarDeclStmt,
+            ExpressionStmt, FnArgument, FnDeclStmt, InterfaceDeclStmt, InterfaceMethod, ReturnStmt,
+            StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
     errors::{CodeLine, CodeType, builders},
@@ -136,18 +136,16 @@ pub fn parse_struct_decl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn {
-            let fn_decl = parse_fn_decl_stmt(parser, vec![])?;
-            match fn_decl {
-                Statement::FnDecl(fn_decl) => methods.push(StructMethod {
+            if let Statement::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])? {
+                methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
                         is_extern: false,
                         is_public,
                         ..fn_decl
                     },
                     is_static,
-                }),
-                _ => unreachable!(),
-            }
+                })
+            };
             continue;
         }
 
@@ -218,9 +216,46 @@ pub fn parse_struct_decl_stmt(
         name,
         properties,
         methods,
-        is_public: false,
         attributes,
+        is_public: false,
         location: struct_token.location,
+    }))
+}
+
+pub fn parse_interface_decl_stmt(
+    parser: &mut Parser,
+    attributes: Vec<Attribute>,
+) -> Result<Statement> {
+    let interface_token = parser.expect(TokenKind::Interface)?;
+    let mut methods: Vec<InterfaceMethod> = Vec::new();
+    let name = parser.expect(TokenKind::Identifier)?.value;
+
+    parser.expect(TokenKind::OpenCurly)?;
+
+    loop {
+        if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
+            break;
+        }
+
+        if let Statement::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])? {
+            methods.push(InterfaceMethod {
+                fn_decl: FnDeclStmt {
+                    is_extern: false,
+                    is_public: false,
+                    ..fn_decl
+                },
+            });
+        }
+    }
+
+    parser.expect(TokenKind::CloseCurly)?;
+
+    Ok(Statement::InterfaceDecl(InterfaceDeclStmt {
+        name,
+        methods,
+        attributes,
+        is_public: false,
+        location: interface_token.location,
     }))
 }
 

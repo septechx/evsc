@@ -16,6 +16,7 @@ pub enum Statement {
     Expression(ExpressionStmt),
     VarDecl(VarDeclStmt),
     StructDecl(StructDeclStmt),
+    InterfaceDecl(InterfaceDeclStmt),
     FnDecl(FnDeclStmt),
     Return(ReturnStmt),
 }

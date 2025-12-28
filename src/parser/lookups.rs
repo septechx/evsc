@@ -6,19 +6,7 @@ use parking_lot::Mutex;
 use crate::{
     ast::{Attribute, Expression, Statement},
     lexer::token::TokenKind::{self, self as T},
-    parser::{
-        expr::{
-            parse_array_literal_expr, parse_assignment_expr, parse_binary_expr,
-            parse_function_call_expr, parse_grouping_expr, parse_member_access_expr,
-            parse_prefix_expr, parse_primary_expr, parse_struct_instantiation_expr,
-            parse_type_expr,
-        },
-        parser::Parser,
-        stmt::{
-            parse_fn_decl_stmt, parse_pub_stmt, parse_return_stmt, parse_struct_decl_stmt,
-            parse_var_decl_statement,
-        },
-    },
+    parser::{expr::*, parser::Parser, stmt::*},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -119,6 +107,7 @@ pub fn create_token_lookups() {
     stmt(T::Static, parse_var_decl_statement);
 
     stmt(T::Struct, parse_struct_decl_stmt);
+    stmt(T::Interface, parse_interface_decl_stmt);
     stmt(T::Fn, parse_fn_decl_stmt);
     stmt(T::Return, parse_return_stmt);
 

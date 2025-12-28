@@ -80,6 +80,7 @@ pub enum TokenKind {
     Static,
     Mut,
     Extern,
+    Interface,
 
     // Special
     Eof,
@@ -100,6 +101,7 @@ lazy_static! {
         m.insert("static", T::Static);
         m.insert("mut", T::Mut);
         m.insert("extern", T::Extern);
+        m.insert("interface", T::Interface);
         m
     };
 }

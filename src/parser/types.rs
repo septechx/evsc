@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use crate::{
     ast::{
         Type,
-        types::{ConstType, FixedArrayType, FunctionType, SliceType, SymbolType},
+        types::{ConstType, FixedArrayType, FunctionType, PointerType, SliceType, SymbolType},
     },
     lexer::token::TokenKind::{self, self as T},
     parser::{
@@ -45,11 +45,20 @@ pub fn create_token_type_lookups() {
     type_nud(T::OpenBracket, parse_array_type);
     type_nud(T::Const, parse_const_type);
     type_nud(T::OpenParen, parse_function_type);
+    type_nud(T::Reference, parse_pointer_type);
 }
 
-pub fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
+fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
     Ok(Type::Symbol(SymbolType {
         name: parser.expect(T::Identifier)?.value,
+    }))
+}
+
+fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {
+    parser.expect(T::Reference)?;
+    let underlying = parse_type(parser, BindingPower::DefaultBp)?;
+    Ok(Type::Pointer(PointerType {
+        underlying: Box::new(underlying),
     }))
 }
 

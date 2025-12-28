@@ -35,6 +35,7 @@ pub enum Expression {
 #[derive(Debug, Clone)]
 pub enum Type {
     Symbol(SymbolType),
+    Pointer(PointerType),
     Slice(SliceType),
     FixedArray(FixedArrayType),
     Const(ConstType),

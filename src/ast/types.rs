@@ -6,6 +6,11 @@ pub struct SymbolType {
 }
 
 #[derive(Debug, Clone)]
+pub struct PointerType {
+    pub underlying: Box<Type>,
+}
+
+#[derive(Debug, Clone)]
 pub struct SliceType {
     pub underlying: Box<Type>,
 }

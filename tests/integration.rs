@@ -302,7 +302,7 @@ fn return_string_literal() {
     it("should handle returning string literals", |ctx| {
         ctx.add_source(
             r#"
-            pub fn main() []const u8 {
+            pub fn main() []u8 {
                 return "Hello world!\n";
             }
         "#,

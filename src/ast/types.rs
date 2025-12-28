@@ -22,7 +22,7 @@ pub struct FixedArrayType {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConstType {
+pub struct MutType {
     pub underlying: Box<Type>,
 }
 

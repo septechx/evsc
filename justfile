@@ -19,8 +19,10 @@ clean:
     rm -rf include/*.a include/*.o tests/*-test.ll
     cargo clean
 
-install:
+install: bindings
     cargo install --path .
+    sudo mkdir -p /opt/evsc && sudo rsync -a --delete lib/ /opt/evsc/lib/
+
 
 bindings:
     clang++ -c -fPIC include/llvm_bindings.cpp -o include/llvm_bindings.o $(llvm-config --cxxflags)

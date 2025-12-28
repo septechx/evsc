@@ -38,6 +38,6 @@ pub enum Type {
     Pointer(PointerType),
     Slice(SliceType),
     FixedArray(FixedArrayType),
-    Const(ConstType),
+    Mut(MutType),
     Function(FunctionType),
 }

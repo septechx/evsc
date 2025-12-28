@@ -144,16 +144,7 @@ impl Drop for Test {
         check_for_errors(self.should_compile);
 
         let typechecker = TypeChecker::new(main_path.clone(), tokens);
-        match typechecker.check(&ast.body) {
-            Ok(_) => {}
-            Err(e) => {
-                if self.should_compile == Some(false) {
-                    return;
-                }
-                panic!("Type checking failed: {}", e);
-            }
-        }
-
+        typechecker.check(&ast.body);
         check_for_errors(self.should_compile);
 
         let module_name = "main";

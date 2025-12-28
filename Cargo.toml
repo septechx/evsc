@@ -14,6 +14,7 @@ inkwell = { version = "0.7.1", features = ["llvm21-1"] }
 clap = { version = "4.5.53", features = ["derive"] }
 parking_lot = "0.12.5"
 clang = {version = "2.0.0", features = ["clang_10_0", "runtime"]}
+paste = "1.0.15"
 
 [dev-dependencies]
 similar = "2.7.0"

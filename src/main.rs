@@ -178,7 +178,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     check_for_errors();
 
     let typechecker = TypeChecker::new(file_path.clone(), tokens);
-    typechecker.check(&ast.body)?;
+    typechecker.check(&ast.body);
     check_for_errors();
 
     intermediate::compile(ast, &opts)?;

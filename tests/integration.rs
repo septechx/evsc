@@ -3,6 +3,38 @@ mod common;
 use common::it;
 
 #[test]
+fn invalid_return_type_fails() {
+    // TODO: This test doesn't word, as return type checking currently happens when generating the c
+    // runtime intializer. Whenever the check gets moved to the type checker, this test should
+    // start working.
+    //
+    // it("should error when return type is not valid", |ctx| {
+    //     ctx.add_source(
+    //         r#"
+    //             pub fn main() []u8 {
+    //                 return []u8{1, 2, 3};
+    //             }
+    //             "#,
+    //     )
+    //     .compiles(false);
+    // })
+}
+
+#[test]
+fn slice_literals() {
+    it("should handle slice literals", |ctx| {
+        ctx.add_source(
+            r#"
+            pub fn main() void {
+                let s = []u8{1, 2, 3};
+            }
+        "#,
+        )
+        .compiles(true);
+    })
+}
+
+#[test]
 fn internal_attribute_fails_in_user_code() {
     it(
         "should error when #[internal] is used in user code",

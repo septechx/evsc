@@ -178,8 +178,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     arg_expr,
                     compilation_context,
                 )?;
-                args.push(arg_val.value.into());
-                arg_types.push(arg_val.value.get_type().into());
+                let loaded_val = get_value(builder, &arg_val)?;
+                args.push(loaded_val.into());
+                arg_types.push(loaded_val.get_type().into());
             }
 
             let function_ty = function_ty.as_basic_type_enum().fn_type(&arg_types, false);

@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::{
     errors::SourceLocation,
     lexer::{
-        token::{Token, TokenKind},
+        token::{Token, TokenKind, TokenStream},
         verify::verify_tokens,
     },
 };
@@ -58,7 +58,7 @@ impl Lexer {
         &self.file_content[self.pos..]
     }
 
-    pub fn tokenize(&mut self, file_path: &Path) -> Result<Vec<Token>> {
+    pub fn tokenize(&mut self, file_path: &Path) -> Result<TokenStream> {
         let mut tokens: Vec<Token> = vec![];
 
         while !self.at_eof() {
@@ -108,11 +108,11 @@ impl Lexer {
             self.advance(match_len);
         }
 
-        Ok(tokens)
+        Ok(TokenStream(tokens))
     }
 }
 
-pub fn tokenize(file: String, path: &Path) -> Result<Vec<Token>> {
+pub fn tokenize(file: String, path: &Path) -> Result<TokenStream> {
     let mut lexer = Lexer::new(file);
     let tokens = lexer.tokenize(path)?;
     verify_tokens(&tokens);

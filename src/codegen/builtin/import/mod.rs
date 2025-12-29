@@ -100,7 +100,13 @@ fn compile_evsc_module<'ctx>(
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
 
-    compiler::compile(context, module, builder, &ast, &mut mod_compilation_context)?;
+    compiler::compile_stmts(
+        context,
+        module,
+        builder,
+        &ast.0,
+        &mut mod_compilation_context,
+    )?;
     // Compile module
 
     create_module(

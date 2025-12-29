@@ -4,6 +4,9 @@ use std::{collections::HashMap, fmt::Display};
 use crate::errors::SourceLocation;
 
 #[derive(Debug, Clone)]
+pub struct TokenStream(pub Vec<Token>);
+
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub location: SourceLocation,

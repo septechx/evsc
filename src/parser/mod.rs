@@ -8,8 +8,8 @@ pub mod types;
 use colored::Colorize;
 
 use crate::{
-    ast::{Statement, statements::BlockStmt},
-    lexer::token::{Token, TokenKind},
+    ast::{Ast, Statement, statements::BlockStmt},
+    lexer::token::{Token, TokenKind, TokenStream},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
 };
 
@@ -21,8 +21,11 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, pos: 0 }
+    pub fn new(tokens: TokenStream) -> Self {
+        Parser {
+            tokens: tokens.0,
+            pos: 0,
+        }
     }
 
     pub fn tokens(&self) -> &[Token] {
@@ -74,7 +77,7 @@ impl Parser {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<BlockStmt> {
+pub fn parse(tokens: TokenStream) -> Result<Ast> {
     create_token_lookups();
     create_token_type_lookups();
 
@@ -85,5 +88,5 @@ pub fn parse(tokens: Vec<Token>) -> Result<BlockStmt> {
         body.push(parse_stmt(&mut parser)?);
     }
 
-    Ok(BlockStmt { body })
+    Ok(Ast(body))
 }

@@ -119,17 +119,15 @@ impl<'ctx> CompilationContext<'ctx> {
     }
 }
 
-pub fn compile<'a, 'ctx>(
+pub fn compile_stmts<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    ast: &BlockStmt,
+    stmts: &[Statement],
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let body = &ast.body;
-
     // 1st pass: Declare functions and structs
-    for stmt in body {
+    for stmt in stmts {
         match stmt {
             Statement::FnDecl(fn_decl) => {
                 let param_types: Vec<Type> = fn_decl
@@ -157,7 +155,7 @@ pub fn compile<'a, 'ctx>(
     }
 
     // 2nd pass: Compile block
-    for stmt in body {
+    for stmt in stmts {
         match stmt {
             Statement::FnDecl(fn_decl) => {
                 if let Some(function) = compilation_context.function_table.get(&fn_decl.name) {
@@ -181,11 +179,11 @@ pub fn compile<'a, 'ctx>(
             }
             Statement::Block(block) => {
                 let mut inner_compilation_context = compilation_context.clone();
-                compile(
+                compile_stmts(
                     context,
                     module,
                     builder,
-                    block,
+                    &block.body,
                     &mut inner_compilation_context,
                 )?;
             }
@@ -251,11 +249,11 @@ fn compile_function<'ctx>(
     let mut inner_compilation_context = compilation_context.clone();
     inner_compilation_context.symbol_table.extend(symbol_table);
 
-    compile(
+    compile_stmts(
         context,
         module,
         &builder,
-        &body,
+        &body.body,
         &mut inner_compilation_context,
     )?;
 

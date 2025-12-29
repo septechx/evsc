@@ -4,8 +4,8 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        Statement, Type,
-        statements::{BlockStmt, FnArgument, FnDeclStmt},
+        Ast, Statement, Type,
+        statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
     },
     codegen::{
@@ -65,12 +65,16 @@ pub fn compile_header<'ctx>(
         }
     }
 
-    let ast = BlockStmt {
-        body: functions.into_iter().map(Statement::FnDecl).collect(),
-    };
+    let ast = Ast(functions.into_iter().map(Statement::FnDecl).collect());
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
-    compiler::compile(context, module, builder, &ast, &mut mod_compilation_context)?;
+    compiler::compile_stmts(
+        context,
+        module,
+        builder,
+        &ast.0,
+        &mut mod_compilation_context,
+    )?;
 
     create_module(
         context,

@@ -1,12 +1,12 @@
 use crate::{
     errors::{CodeLine, CodeType, builders},
-    lexer::token::{Token, TokenKind},
+    lexer::token::{Token, TokenKind, TokenStream},
 };
 
-pub fn verify_tokens(tokens: &[Token]) {
-    for token in tokens {
+pub fn verify_tokens(tokens: &TokenStream) {
+    for token in &tokens.0 {
         if let TokenKind::Illegal = &token.kind {
-            let line = build_line_with_positions(tokens, token.location.line);
+            let line = build_line_with_positions(&tokens.0, token.location.line);
             let c = token.value.chars().next().unwrap_or('\0');
 
             crate::ERRORS.with(|e| {

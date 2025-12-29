@@ -3,7 +3,7 @@ pub mod linker;
 use anyhow::{Result, anyhow};
 use inkwell::{
     OptimizationLevel,
-    llvm_sys::target_machine::LLVMGetDefaultTargetTriple,
+    llvm_sys::{core::LLVMDisposeMessage, target_machine::LLVMGetDefaultTargetTriple},
     module::Module,
     targets::{
         CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
@@ -35,7 +35,8 @@ impl Default for BackendOptions {
 pub fn prepare_module(module: &Module, options: &BackendOptions) -> Result<TargetMachine> {
     Target::initialize_all(&InitializationConfig::default());
 
-    let target_triple = unsafe { CStr::from_ptr(LLVMGetDefaultTargetTriple()).to_str()? };
+    let llvm_target_triple = unsafe { LLVMGetDefaultTargetTriple() };
+    let target_triple = unsafe { CStr::from_ptr(llvm_target_triple).to_str()? };
     let target_triple = TargetTriple::create(target_triple);
     let target = Target::from_triple(&target_triple).map_err(|e| anyhow!("{e}"))?;
 
@@ -52,6 +53,10 @@ pub fn prepare_module(module: &Module, options: &BackendOptions) -> Result<Targe
 
     module.set_data_layout(&target_machine.get_target_data().get_data_layout());
     module.set_triple(&target_triple);
+
+    unsafe {
+        LLVMDisposeMessage(llvm_target_triple);
+    }
 
     Ok(target_machine)
 }

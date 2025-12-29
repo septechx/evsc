@@ -1,4 +1,4 @@
-name: Run tests
+name: Run linux CI
 
 on:
   push:
@@ -34,3 +34,6 @@ jobs:
 
       - name: Run tests
         run: just test
+
+      - name: Run lint
+        run: just lint

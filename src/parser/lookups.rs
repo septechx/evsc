@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use crate::{
     ast::{Attribute, Expression, Statement},
     lexer::token::TokenKind::{self, self as T},
-    parser::{expr::*, parser::Parser, stmt::*},
+    parser::{Parser, expr::*, stmt::*},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

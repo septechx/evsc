@@ -23,6 +23,8 @@ install: bindings
     cargo install --path .
     sudo mkdir -p /opt/evsc && sudo rsync -a --delete lib/ /opt/evsc/lib/
 
+lint:
+    cargo clippy --all-targets --all-features -- -Dwarnings
 
 bindings:
     clang++ -c -fPIC include/llvm_bindings.cpp -o include/llvm_bindings.o $(llvm-config --cxxflags)

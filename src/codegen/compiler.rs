@@ -54,6 +54,7 @@ impl<'ctx> From<FunctionTableEntry<'ctx>> for FunctionValue<'ctx> {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct SymbolTableEntry<'ctx> {
     pub value: SmartValue<'ctx>,

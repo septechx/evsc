@@ -11,11 +11,11 @@ use crate::{
     },
     lexer::token::TokenKind::{self, self as T},
     parser::{
+        Parser,
         lookups::{
             BindingPower::{self, self as BP},
             BpLookup,
         },
-        parser::Parser,
     },
 };
 
@@ -31,6 +31,7 @@ lazy_static! {
     pub static ref TYPE_LED_LU: Mutex<TypeLedLookup> = Mutex::new(HashMap::new());
 }
 
+#[allow(dead_code)]
 fn type_led(kind: TokenKind, bp: BindingPower, led_fn: TypeLedHandler) {
     TYPE_BP_LU.lock().unwrap().insert(kind, bp);
     TYPE_LED_LU.lock().unwrap().insert(kind, led_fn);

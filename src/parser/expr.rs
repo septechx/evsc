@@ -18,8 +18,8 @@ use crate::{
         verify::build_line_with_positions,
     },
     parser::{
+        Parser,
         lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
-        parser::Parser,
         string::process_string,
         types::parse_type,
     },

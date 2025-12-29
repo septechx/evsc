@@ -12,10 +12,10 @@ use crate::{
     errors::{CodeLine, CodeType, builders},
     lexer::{token::TokenKind, verify::build_line_with_positions},
     parser::{
+        Parser,
         attributes::parse_attributes,
         expr::parse_expr,
         lookups::{BindingPower, STMT_LU},
-        parser::Parser,
         types::parse_type,
     },
 };

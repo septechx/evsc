@@ -65,6 +65,7 @@ impl Test {
     }
 }
 
+#[allow(dead_code)]
 pub struct ExecutionResult {
     pub exit_code: i32,
     pub stdout: String,
@@ -82,6 +83,7 @@ impl ExecutionResult {
         self
     }
 
+    #[allow(dead_code)]
     pub fn stderr(&self, expected: &str) -> &Self {
         assert_eq!(self.stderr, expected);
         self

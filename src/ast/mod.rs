@@ -1,11 +1,15 @@
 pub mod expressions;
 pub mod statements;
 pub mod types;
+pub mod visit;
 
 use crate::{
     ast::{expressions::*, statements::*, types::*},
     errors::SourceLocation,
 };
+
+#[derive(Debug, Clone)]
+pub struct Ast(pub Vec<Statement>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {

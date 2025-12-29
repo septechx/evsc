@@ -139,7 +139,7 @@ pub fn compile<'a, 'ctx>(
                     .collect();
                 let fn_type = compile_function_type(
                     context,
-                    &fn_decl.explicit_type,
+                    &fn_decl.return_type,
                     &param_types,
                     compilation_context,
                 )?;
@@ -388,7 +388,7 @@ fn compile_struct_decl<'ctx>(
             .collect();
         let fn_type = compile_function_type(
             context,
-            &method.explicit_type,
+            &method.return_type,
             &param_types,
             compilation_context,
         )?;

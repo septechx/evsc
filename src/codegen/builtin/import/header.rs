@@ -54,7 +54,7 @@ pub fn compile_header<'ctx>(
                 name,
                 arguments,
                 body: Vec::new(),
-                explicit_type: ty.0,
+                return_type: ty.0,
                 is_public: true,
                 is_extern: true,
                 attributes: Vec::new(),

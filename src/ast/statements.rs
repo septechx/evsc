@@ -71,7 +71,7 @@ pub struct FnDeclStmt {
     pub name: String,
     pub arguments: Vec<FnArgument>,
     pub body: Vec<Statement>,
-    pub explicit_type: Type,
+    pub return_type: Type,
     pub is_public: bool,
     pub is_extern: bool,
     pub attributes: Vec<Attribute>,

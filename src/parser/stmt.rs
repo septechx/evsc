@@ -357,7 +357,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Re
         name,
         arguments,
         body,
-        explicit_type,
+        return_type: explicit_type,
         is_public: false,
         is_extern: false,
         attributes,

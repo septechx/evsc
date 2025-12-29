@@ -4,6 +4,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
+// TODO: Add float support, replace i32
 #[derive(Debug, Clone)]
 pub struct NumberExpr {
     pub value: i32,

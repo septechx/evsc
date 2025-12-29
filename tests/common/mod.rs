@@ -5,7 +5,6 @@ use evscc::{
     intermediate::{self, CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
-    typecheck::{CheckOptions, TypeChecker},
 };
 use std::{
     env, fs,
@@ -147,11 +146,6 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self);
-
-        let typechecker_options = CheckOptions { no_link: false };
-        let typechecker = TypeChecker::new(main_path.clone(), typechecker_options);
-        typechecker.check(&ast.body);
         check_for_errors(self);
 
         let module_name = "main";

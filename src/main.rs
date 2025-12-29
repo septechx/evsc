@@ -7,7 +7,6 @@ pub mod intermediate;
 pub mod lexer;
 pub mod macros;
 pub mod parser;
-pub mod typecheck;
 
 use std::{
     cell::RefCell,
@@ -34,7 +33,6 @@ use crate::{
     intermediate::{CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
-    typecheck::{CheckOptions, TypeChecker},
 };
 
 pub struct ErrorState {
@@ -176,13 +174,6 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     check_for_errors();
 
     let ast = parse(tokens)?;
-    check_for_errors();
-
-    let typechecker_options = CheckOptions {
-        no_link: cli.no_link,
-    };
-    let typechecker = TypeChecker::new(file_path.clone(), typechecker_options);
-    typechecker.check(&ast.body);
     check_for_errors();
 
     intermediate::compile(ast, &opts)?;

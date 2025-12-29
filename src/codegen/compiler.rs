@@ -21,7 +21,7 @@ use crate::{
         },
     },
     bindings::llvm_bindings::create_named_struct,
-    intermediate::{
+    codegen::{
         builtin::Builtin,
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},

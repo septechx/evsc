@@ -8,12 +8,12 @@ use crate::{
         statements::{BlockStmt, FnArgument, FnDeclStmt},
         types::SymbolType,
     },
-    errors::SourceLocation,
-    intermediate::{
+    codegen::{
         builtin::import::create_module,
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
+    errors::SourceLocation,
 };
 
 pub fn compile_header<'ctx>(

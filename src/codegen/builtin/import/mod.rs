@@ -12,8 +12,7 @@ use inkwell::{
 use crate::{
     ast::{Expression, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
-    errors::builders,
-    intermediate::{
+    codegen::{
         builtin::{
             BuiltinFunction,
             import::{header::compile_header, resolve_lib::resolve_std_lib},
@@ -21,6 +20,7 @@ use crate::{
         compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,
     },
+    errors::builders,
     lexer::tokenize,
     parser::parse,
 };

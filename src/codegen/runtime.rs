@@ -8,8 +8,8 @@ use inkwell::{
 };
 
 use crate::{
+    codegen::arch::{compile_arch_size_type, is_64},
     errors::{CodeLine, CodeType, InfoBlock, builders},
-    intermediate::arch::{compile_arch_size_type, is_64},
 };
 
 pub fn generate_c_runtime_integration<'ctx>(

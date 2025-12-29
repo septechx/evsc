@@ -10,7 +10,7 @@ use inkwell::{
 
 use crate::{
     ast::{Expression, expressions::FunctionCallExpr},
-    intermediate::{
+    codegen::{
         arch::compile_arch_size_type, builtin::BuiltinFunction,
         compile_expr::compile_expression_to_value, compiler::CompilationContext,
         pointer::SmartValue,

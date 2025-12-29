@@ -5,7 +5,7 @@ use inkwell::{AddressSpace, context::Context};
 
 use crate::{
     bindings::llvm_bindings::create_named_struct,
-    intermediate::{
+    codegen::{
         arch::compile_arch_size_type,
         builtin::BuiltinStruct,
         compiler::{CompilationContext, StructDef},

@@ -3,7 +3,7 @@ use inkwell::{context::Context, types::BasicType, values::BasicValue};
 
 use crate::{
     ast::{Expression, expressions::FunctionCallExpr},
-    intermediate::{
+    codegen::{
         builtin::BuiltinFunction, compile_type::compile_type, compiler::CompilationContext,
         pointer::SmartValue,
     },

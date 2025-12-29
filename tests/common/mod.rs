@@ -1,8 +1,8 @@
 use evscc::{
     ERRORS,
     backend::{BackendOptions, linker::linkers::LdLinker},
+    codegen::{self, CompileOptions, EmitType},
     errors::ErrorLevel,
-    intermediate::{self, CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
 };
@@ -162,7 +162,7 @@ impl Drop for Test {
             cache_dir: Some(&test_dir),
         };
 
-        match intermediate::compile(ast.clone(), &opts) {
+        match codegen::compile(ast.clone(), &opts) {
             Ok(_) => {
                 if self.should_compile == Some(false) {
                     panic!("Compilation succeeded but was expected to fail");
@@ -241,7 +241,7 @@ impl Drop for Test {
                 cache_dir: Some(&test_dir),
             };
 
-            if let Err(e) = intermediate::compile(ast, &exe_opts) {
+            if let Err(e) = codegen::compile(ast, &exe_opts) {
                 panic!("Failed to compile executable: {}", e);
             }
 

@@ -34,7 +34,7 @@ use crate::{
         BackendOptions, build_assembly_file, build_object_file,
         linker::{Linker, link_object_files},
     },
-    intermediate::{
+    codegen::{
         compiler::{CompilationContext, compile as compile_ast},
         emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,

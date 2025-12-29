@@ -2,8 +2,8 @@ pub mod ast;
 pub mod backend;
 pub mod bindings;
 pub mod cli;
+pub mod codegen;
 pub mod errors;
-pub mod intermediate;
 pub mod lexer;
 pub mod macros;
 pub mod parser;
@@ -29,8 +29,8 @@ use crate::{
         },
     },
     cli::{Cli, OptLevel},
+    codegen::{CompileOptions, EmitType},
     errors::{ErrorCollector, builders},
-    intermediate::{CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
 };
@@ -176,7 +176,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let ast = parse(tokens)?;
     check_for_errors();
 
-    intermediate::compile(ast, &opts)?;
+    codegen::compile(ast, &opts)?;
     check_for_errors();
 
     if cli.files.len() > 1 {

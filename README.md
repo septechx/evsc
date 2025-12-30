@@ -51,7 +51,7 @@ evscc file.evsc
 
 ### Standard library
 
-The compiler expects the standard library to be in `/usr/local/share/evsc/lib/` or `/opt/evsc/lib/`. The `EVSC_LIB_PATH` environment variable can be used to override this.
+The compiler expects the standard library to be in `/usr/share/evsc/lib/` or `/opt/evsc/lib/`. The `EVSC_LIB_PATH` environment variable can be used to override this.
 
 The standard library is only needed to be available at compile time, the compiler will include the needed functions in the final binary.
 

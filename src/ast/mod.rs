@@ -70,4 +70,6 @@ pub enum Type {
     FixedArray(FixedArrayType),
     Mut(MutType),
     Function(FunctionType),
+    Infer,
+    Never,
 }

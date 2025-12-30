@@ -43,11 +43,11 @@ pub fn compile_header<'ctx>(
             let ty = parse_function_type(e.get_type().expect("function has no type"))?;
 
             let arguments =
-                ty.1.iter()
+                ty.1.into_iter()
                     .enumerate()
                     .map(|(i, arg)| FnArgument {
                         name: format!("arg{}", i),
-                        explicit_type: Some(arg.clone()),
+                        type_: arg,
                     })
                     .collect::<Vec<_>>();
 

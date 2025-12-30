@@ -15,14 +15,14 @@ pub struct VarDeclStmt {
     pub variable_name: String,
     pub is_constant: bool,
     pub assigned_value: Option<Expr>,
-    pub explicit_type: Option<Type>,
+    pub type_: Type,
     pub is_static: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructProperty {
     pub name: String,
-    pub explicit_type: Type,
+    pub type_: Type,
     pub is_public: bool,
 }
 
@@ -57,7 +57,7 @@ pub struct InterfaceDeclStmt {
 #[derive(Debug, Clone)]
 pub struct FnArgument {
     pub name: String,
-    pub explicit_type: Option<Type>,
+    pub type_: Type,
 }
 
 #[derive(Debug, Clone)]

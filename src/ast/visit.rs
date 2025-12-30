@@ -38,13 +38,11 @@ fn visit_stmts(stmts: &mut [Stmt], visitor: &mut impl Visitor) {
                 if let Some(assigned_value) = &mut var_decl.assigned_value {
                     visitor.visit_expr(assigned_value);
                 }
-                if let Some(explicit_type) = &mut var_decl.explicit_type {
-                    visitor.visit_type(explicit_type);
-                }
+                visitor.visit_type(&mut var_decl.type_);
             }
             StmtKind::StructDecl(struct_decl) => {
-                for prop in &mut struct_decl.properties {
-                    visitor.visit_type(&mut prop.explicit_type);
+                for property in &mut struct_decl.properties {
+                    visitor.visit_type(&mut property.type_);
                 }
                 for method in &mut struct_decl.methods {
                     visit_fn_decl(&mut method.fn_decl, visitor);
@@ -69,9 +67,7 @@ fn visit_stmts(stmts: &mut [Stmt], visitor: &mut impl Visitor) {
 
 fn visit_fn_decl(fn_decl: &mut FnDeclStmt, visitor: &mut impl Visitor) {
     for arg in &mut fn_decl.arguments {
-        if let Some(explicit_type) = &mut arg.explicit_type {
-            visitor.visit_type(explicit_type);
-        }
+        visitor.visit_type(&mut arg.type_);
     }
     visitor.visit_type(&mut fn_decl.return_type);
     visit_stmts(&mut fn_decl.body, visitor);

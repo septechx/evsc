@@ -133,7 +133,7 @@ pub fn compile_stmts<'a, 'ctx>(
                 let param_types: Vec<Type> = fn_decl
                     .arguments
                     .iter()
-                    .map(|arg| arg.explicit_type.clone().unwrap())
+                    .map(|arg| arg.type_.clone())
                     .collect();
                 let fn_type = compile_function_type(
                     context,
@@ -370,7 +370,7 @@ fn compile_struct_decl<'ctx>(
     let mut field_indices = HashMap::new();
 
     for (index, property) in struct_decl.properties.iter().enumerate() {
-        let field_ty = compile_type(context, &property.explicit_type, compilation_context)?;
+        let field_ty = compile_type(context, &property.type_, compilation_context)?;
         field_types.push(field_ty);
         field_indices.insert(property.name.clone(), index as u32);
     }
@@ -382,7 +382,7 @@ fn compile_struct_decl<'ctx>(
         let param_types: Vec<Type> = method
             .arguments
             .iter()
-            .map(|arg| arg.explicit_type.clone().unwrap())
+            .map(|arg| arg.type_.clone())
             .collect();
         let fn_type = compile_function_type(
             context,

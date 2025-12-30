@@ -4,6 +4,7 @@ mod lookups;
 mod stmt;
 mod string;
 pub mod types;
+mod utils;
 
 use std::sync::atomic::Ordering;
 

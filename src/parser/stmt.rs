@@ -1,5 +1,4 @@
 use anyhow::{Result, bail};
-use colored::Colorize;
 
 use crate::{
     ast::{
@@ -9,7 +8,7 @@ use crate::{
             StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
-    errors::builders,
+    errors::{CodeType, builders},
     lexer::token::TokenKind,
     parser::{
         Parser,
@@ -17,7 +16,9 @@ use crate::{
         expr::parse_expr,
         lookups::{BindingPower, STMT_LU},
         types::parse_type,
+        utils::unexpected_token,
     },
+    span::{Span, sourcemaps::get_code_line},
 };
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
@@ -44,7 +45,7 @@ fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Res
 
 pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
     let var_token = parser.advance();
-    let mut explicit_type: Option<Type> = None;
+    let mut type_: Type = Type::Infer;
     let mut assigned_value: Option<Expr> = None;
 
     let is_static = match var_token.kind {
@@ -77,35 +78,53 @@ pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>
 
     if parser.current_token().kind == TokenKind::Colon {
         parser.advance();
-        explicit_type = Some(parse_type(parser, BindingPower::DefaultBp)?);
+        type_ = parse_type(parser, BindingPower::DefaultBp)?;
     }
 
     if parser.current_token().kind != TokenKind::Semicolon {
         parser.expect(TokenKind::Equals)?;
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
-    } else if explicit_type.is_none() {
-        anyhow::bail!("Missing type or value in variable declaration".red().bold());
     }
 
-    parser.expect(TokenKind::Semicolon)?;
+    let end_token = parser.expect(TokenKind::Semicolon)?;
 
-    if is_constant && assigned_value.is_none() {
-        anyhow::bail!(
-            "Cannot define constant without providing a value"
-                .red()
-                .bold()
-        );
+    let span = Span::new(var_token.span.start(), end_token.span.end());
+
+    if assigned_value.is_none()
+        && let Type::Infer = type_
+    {
+        let code_line = get_code_line(parser.current_token().module_id, span, CodeType::None);
+
+        crate::ERRORS.with(|e| {
+            e.borrow_mut().add(
+                builders::error("Missing type or value in variable declaration")
+                    .with_span(span, parser.current_token().module_id)
+                    .with_code(code_line),
+            );
+        });
+    }
+
+    if assigned_value.is_none() && is_constant {
+        let code_line = get_code_line(parser.current_token().module_id, span, CodeType::None);
+
+        crate::ERRORS.with(|e| {
+            e.borrow_mut().add(
+                builders::error("Cannot define constant without providing a value")
+                    .with_span(span, parser.current_token().module_id)
+                    .with_code(code_line),
+            );
+        });
     }
 
     Ok(parser.stmt(
         StmtKind::VarDecl(VarDeclStmt {
-            explicit_type,
+            type_,
             is_constant,
             is_static,
             variable_name,
             assigned_value,
         }),
-        var_token.span,
+        span,
     ))
 }
 
@@ -150,23 +169,27 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
             let span = parser.current_token().span;
             let module_id = parser.current_token().module_id;
 
+            let code_line = get_code_line(module_id, span, CodeType::None);
+
             crate::ERRORS.with(|e| {
                 e.borrow_mut().add(
                     builders::error("Only struct methods are allowed to be static")
-                        .with_span(span, module_id),
+                        .with_span(span, module_id)
+                        .with_code(code_line),
                 );
             })
         }
 
         if parser.current_token().kind == TokenKind::Identifier {
-            let property_name = parser.expect(TokenKind::Identifier)?.value;
+            let property = parser.current_token();
+            let property_name = property.value;
             parser.expect_error(
                 TokenKind::Colon,
                 Some(String::from(
                     "Expected colon after property name in struct property declaration",
                 )),
             )?;
-            let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
+            let type_ = parse_type(parser, BindingPower::DefaultBp)?;
 
             if parser.current_token().kind != TokenKind::CloseCurly {
                 parser.expect(TokenKind::Comma)?;
@@ -178,30 +201,33 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                bail!(
-                    format!("Property {property_name} has already been defined in struct")
-                        .red()
-                        .bold()
+                let code_line = get_code_line(
+                    parser.current_token().module_id,
+                    property.span,
+                    CodeType::None,
                 );
+
+                crate::ERRORS.with(|e| {
+                    e.borrow_mut().add(
+                        builders::error(format!(
+                            "Property {property_name} has already been defined in struct"
+                        ))
+                        .with_span(property.span, parser.current_token().module_id)
+                        .with_code(code_line),
+                    );
+                });
             }
 
             properties.push(StructProperty {
                 name: property_name,
-                explicit_type,
+                type_,
                 is_public,
             });
 
             continue;
         }
 
-        bail!(
-            format!(
-                "Unexpected token in struct declaration: {:?}",
-                parser.current_token()
-            )
-            .red()
-            .bold()
-        );
+        unexpected_token(parser.current_token());
     }
 
     parser.expect(TokenKind::CloseCurly)?;
@@ -237,14 +263,7 @@ pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>
             continue;
         }
 
-        bail!(
-            format!(
-                "Unexpected token in interface declaration: {:?}",
-                parser.current_token()
-            )
-            .red()
-            .bold()
-        );
+        unexpected_token(parser.current_token());
     }
 
     parser.expect(TokenKind::CloseCurly)?;
@@ -275,11 +294,11 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Re
         let arg_name = parser.expect(TokenKind::Identifier)?.value;
 
         parser.expect(TokenKind::Colon)?;
-        let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
+        let type_ = parse_type(parser, BindingPower::DefaultBp)?;
 
         arguments.push(FnArgument {
             name: arg_name,
-            explicit_type: Some(explicit_type),
+            type_,
         });
 
         if parser.current_token().kind == TokenKind::Comma {

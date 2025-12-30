@@ -11,46 +11,16 @@ use crate::{
             NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr, TypeExpr,
         },
     },
-    errors::{CodeLine, CodeType, builders},
-    lexer::token::{Token, TokenKind},
+    lexer::token::TokenKind,
     parser::{
         Parser,
         lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
         string::process_string,
         types::parse_type,
+        utils::unexpected_token,
     },
     span::Span,
 };
-
-fn handle_unexpected_token(_parser: &mut Parser, token: Token) -> ! {
-    let span = token.span;
-    let module_id = token.module_id;
-
-    let (_, line, ..) = crate::SOURCE_MAPS.with(|sm| {
-        let maps = sm.borrow();
-        maps.get_source(module_id)
-            .map(|sm| sm.span_to_source_location(&span))
-            .unwrap_or(Default::default())
-    });
-
-    let line_content = crate::SOURCE_MAPS.with(|sm| {
-        let maps = sm.borrow();
-        maps.get_source(token.module_id)
-            .and_then(|sm| sm.get_line(line))
-            .unwrap_or("")
-            .to_string()
-    });
-
-    crate::ERRORS.with(|e| {
-        e.borrow_mut().add(
-            builders::fatal(format!("Syntax error: Unexpected token `{}`", token.value))
-                .with_span(span, module_id)
-                .with_code(CodeLine::new(line, line_content, CodeType::None)),
-        );
-    });
-
-    unreachable!()
-}
 
 pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expr> {
     let token = parser.current_token();
@@ -61,7 +31,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expr> {
         nud_lu
             .get(&token.kind)
             .cloned()
-            .unwrap_or_else(|| handle_unexpected_token(parser, token.clone()))
+            .unwrap_or_else(|| unexpected_token(token.clone()))
     };
 
     let mut left = nud_fn(parser)?;
@@ -86,7 +56,7 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expr> {
             led_lu
                 .get(&token_kind.kind)
                 .cloned()
-                .unwrap_or_else(|| handle_unexpected_token(parser, token_kind.clone()))
+                .unwrap_or_else(|| unexpected_token(token_kind.clone()))
         };
 
         left = led_fn(parser, left.clone(), current_bp)?;

@@ -109,7 +109,7 @@ impl Parser {
             crate::ERRORS.with(|e| {
                 e.borrow_mut().add(
                     builders::fatal(err.unwrap_or(format!(
-                        "Syntax error: Expected {:?} but recieved {:?} instead.",
+                        "Syntax error: Expected {} but recieved {} instead.",
                         expected_kind, token.kind
                     )))
                     .with_span(token.span, token.module_id)

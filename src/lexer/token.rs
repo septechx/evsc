@@ -1,5 +1,8 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap, fmt::Display};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+};
 
 use crate::span::{ModuleId, Span};
 
@@ -113,5 +116,64 @@ lazy_static! {
 impl Token {
     pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
         RESERVED_KEYWORDS.get(ident).cloned()
+    }
+}
+
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            T::Let => write!(f, "let"),
+            T::True => write!(f, "true"),
+            T::False => write!(f, "false"),
+            T::Struct => write!(f, "struct"),
+            T::Fn => write!(f, "fn"),
+            T::Return => write!(f, "return"),
+            T::Pub => write!(f, "pub"),
+            T::Static => write!(f, "static"),
+            T::Mut => write!(f, "mut"),
+            T::Extern => write!(f, "extern"),
+            T::Interface => write!(f, "interface"),
+            T::Eof => write!(f, "eof"),
+            T::Illegal => write!(f, "illegal"),
+            T::Identifier => write!(f, "identifier"),
+            T::StringLiteral => write!(f, "string literal"),
+            T::Number => write!(f, "number"),
+            T::Semicolon => write!(f, ";"),
+            T::Pipe => write!(f, "|"),
+            T::Colon => write!(f, ":"),
+            T::Arrow => write!(f, "->"),
+            T::OpenCurly => write!(f, "{{"),
+            T::CloseCurly => write!(f, "}}"),
+            T::OpenParen => write!(f, "("),
+            T::CloseParen => write!(f, ")"),
+            T::Dot => write!(f, "."),
+            T::Equals => write!(f, "="),
+            T::PlusEquals => write!(f, "+="),
+            T::MinusEquals => write!(f, "-="),
+            T::StarEquals => write!(f, "*="),
+            T::SlashEquals => write!(f, "/="),
+            T::PercentEquals => write!(f, "%="),
+            T::Underscore => write!(f, "_"),
+            T::OpenBracket => write!(f, "["),
+            T::CloseBracket => write!(f, "]"),
+            T::Hash => write!(f, "#"),
+            T::Comma => write!(f, ","),
+            T::Plus => write!(f, "+"),
+            T::Dash => write!(f, "-"),
+            T::Star => write!(f, "*"),
+            T::Slash => write!(f, "/"),
+            T::Percent => write!(f, "%"),
+            T::And => write!(f, "&"),
+            T::Or => write!(f, "|"),
+            T::DotDot => write!(f, ".."),
+            T::EqualsEquals => write!(f, "=="),
+            T::NotEquals => write!(f, "!="),
+            T::Less => write!(f, "<"),
+            T::More => write!(f, ">"),
+            T::LessEquals => write!(f, "<="),
+            T::MoreEquals => write!(f, ">="),
+            T::Reference => write!(f, "@"),
+            T::Dollar => write!(f, "$"),
+        }
     }
 }

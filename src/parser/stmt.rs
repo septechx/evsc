@@ -181,7 +181,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
         }
 
         if parser.current_token().kind == TokenKind::Identifier {
-            let property = parser.current_token();
+            let property = parser.expect(TokenKind::Identifier)?;
             let property_name = property.value;
             parser.expect_error(
                 TokenKind::Colon,

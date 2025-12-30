@@ -26,6 +26,7 @@ pub struct Stmt {
     pub kind: StmtKind,
     pub id: NodeId,
     pub span: Span,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Clone)]

@@ -8,7 +8,7 @@ mod types;
 mod utils;
 
 use crate::{
-    ast::{Ast, Expr, ExprKind, NodeId, Stmt, StmtKind},
+    ast::{Ast, Attribute, Expr, ExprKind, NodeId, Stmt, StmtKind},
     errors::{CodeLine, CodeType, builders},
     lexer::token::{Token, TokenKind, TokenStream},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
@@ -32,11 +32,12 @@ impl Parser {
         }
     }
 
-    pub fn stmt(&mut self, kind: StmtKind, span: Span) -> Stmt {
+    pub fn stmt(&mut self, kind: StmtKind, span: Span, attributes: Vec<Attribute>) -> Stmt {
         Stmt {
             id: self.next_id(),
             kind,
             span,
+            attributes,
         }
     }
 

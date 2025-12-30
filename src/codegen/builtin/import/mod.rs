@@ -84,7 +84,7 @@ fn compile_evsc_module<'ctx>(
     let file = fs::read_to_string(&module_path);
     if let Err(err) = file {
         crate::ERRORS.with(|e| {
-            e.collector.borrow_mut().add(builders::fatal(format!(
+            e.borrow_mut().add(builders::fatal(format!(
                 "Module `{}` (resolved to {}) not found: {}",
                 module_name,
                 module_path.display(),
@@ -95,7 +95,7 @@ fn compile_evsc_module<'ctx>(
     }
     let file = file.unwrap();
 
-    let tokens = tokenize(file, &module_path)?;
+    let (tokens, _module_id) = tokenize(file, &module_path)?;
     let ast = parse(tokens)?;
 
     let mut mod_compilation_context = CompilationContext::new(module_path);

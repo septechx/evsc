@@ -126,7 +126,7 @@ impl Drop for Test {
             Err(e) => panic!("Failed to read source file: {}", e),
         };
 
-        let tokens = match tokenize(source, &main_path) {
+        let (tokens, _module_id) = match tokenize(source, &main_path) {
             Ok(t) => t,
             Err(e) => {
                 if self.should_compile == Some(false) {
@@ -273,12 +273,8 @@ impl Drop for Test {
 }
 
 fn check_for_errors(test: &Test) {
-    if ERRORS.with(|e| {
-        e.collector
-            .borrow()
-            .has_errors_above_level(test.fail_on_level)
-    }) {
-        ERRORS.with(|e| e.collector.borrow().print_errors(ErrorLevel::Info));
+    if ERRORS.with(|e| e.borrow().has_errors_above_level(test.fail_on_level)) {
+        ERRORS.with(|e| e.borrow().print_errors(ErrorLevel::Info));
         if test.should_compile == Some(false) {
             return;
         }

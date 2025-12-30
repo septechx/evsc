@@ -34,8 +34,9 @@ use crate::{
         BackendOptions, build_assembly_file, build_object_file,
         linker::{Linker, link_object_files},
     },
+    check_for_errors,
     codegen::{
-        compiler::{CompilationContext, compile_stmts as compile_ast},
+        compiler::{CompilationContext, compile_stmts},
         emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
@@ -71,12 +72,10 @@ pub fn compile<T: Linker>(ast: Ast, opts: &CompileOptions<T>) -> Result<()> {
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
 
     let init_fn = setup_module(&context, &module, &builder)?;
-    compile_ast(&context, &module, &builder, &ast.0, &mut cc)?;
+    compile_stmts(&context, &module, &builder, &ast.0, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
-    if crate::ERRORS.with(|e| e.collector.borrow().has_errors()) {
-        return Err(anyhow::anyhow!("Type checking failed"));
-    }
+    check_for_errors();
 
     if *opts.emit == EmitType::Executable {
         generate_c_runtime_integration(&context, &module, &builder)?;

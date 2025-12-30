@@ -24,7 +24,7 @@ pub fn resolve_std_lib() -> Result<PathBuf> {
     }
 
     crate::ERRORS.with(|e| {
-        e.collector.borrow_mut().add(
+        e.borrow_mut().add(
             builders::fatal("Could not find standard library").with_info(InfoBlock::new(
                 "Add EVSC_LIB_PATH environment variable to point to the standard library, or place it in /usr/share/evsc or /opt/evsc",
             )),

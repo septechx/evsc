@@ -1,7 +1,4 @@
-use crate::{
-    ast::{Attribute, Expr, Stmt, Type},
-    errors::SourceLocation,
-};
+use crate::ast::{Attribute, Expr, Stmt, Type};
 
 #[derive(Debug, Clone)]
 pub struct BlockStmt {
@@ -20,7 +17,6 @@ pub struct VarDeclStmt {
     pub assigned_value: Option<Expr>,
     pub explicit_type: Option<Type>,
     pub is_static: bool,
-    pub location: SourceLocation,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +39,6 @@ pub struct StructDeclStmt {
     pub methods: Vec<StructMethod>,
     pub is_public: bool,
     pub attributes: Vec<Attribute>,
-    pub location: SourceLocation,
 }
 
 #[derive(Debug, Clone)]
@@ -57,7 +52,6 @@ pub struct InterfaceDeclStmt {
     pub methods: Vec<InterfaceMethod>,
     pub is_public: bool,
     pub attributes: Vec<Attribute>,
-    pub location: SourceLocation,
 }
 
 #[derive(Debug, Clone)]
@@ -75,11 +69,9 @@ pub struct FnDeclStmt {
     pub is_public: bool,
     pub is_extern: bool,
     pub attributes: Vec<Attribute>,
-    pub location: SourceLocation,
 }
 
 #[derive(Debug, Clone)]
 pub struct ReturnStmt {
     pub value: Option<Expr>,
-    pub location: SourceLocation,
 }

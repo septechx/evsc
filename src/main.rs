@@ -7,6 +7,7 @@ pub mod errors;
 pub mod lexer;
 pub mod macros;
 pub mod parser;
+pub mod span;
 
 use std::{
     cell::RefCell,
@@ -33,16 +34,12 @@ use crate::{
     errors::{ErrorCollector, builders},
     lexer::tokenize,
     parser::parse,
+    span::sourcemaps::SourceMapManager,
 };
 
-pub struct ErrorState {
-    pub collector: RefCell<ErrorCollector>,
-}
-
 thread_local! {
-    pub static ERRORS: ErrorState = ErrorState {
-        collector: RefCell::new(ErrorCollector::new()),
-    };
+    pub static ERRORS: RefCell<ErrorCollector> = RefCell::new(ErrorCollector::new());
+    pub static SOURCE_MAPS: RefCell<SourceMapManager> = RefCell::new(SourceMapManager::default());
 }
 
 pub fn main() -> Result<()> {
@@ -62,16 +59,16 @@ pub fn main() -> Result<()> {
     }
 
     ERRORS.with(|e| {
-        e.collector.borrow().print_all();
+        e.borrow().print_all();
     });
 
     Ok(())
 }
 
 fn check_for_errors() {
-    if ERRORS.with(|e| e.collector.borrow().has_errors()) {
+    if ERRORS.with(|e| e.borrow().has_errors()) {
         ERRORS.with(|e| {
-            e.collector.borrow().print_all();
+            e.borrow().print_all();
         });
         std::process::exit(1);
     }
@@ -159,7 +156,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let source_text = match fs::read_to_string(&file_path) {
         Err(err) => {
             ERRORS.with(|e| {
-                e.collector.borrow_mut().add(builders::fatal(format!(
+                e.borrow_mut().add(builders::fatal(format!(
                     "Source file `{}` not found: {}",
                     file_path.display(),
                     err
@@ -170,7 +167,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
         Ok(source_text) => source_text,
     };
 
-    let tokens = tokenize(source_text, &file_path)?;
+    let (tokens, _module_id) = tokenize(source_text, &file_path)?;
     check_for_errors();
 
     let ast = parse(tokens)?;

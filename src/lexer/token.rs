@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use std::{collections::HashMap, fmt::Display};
 
-use crate::errors::SourceLocation;
+use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
 pub struct TokenStream(pub Vec<Token>);
@@ -9,7 +9,8 @@ pub struct TokenStream(pub Vec<Token>);
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    pub location: SourceLocation,
+    pub span: Span,
+    pub module_id: ModuleId,
     pub value: String,
 }
 

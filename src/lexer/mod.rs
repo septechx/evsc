@@ -4,25 +4,23 @@ pub mod verify;
 use std::path::Path;
 
 use crate::{
-    errors::SourceLocation,
     lexer::{
         token::{Token, TokenKind, TokenStream},
         verify::verify_tokens,
     },
+    span::{ModuleId, Span},
 };
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-type TokenHandler = Box<dyn Fn(&str, SourceLocation) -> Result<Option<Token>> + Send + Sync>;
+type TokenHandler = Box<dyn Fn(&str, Span) -> Result<Option<Token>> + Send + Sync>;
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
     file_content: String,
     file_len: usize,
     pos: usize,
-    line: usize,
-    column: usize,
 }
 
 impl Lexer {
@@ -31,8 +29,6 @@ impl Lexer {
             file_len: file.len(),
             file_content: file,
             pos: 0,
-            line: 1,
-            column: 1,
         }
     }
 
@@ -41,16 +37,6 @@ impl Lexer {
     }
 
     fn advance(&mut self, len: usize) {
-        let advanced_text = &self.file_content[self.pos..self.pos + len];
-        let newlines = advanced_text.matches('\n').count();
-        if newlines > 0 {
-            self.line += newlines;
-            if let Some(last_newline) = advanced_text.rfind('\n') {
-                self.column = advanced_text[last_newline + 1..].len() + 1;
-            }
-        } else {
-            self.column += len;
-        }
         self.pos += len;
     }
 
@@ -58,30 +44,26 @@ impl Lexer {
         &self.file_content[self.pos..]
     }
 
-    pub fn tokenize(&mut self, file_path: &Path) -> Result<TokenStream> {
+    pub fn tokenize(&mut self, module_id: ModuleId) -> Result<TokenStream> {
         let mut tokens: Vec<Token> = vec![];
 
         while !self.at_eof() {
             let remaining = self.remaining_input();
             let mut matched = false;
             let mut match_len = 0;
-            let current_line = self.line;
-            let current_column = self.column;
+            let current_pos = self.pos;
 
             for handler in REGEXES.iter() {
                 if let Some(mat) = handler.regex.find(remaining)
                     && mat.start() == 0
                 {
                     let matched_text = mat.as_str();
-                    if let Some(token) = (handler.handler)(
-                        matched_text,
-                        SourceLocation::new(
-                            file_path.to_path_buf(),
-                            current_line,
-                            current_column,
-                            match_len,
-                        ),
-                    )? {
+                    let span = Span::new(
+                        current_pos as u32,
+                        (current_pos + matched_text.len()) as u32,
+                    );
+                    if let Some(mut token) = (handler.handler)(matched_text, span)? {
+                        token.module_id = module_id;
                         tokens.push(token);
                     }
                     match_len = matched_text.len();
@@ -92,14 +74,11 @@ impl Lexer {
 
             if !matched {
                 let next_char = remaining.chars().next().unwrap_or('\0');
+                let span = Span::new(current_pos as u32, (current_pos + 1) as u32);
                 tokens.push(Token {
                     kind: TokenKind::Illegal,
-                    location: SourceLocation::new(
-                        file_path.to_path_buf(),
-                        current_line,
-                        current_column,
-                        1,
-                    ),
+                    span,
+                    module_id,
                     value: next_char.to_string(),
                 });
                 match_len = 1;
@@ -112,28 +91,35 @@ impl Lexer {
     }
 }
 
-pub fn tokenize(file: String, path: &Path) -> Result<TokenStream> {
+pub fn tokenize(file: String, path: &Path) -> Result<(TokenStream, ModuleId)> {
+    let module_id = crate::SOURCE_MAPS.with(|sm| {
+        let mut maps = sm.borrow_mut();
+        maps.add_source(file.clone(), path.to_path_buf())
+    });
+
     let mut lexer = Lexer::new(file);
-    let tokens = lexer.tokenize(path)?;
+    let tokens = lexer.tokenize(module_id)?;
     verify_tokens(&tokens);
-    Ok(tokens)
+    Ok((tokens, module_id))
 }
 
 fn default_handler(tok: TokenKind) -> TokenHandler {
-    Box::new(move |value, location| {
+    Box::new(move |value, span| {
         Ok(Some(Token {
-            location,
             kind: tok,
+            span,
+            module_id: ModuleId(0),
             value: value.to_string(),
         }))
     })
 }
 
 fn number_handler() -> TokenHandler {
-    Box::new(|val, location| {
+    Box::new(|val, span| {
         Ok(Some(Token {
-            location,
             kind: TokenKind::Number,
+            span,
+            module_id: ModuleId(0),
             value: val.to_string(),
         }))
     })
@@ -144,22 +130,24 @@ fn skip_handler() -> TokenHandler {
 }
 
 fn string_literal_handler() -> TokenHandler {
-    Box::new(|val, location| {
+    Box::new(|val, span| {
         let inner = &val[1..val.len() - 1];
         Ok(Some(Token {
-            location,
             kind: TokenKind::StringLiteral,
+            span,
+            module_id: ModuleId(0),
             value: inner.to_string(),
         }))
     })
 }
 
 fn identifier_handler() -> TokenHandler {
-    Box::new(|val, location| {
+    Box::new(|val, span| {
         let tok = Token::lookup_reserved(val).unwrap_or(TokenKind::Identifier);
         Ok(Some(Token {
-            location,
             kind: tok,
+            span,
+            module_id: ModuleId(0),
             value: val.to_string(),
         }))
     })

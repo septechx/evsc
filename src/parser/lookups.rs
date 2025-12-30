@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::atomic::AtomicBool};
 
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -36,6 +36,7 @@ type LedLookup = HashMap<TokenKind, LedHandler>;
 pub type BpLookup = HashMap<TokenKind, BindingPower>;
 
 lazy_static! {
+    pub static ref LOOKUPS_INITIALIZED: AtomicBool = AtomicBool::new(false);
     pub static ref BP_LU: Mutex<BpLookup> = Mutex::new(HashMap::new());
     pub static ref NUD_LU: Mutex<NudLookup> = Mutex::new(HashMap::new());
     pub static ref LED_LU: Mutex<LedLookup> = Mutex::new(HashMap::new());

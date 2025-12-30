@@ -5,20 +5,26 @@ mod stmt;
 mod string;
 pub mod types;
 
-use colored::Colorize;
+use std::sync::atomic::Ordering;
 
 use crate::{
     ast::{Ast, Expr, ExprKind, NodeId, Stmt, StmtKind},
+    errors::{CodeLine, CodeType, builders},
     lexer::token::{Token, TokenKind, TokenStream},
-    parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
+    parser::{
+        lookups::{LOOKUPS_INITIALIZED, create_token_lookups},
+        stmt::parse_stmt,
+        types::create_token_type_lookups,
+    },
+    span::Span,
 };
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
-    cur_node_id: usize,
+    next_id: NodeId,
 }
 
 impl Parser {
@@ -26,27 +32,30 @@ impl Parser {
         Parser {
             tokens: tokens.0,
             pos: 0,
-            cur_node_id: 0,
+            next_id: NodeId(0),
         }
     }
 
-    pub fn stmt(&mut self, kind: StmtKind) -> Stmt {
+    pub fn stmt(&mut self, kind: StmtKind, span: Span) -> Stmt {
         Stmt {
             id: self.next_id(),
             kind,
+            span,
         }
     }
 
-    pub fn expr(&mut self, kind: ExprKind) -> Expr {
+    pub fn expr(&mut self, kind: ExprKind, span: Span) -> Expr {
         Expr {
             id: self.next_id(),
             kind,
+            span,
         }
     }
 
     pub fn next_id(&mut self) -> NodeId {
-        self.cur_node_id += 1;
-        NodeId(self.cur_node_id)
+        let id = self.next_id;
+        self.next_id = NodeId(self.next_id.0 + 1);
+        id
     }
 
     pub fn tokens(&self) -> &[Token] {
@@ -60,7 +69,8 @@ impl Parser {
             let prev_token = self.tokens[self.tokens.len() - 1].clone();
             Token {
                 kind: TokenKind::Eof,
-                location: prev_token.location,
+                span: prev_token.span,
+                module_id: prev_token.module_id,
                 value: "".to_string(),
             }
         }
@@ -80,14 +90,35 @@ impl Parser {
         let token = self.current_token();
 
         if token.kind != expected_kind {
-            bail!(
-                err.unwrap_or(format!(
-                    "Expected {:?} but recieved {:?} instead.",
-                    expected_kind, token.kind
-                ))
-                .red()
-                .bold()
-            );
+            let (_, line, ..) = crate::SOURCE_MAPS.with(|sm| {
+                let maps = sm.borrow();
+                maps.get_source(token.module_id)
+                    .map(|sm| sm.span_to_source_location(&token.span))
+                    .unwrap_or(Default::default())
+            });
+
+            let line_content = crate::SOURCE_MAPS.with(|sm| {
+                let maps = sm.borrow();
+                maps.get_source(token.module_id)
+                    .and_then(|sm| sm.get_line(line))
+                    .unwrap_or("")
+                    .to_string()
+            });
+
+            crate::ERRORS.with(|e| {
+                e.borrow_mut().add(
+                    builders::fatal(err.unwrap_or(format!(
+                        "Syntax error: Expected {:?} but recieved {:?} instead.",
+                        expected_kind, token.kind
+                    )))
+                    .with_span(token.span, token.module_id)
+                    .with_code(CodeLine::new(
+                        line,
+                        line_content,
+                        CodeType::None,
+                    )),
+                );
+            });
         }
 
         Ok(self.advance())
@@ -99,8 +130,11 @@ impl Parser {
 }
 
 pub fn parse(tokens: TokenStream) -> Result<Ast> {
-    create_token_lookups();
-    create_token_type_lookups();
+    if !LOOKUPS_INITIALIZED.load(Ordering::Relaxed) {
+        create_token_lookups();
+        create_token_type_lookups();
+        LOOKUPS_INITIALIZED.store(true, Ordering::Relaxed);
+    }
 
     let mut body: Vec<Stmt> = vec![];
     let mut parser = Parser::new(tokens);

@@ -39,7 +39,7 @@ pub fn generate_c_runtime_integration<'ctx>(
             // TODO: Move this check to the type checker
             if !ret_ty.is_int_type() {
                 crate::ERRORS.with(|e| {
-                    e.collector.borrow_mut().add(builders::fatal(
+                    e.borrow_mut().add(builders::fatal(
                         "Main function must return an integer or void",
                     ));
                 });
@@ -59,7 +59,7 @@ pub fn generate_c_runtime_integration<'ctx>(
         create_exit_syscall(context, builder, result_value)?;
     } else {
         crate::ERRORS.with(|e| {
-            e.collector.borrow_mut().add(
+            e.borrow_mut().add(
                 builders::error("Main function not found")
                     .with_code(CodeLine::new(1, "pub fn main() isize {}", CodeType::Add))
                     .with_info(InfoBlock::new(

@@ -5,26 +5,27 @@ pub mod visit;
 
 use crate::{
     ast::{expressions::*, statements::*, types::*},
-    errors::SourceLocation,
+    span::Span,
 };
 
 #[derive(Debug, Clone)]
 pub struct Ast(pub Vec<Stmt>);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Copy)]
 pub struct NodeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
     pub name: String,
     pub arguments: Option<Vec<String>>,
-    pub location: SourceLocation,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub id: NodeId,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +43,7 @@ pub enum StmtKind {
 pub struct Expr {
     pub kind: ExprKind,
     pub id: NodeId,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]

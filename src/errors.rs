@@ -5,6 +5,8 @@ use std::{
     path::PathBuf,
 };
 
+use crate::span::{ModuleId, Span};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorLevel {
     Info,
@@ -24,33 +26,10 @@ impl Display for ErrorLevel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceLocation {
-    pub file: PathBuf,
-    pub line: usize,
-    pub column: usize,
-    pub length: usize,
-}
-
-impl SourceLocation {
-    pub fn new(file: PathBuf, line: usize, column: usize, length: usize) -> Self {
-        Self {
-            file,
-            line,
-            column,
-            length,
-        }
-    }
-
-    pub fn simple(file: PathBuf, line: usize, column: usize) -> Self {
-        Self::new(file, line, column, 1)
-    }
-}
-
-impl Display for SourceLocation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}:{}", self.file.display(), self.line, self.column)
-    }
+#[derive(Debug, Clone)]
+pub struct LocatedSpan {
+    pub span: Span,
+    pub module_id: ModuleId,
 }
 
 #[derive(Debug, Clone)]
@@ -102,7 +81,7 @@ impl CodeLine {
 pub struct CompilationError {
     pub level: ErrorLevel,
     pub message: String,
-    pub location: Option<SourceLocation>,
+    pub location: Option<LocatedSpan>,
     pub info_blocks: Vec<InfoBlock>,
     pub code: Option<CodeLine>,
 }
@@ -118,8 +97,8 @@ impl CompilationError {
         }
     }
 
-    pub fn with_location(mut self, location: SourceLocation) -> Self {
-        self.location = Some(location);
+    pub fn with_span(mut self, span: Span, module_id: ModuleId) -> Self {
+        self.location = Some(LocatedSpan { span, module_id });
         self
     }
 
@@ -136,17 +115,24 @@ impl CompilationError {
     fn display_with_context(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "{}: {}", self.level, self.message.bold())?;
 
-        if let Some(location) = &self.location {
+        if let Some(located_span) = &self.location {
+            let (file, ..) = crate::SOURCE_MAPS.with(|sm| {
+                let maps = sm.borrow();
+                maps.get_source(located_span.module_id)
+                    .map(|sm| sm.span_to_source_location(&located_span.span))
+                    .unwrap_or((PathBuf::from("unknown"), 0, 0, 0))
+            });
+
             if let Some(code) = &self.code {
                 writeln!(
                     f,
                     "{}{} {}",
                     " ".repeat(code.line.ilog10() as usize + 1),
                     "-->".purple(),
-                    location
+                    file.display()
                 )?;
             } else {
-                writeln!(f, " {} {}", "-->".purple(), location)?;
+                writeln!(f, " {} {}", "-->".purple(), file.display())?;
             }
         }
 
@@ -164,11 +150,19 @@ impl CompilationError {
                     CodeType::None => code.code.normal(),
                 }
             )?;
-            if let Some(location) = &self.location {
-                let underline = if location.length > 1 {
-                    " ".repeat(location.column - 1) + &"^".repeat(location.length)
+
+            if let Some(located_span) = &self.location {
+                let (_, _, column, length) = crate::SOURCE_MAPS.with(|sm| {
+                    let maps = sm.borrow();
+                    maps.get_source(located_span.module_id)
+                        .map(|sm| sm.span_to_source_location(&located_span.span))
+                        .unwrap_or((PathBuf::new(), 0, 0, 0))
+                });
+
+                let underline = if length > 1 {
+                    " ".repeat(column - 1) + &"^".repeat(length)
                 } else {
-                    " ".repeat(location.column - 1) + "^"
+                    " ".repeat(column - 1) + "^"
                 };
                 writeln!(
                     f,
@@ -329,7 +323,7 @@ pub mod builders {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use crate::span::Span;
 
     #[test]
     fn test_error_levels() {
@@ -362,19 +356,23 @@ mod tests {
     }
 
     #[test]
-    fn test_error_with_location() {
-        let location = SourceLocation::new(PathBuf::from("test.evsc"), 10, 5, 1);
+    fn test_error_with_span() {
+        let span = Span::new(100, 105);
+        let module_id = crate::SOURCE_MAPS.with(|sm| {
+            let mut maps = sm.borrow_mut();
+            maps.add_source(
+                "test source content\nline 2\nline 3".to_string(),
+                PathBuf::from("test.evsc"),
+            )
+        });
 
         let error = CompilationError::new(ErrorLevel::Error, "Test error".to_string())
-            .with_location(location);
+            .with_span(span, module_id);
 
         assert!(error.location.is_some());
-    }
-
-    #[test]
-    fn test_info_block() {
-        let info = InfoBlock::new("Type mismatch".to_string());
-
-        assert_eq!(info.title, "Type mismatch");
+        if let Some(loc) = &error.location {
+            assert_eq!(loc.span, span);
+            assert_eq!(loc.module_id, module_id);
+        }
     }
 }

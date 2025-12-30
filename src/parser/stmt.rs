@@ -9,8 +9,8 @@ use crate::{
             StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
-    errors::{CodeLine, CodeType, builders},
-    lexer::{token::TokenKind, verify::build_line_with_positions},
+    errors::builders,
+    lexer::token::TokenKind,
     parser::{
         Parser,
         attributes::parse_attributes,
@@ -37,7 +37,8 @@ fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Res
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
         parser.expect(TokenKind::Semicolon)?;
 
-        Ok(parser.stmt(StmtKind::Expression(ExpressionStmt { expression })))
+        let span = expression.span;
+        Ok(parser.stmt(StmtKind::Expression(ExpressionStmt { expression }), span))
     }
 }
 
@@ -96,14 +97,16 @@ pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>
         );
     }
 
-    Ok(parser.stmt(StmtKind::VarDecl(VarDeclStmt {
-        explicit_type,
-        is_constant,
-        is_static,
-        variable_name,
-        assigned_value,
-        location: var_token.location,
-    })))
+    Ok(parser.stmt(
+        StmtKind::VarDecl(VarDeclStmt {
+            explicit_type,
+            is_constant,
+            is_static,
+            variable_name,
+            assigned_value,
+        }),
+        var_token.span,
+    ))
 }
 
 pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
@@ -144,16 +147,13 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
         }
 
         if is_static {
-            let location = parser.current_token().location;
+            let span = parser.current_token().span;
+            let module_id = parser.current_token().module_id;
+
             crate::ERRORS.with(|e| {
-                e.collector.borrow_mut().add(
+                e.borrow_mut().add(
                     builders::error("Only struct methods are allowed to be static")
-                        .with_location(location.clone())
-                        .with_code(CodeLine::new(
-                            location.line,
-                            build_line_with_positions(parser.tokens(), location.line),
-                            CodeType::None,
-                        )),
+                        .with_span(span, module_id),
                 );
             })
         }
@@ -206,14 +206,16 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(parser.stmt(StmtKind::StructDecl(StructDeclStmt {
-        name,
-        properties,
-        methods,
-        attributes,
-        is_public: false,
-        location: struct_token.location,
-    })))
+    Ok(parser.stmt(
+        StmtKind::StructDecl(StructDeclStmt {
+            name,
+            properties,
+            methods,
+            is_public: attributes.iter().any(|a| a.name == "pub"),
+            attributes,
+        }),
+        struct_token.span,
+    ))
 }
 
 pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
@@ -228,33 +230,115 @@ pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>
             break;
         }
 
-        if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])?.kind {
-            methods.push(InterfaceMethod {
-                fn_decl: FnDeclStmt {
-                    is_extern: false,
-                    is_public: false,
-                    ..fn_decl
-                },
-            });
+        if parser.current_token().kind == TokenKind::Fn {
+            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])?.kind {
+                methods.push(InterfaceMethod { fn_decl });
+            }
+            continue;
         }
+
+        bail!(
+            format!(
+                "Unexpected token in interface declaration: {:?}",
+                parser.current_token()
+            )
+            .red()
+            .bold()
+        );
     }
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(parser.stmt(StmtKind::InterfaceDecl(InterfaceDeclStmt {
-        name,
-        methods,
-        attributes,
-        is_public: false,
-        location: interface_token.location,
-    })))
+    Ok(parser.stmt(
+        StmtKind::InterfaceDecl(InterfaceDeclStmt {
+            name,
+            methods,
+            is_public: attributes.iter().any(|a| a.name == "pub"),
+            attributes,
+        }),
+        interface_token.span,
+    ))
+}
+
+pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
+    let fn_token = parser.expect(TokenKind::Fn)?;
+    let name = parser.expect(TokenKind::Identifier)?.value;
+
+    parser.expect(TokenKind::OpenParen)?;
+    let mut arguments: Vec<FnArgument> = vec![];
+
+    loop {
+        if parser.current_token().kind == TokenKind::CloseParen {
+            break;
+        }
+
+        let arg_name = parser.expect(TokenKind::Identifier)?.value;
+
+        parser.expect(TokenKind::Colon)?;
+        let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
+
+        arguments.push(FnArgument {
+            name: arg_name,
+            explicit_type: Some(explicit_type),
+        });
+
+        if parser.current_token().kind == TokenKind::Comma {
+            parser.advance();
+        }
+    }
+
+    parser.expect(TokenKind::CloseParen)?;
+
+    let return_type = parse_type(parser, BindingPower::DefaultBp)?;
+
+    let mut body: Vec<Stmt> = vec![];
+
+    if parser.current_token().kind == TokenKind::OpenCurly {
+        parser.expect(TokenKind::OpenCurly)?;
+
+        loop {
+            if parser.current_token().kind == TokenKind::CloseCurly {
+                break;
+            }
+
+            body.push(parse_stmt(parser)?);
+        }
+
+        parser.expect(TokenKind::CloseCurly)?;
+    }
+
+    Ok(parser.stmt(
+        StmtKind::FnDecl(FnDeclStmt {
+            name,
+            arguments,
+            body,
+            return_type,
+            is_public: attributes.iter().any(|a| a.name == "pub"),
+            is_extern: attributes.iter().any(|a| a.name == "extern"),
+            attributes,
+        }),
+        fn_token.span,
+    ))
+}
+
+pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
+    let return_token = parser.advance();
+
+    let value = if parser.current_token().kind != TokenKind::Semicolon {
+        Some(parse_expr(parser, BindingPower::DefaultBp)?)
+    } else {
+        None
+    };
+
+    parser.expect(TokenKind::Semicolon)?;
+
+    Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), return_token.span))
 }
 
 pub fn parse_pub_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
     parser.expect(TokenKind::Pub)?;
 
-    let inner_attributes = parse_attributes(parser)?;
-    let mut stmt = parse_stmt_with_attrs(parser, merge_attributes(attributes, inner_attributes))?;
+    let mut stmt = parse_stmt_with_attrs(parser, attributes)?;
     match &mut stmt.kind {
         StmtKind::StructDecl(struct_decl_stmt) => {
             struct_decl_stmt.is_public = true;
@@ -265,110 +349,4 @@ pub fn parse_pub_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result
         _ => return Err(anyhow::anyhow!("Expected function or struct declaration")),
     }
     Ok(stmt)
-}
-
-fn merge_attributes(outer: Vec<Attribute>, inner: Vec<Attribute>) -> Vec<Attribute> {
-    let mut merged = outer;
-    merged.extend(inner);
-    merged
-}
-
-pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
-    let fn_token = parser.expect(TokenKind::Fn)?;
-    let mut arguments: Vec<FnArgument> = Vec::new();
-    let mut body: Vec<Stmt> = Vec::new();
-    let name = parser.expect(TokenKind::Identifier)?.value;
-
-    parser.expect(TokenKind::OpenParen)?;
-
-    loop {
-        if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseParen {
-            break;
-        }
-
-        if parser.current_token().kind == TokenKind::Identifier {
-            let argument_name = parser.expect(TokenKind::Identifier)?.value;
-            parser.expect_error(
-                TokenKind::Colon,
-                Some(String::from(
-                    "Expected colon after property name in function argument declaration",
-                )),
-            )?;
-            let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
-
-            if parser.current_token().kind != TokenKind::CloseParen {
-                parser.expect(TokenKind::Comma)?;
-            }
-
-            if !arguments
-                .iter()
-                .filter(|arg| arg.name == argument_name)
-                .collect::<Vec<_>>()
-                .is_empty()
-            {
-                bail!(
-                    format!("Argument {argument_name} has already been defined in function")
-                        .red()
-                        .bold()
-                );
-            }
-
-            arguments.push(FnArgument {
-                name: argument_name,
-                explicit_type: Some(explicit_type),
-            });
-
-            continue;
-        }
-
-        bail!(
-            format!(
-                "Unexpected token in function declaration: {:?}",
-                parser.current_token()
-            )
-            .red()
-            .bold()
-        );
-    }
-
-    parser.expect(TokenKind::CloseParen)?;
-
-    let explicit_type = parse_type(parser, BindingPower::DefaultBp)?;
-
-    parser.expect(TokenKind::OpenCurly)?;
-
-    while parser.has_tokens() && parser.current_token().kind != TokenKind::CloseCurly {
-        let stmt = parse_stmt(parser)?;
-        body.push(stmt);
-    }
-
-    parser.expect(TokenKind::CloseCurly)?;
-
-    Ok(parser.stmt(StmtKind::FnDecl(FnDeclStmt {
-        name,
-        arguments,
-        body,
-        return_type: explicit_type,
-        is_public: false,
-        is_extern: false,
-        attributes,
-        location: fn_token.location,
-    })))
-}
-
-pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
-    let return_token = parser.expect(TokenKind::Return)?;
-
-    let expression = if parser.current_token().kind != TokenKind::Semicolon {
-        Some(parse_expr(parser, BindingPower::DefaultBp)?)
-    } else {
-        None
-    };
-
-    parser.expect(TokenKind::Semicolon)?;
-
-    Ok(parser.stmt(StmtKind::Return(ReturnStmt {
-        value: expression,
-        location: return_token.location,
-    })))
 }

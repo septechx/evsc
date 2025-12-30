@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use clang::{Clang, EntityKind, Index};
+use clang::{Clang, EntityKind, Index, source::SourceLocation};
 use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
@@ -13,8 +13,9 @@ use crate::{
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
-    errors::SourceLocation,
+    span::{ModuleId, Span},
 };
+use std::fs;
 
 pub fn compile_header<'ctx>(
     context: &'ctx Context,
@@ -33,9 +34,9 @@ pub fn compile_header<'ctx>(
     let index = Index::new(&clang, false, false);
     let tu = index.parser(module_path.clone()).parse()?;
 
-    let mut functions: Vec<FnDeclStmt> = Vec::new();
+    let mut ast: Vec<Stmt> = Vec::new();
 
-    for e in tu.get_entity().get_children() {
+    for (i, e) in tu.get_entity().get_children().iter().enumerate() {
         if e.get_kind() == EntityKind::FunctionDecl {
             let name = parse_function_name(e.get_display_name().expect("function has no name"))
                 .expect("function has no name");
@@ -50,29 +51,28 @@ pub fn compile_header<'ctx>(
                     })
                     .collect::<Vec<_>>();
 
-            let stmt = FnDeclStmt {
-                name,
-                arguments,
-                body: Vec::new(),
-                return_type: ty.0,
-                is_public: true,
-                is_extern: true,
-                attributes: Vec::new(),
-                location: e.get_location().expect("function has no location").into(),
+            let location = e.get_location().expect("function has no location");
+            let (span, _module_id) = convert_clang_location(location);
+
+            let stmt = Stmt {
+                kind: StmtKind::FnDecl(FnDeclStmt {
+                    name,
+                    arguments,
+                    body: Vec::new(),
+                    return_type: ty.0,
+                    is_public: true,
+                    is_extern: true,
+                    attributes: Vec::new(),
+                }),
+                id: NodeId(i),
+                span,
             };
 
-            functions.push(stmt);
+            ast.push(stmt);
         }
     }
 
-    let ast = Ast(functions
-        .into_iter()
-        .enumerate()
-        .map(|(i, stmt)| Stmt {
-            kind: StmtKind::FnDecl(stmt),
-            id: NodeId(i),
-        })
-        .collect());
+    let ast = Ast(ast);
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
     compiler::compile_stmts(
@@ -118,6 +118,7 @@ fn parse_type(ty: &str) -> Type {
 fn map_c_type(ty: &str) -> &str {
     match ty {
         "void" => "void",
+        "bool" => "bool",
         "char" => "i8",
         "short" => "i16",
         "int" => "i32",
@@ -134,14 +135,19 @@ fn map_c_type(ty: &str) -> &str {
     }
 }
 
-impl<'a> From<clang::source::SourceLocation<'a>> for SourceLocation {
-    fn from(location: clang::source::SourceLocation) -> Self {
-        let loc = location.get_file_location();
-        SourceLocation::new(
-            loc.file.expect("file location has no file").get_path(),
-            loc.line as usize,
-            loc.column as usize,
-            loc.offset as usize,
-        )
-    }
+fn convert_clang_location(location: SourceLocation) -> (Span, ModuleId) {
+    let loc = location.get_file_location();
+    let clang_file = loc.file.expect("file location has no file").get_path();
+    let file_path = clang_file.clone();
+
+    let module_id = crate::SOURCE_MAPS.with(|sm| {
+        let mut maps = sm.borrow_mut();
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            maps.add_source(content, file_path)
+        } else {
+            ModuleId(0)
+        }
+    });
+
+    (Span::new(loc.offset, loc.offset + 1), module_id)
 }

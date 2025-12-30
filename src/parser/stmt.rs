@@ -1,6 +1,7 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 use crate::{
+    ERRORS,
     ast::{
         Attribute, Expr, Stmt, StmtKind, Type,
         statements::{
@@ -9,12 +10,14 @@ use crate::{
         },
     },
     errors::{CodeType, builders},
+    get_modifiers,
     lexer::token::TokenKind,
     parser::{
         Parser,
         attributes::parse_attributes,
         expr::parse_expr,
         lookups::{BindingPower, STMT_LU},
+        modifiers::{Modifier, ModifierKind, get_modifiers_span, parse_modifiers},
         types::parse_type,
         utils::unexpected_token,
     },
@@ -23,17 +26,44 @@ use crate::{
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
     let attributes = parse_attributes(parser)?;
-    parse_stmt_with_attrs(parser, attributes)
-}
-
-fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
+    let modifiers = parse_modifiers(parser);
     let stmt_lu = STMT_LU.get().expect("Lookups not initialized");
 
     let stmt_fn = stmt_lu.get(&parser.current_token().kind).cloned();
 
     if let Some(stmt_fn) = stmt_fn {
-        stmt_fn(parser, attributes)
+        stmt_fn(parser, attributes, modifiers)
     } else {
+        if !attributes.is_empty() {
+            let code_line = get_code_line(
+                parser.current_token().module_id,
+                attributes[0].span,
+                CodeType::None,
+            );
+            crate::ERRORS.with(|e| {
+                e.borrow_mut().add(
+                    builders::error("Attribute not allowed here")
+                        .with_span(attributes[0].span, parser.current_token().module_id)
+                        .with_code(code_line),
+                );
+            });
+        }
+
+        if !modifiers.is_empty() {
+            let code_line = get_code_line(
+                parser.current_token().module_id,
+                modifiers[0].span,
+                CodeType::None,
+            );
+            crate::ERRORS.with(|e| {
+                e.borrow_mut().add(
+                    builders::error("Modifier not allowed here")
+                        .with_span(modifiers[0].span, parser.current_token().module_id)
+                        .with_code(code_line),
+                );
+            });
+        }
+
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
         parser.expect(TokenKind::Semicolon)?;
 
@@ -42,28 +72,34 @@ fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Res
     }
 }
 
-pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
+pub fn parse_var_decl_statement(
+    parser: &mut Parser,
+    _attributes: Vec<Attribute>,
+    modifiers: Vec<Modifier>,
+) -> Result<Stmt> {
     let var_token = parser.advance();
     let mut type_: Type = Type::Infer;
     let mut assigned_value: Option<Expr> = None;
 
-    let is_static = match var_token.kind {
-        TokenKind::Static => true,
-        TokenKind::Let => false,
-        _ => bail!(
-            "Expected 'let' or 'static' keyword, recieved {:?}",
-            parser.current_token()
-        ),
-    };
+    let is_static = var_token.kind == TokenKind::Static;
 
     let is_constant = parser.current_token().kind != TokenKind::Mut;
 
-    if !is_constant {
-        parser.advance();
+    if is_static && !is_constant {
+        let span = parser.current_token().span;
+        let code_line = get_code_line(parser.current_token().module_id, span, CodeType::None);
+
+        crate::ERRORS.with(|e| {
+            e.borrow_mut().add(
+                builders::error("Static variables must be constant")
+                    .with_span(span, parser.current_token().module_id)
+                    .with_code(code_line),
+            );
+        });
     }
 
-    if is_static && !is_constant {
-        anyhow::bail!("Static variables must be constant");
+    if !is_constant {
+        parser.advance();
     }
 
     let variable_name = parser
@@ -85,9 +121,34 @@ pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
     }
 
-    let end_token = parser.expect(TokenKind::Semicolon)?;
+    let (pub_mod,) = get_modifiers!(parser, modifiers, [Pub]);
 
-    let span = Span::new(var_token.span.start(), end_token.span.end());
+    let mut is_public = false;
+
+    let end_span = parser.expect(TokenKind::Semicolon)?.span;
+    let mut start_span = var_token.span;
+
+    if let Some(pub_mod) = pub_mod {
+        if !is_static {
+            let code = get_code_line(
+                parser.current_token().module_id,
+                pub_mod.span,
+                CodeType::None,
+            );
+            crate::ERRORS.with(|e| {
+                e.borrow_mut().add(
+                    builders::error("Modifier 'pub' is only allowed on static variables")
+                        .with_span(pub_mod.span, parser.current_token().module_id)
+                        .with_code(code),
+                );
+            });
+        }
+
+        start_span = pub_mod.span;
+        is_public = true;
+    };
+
+    let span = Span::new(start_span.start(), end_span.end());
 
     if assigned_value.is_none()
         && let Type::Infer = type_
@@ -108,7 +169,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>
 
         crate::ERRORS.with(|e| {
             e.borrow_mut().add(
-                builders::error("Cannot define constant without providing a value")
+                builders::warning("Declared constant without providing a value")
                     .with_span(span, parser.current_token().module_id)
                     .with_code(code_line),
             );
@@ -120,6 +181,7 @@ pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>
             type_,
             is_constant,
             is_static,
+            is_public,
             variable_name,
             assigned_value,
         }),
@@ -127,7 +189,11 @@ pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>
     ))
 }
 
-pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
+pub fn parse_struct_decl_stmt(
+    parser: &mut Parser,
+    attributes: Vec<Attribute>,
+    modifiers: Vec<Modifier>,
+) -> Result<Stmt> {
     let struct_token = parser.expect(TokenKind::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
     let mut methods: Vec<StructMethod> = Vec::new();
@@ -151,7 +217,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
         }
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])?.kind {
+            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![], vec![])?.kind {
                 methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
                         is_extern: false,
@@ -159,6 +225,7 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
                         ..fn_decl
                     },
                     is_static,
+                    is_public,
                 })
             };
             continue;
@@ -229,21 +296,38 @@ pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -
         unexpected_token(parser.current_token());
     }
 
-    parser.expect(TokenKind::CloseCurly)?;
+    let end_span = parser.expect(TokenKind::CloseCurly)?.span;
+
+    let (pub_mod,) = get_modifiers!(parser, modifiers, [Pub]);
+
+    let mut is_public = false;
+
+    let mut start_span = struct_token.span;
+
+    if let Some(pub_mod) = pub_mod {
+        start_span = pub_mod.span;
+        is_public = true;
+    };
+
+    let span = Span::new(start_span.start(), end_span.end());
 
     Ok(parser.stmt(
         StmtKind::StructDecl(StructDeclStmt {
             name,
             properties,
             methods,
-            is_public: attributes.iter().any(|a| a.name == "pub"),
+            is_public,
             attributes,
         }),
-        struct_token.span,
+        span,
     ))
 }
 
-pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
+pub fn parse_interface_decl_stmt(
+    parser: &mut Parser,
+    attributes: Vec<Attribute>,
+    modifiers: Vec<Modifier>,
+) -> Result<Stmt> {
     let interface_token = parser.expect(TokenKind::Interface)?;
     let mut methods: Vec<InterfaceMethod> = Vec::new();
     let name = parser.expect(TokenKind::Identifier)?.value;
@@ -256,7 +340,7 @@ pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>
         }
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])?.kind {
+            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![], vec![])?.kind {
                 methods.push(InterfaceMethod { fn_decl });
             }
             continue;
@@ -265,20 +349,39 @@ pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>
         unexpected_token(parser.current_token());
     }
 
-    parser.expect(TokenKind::CloseCurly)?;
+    let end_span = parser.expect(TokenKind::CloseCurly)?.span;
+
+    let (pub_mod,) = get_modifiers!(parser, modifiers, [Pub]);
+
+    let mut is_public = false;
+
+    let mut start_span = interface_token.span;
+
+    if let Some(pub_mod) = pub_mod {
+        start_span = pub_mod.span;
+        is_public = true;
+    };
+
+    let span = Span::new(start_span.start(), end_span.end());
 
     Ok(parser.stmt(
         StmtKind::InterfaceDecl(InterfaceDeclStmt {
             name,
             methods,
-            is_public: attributes.iter().any(|a| a.name == "pub"),
+            is_public,
             attributes,
         }),
-        interface_token.span,
+        span,
     ))
 }
 
-pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
+pub fn parse_fn_decl_stmt(
+    parser: &mut Parser,
+    attributes: Vec<Attribute>,
+    modifiers: Vec<Modifier>,
+) -> Result<Stmt> {
+    let (pub_mod, extern_mod) = get_modifiers!(parser, modifiers, [Pub, Extern]);
+
     let fn_token = parser.expect(TokenKind::Fn)?;
     let name = parser.expect(TokenKind::Identifier)?.value;
 
@@ -331,15 +434,19 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Re
             arguments,
             body,
             return_type,
-            is_public: attributes.iter().any(|a| a.name == "pub"),
-            is_extern: attributes.iter().any(|a| a.name == "extern"),
+            is_public: pub_mod.is_some(),
+            is_extern: extern_mod.is_some(),
             attributes,
         }),
         fn_token.span,
     ))
 }
 
-pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
+pub fn parse_return_stmt(
+    parser: &mut Parser,
+    _attributes: Vec<Attribute>,
+    _modifiers: Vec<Modifier>,
+) -> Result<Stmt> {
     let return_token = parser.advance();
 
     let value = if parser.current_token().kind != TokenKind::Semicolon {
@@ -351,20 +458,4 @@ pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Re
     parser.expect(TokenKind::Semicolon)?;
 
     Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), return_token.span))
-}
-
-pub fn parse_pub_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
-    parser.expect(TokenKind::Pub)?;
-
-    let mut stmt = parse_stmt_with_attrs(parser, attributes)?;
-    match &mut stmt.kind {
-        StmtKind::StructDecl(struct_decl_stmt) => {
-            struct_decl_stmt.is_public = true;
-        }
-        StmtKind::FnDecl(fn_decl_stmt) => {
-            fn_decl_stmt.is_public = true;
-        }
-        _ => return Err(anyhow::anyhow!("Expected function or struct declaration")),
-    }
-    Ok(stmt)
 }

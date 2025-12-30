@@ -5,9 +5,10 @@ use parking_lot::Once;
 use crate::{
     ast::{Attribute, Expr, Stmt},
     lexer::token::TokenKind::{self, self as T},
-    parser::{Parser, expr::*, stmt::*},
+    parser::{Parser, expr::*, modifiers::Modifier, stmt::*},
 };
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum BindingPower {
@@ -25,7 +26,7 @@ pub enum BindingPower {
 }
 use BindingPower as BP;
 
-type StmtHandler = fn(&mut Parser, Vec<Attribute>) -> anyhow::Result<Stmt>;
+type StmtHandler = fn(&mut Parser, Vec<Attribute>, Vec<Modifier>) -> anyhow::Result<Stmt>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expr>;
 type LedHandler = fn(&mut Parser, Expr, BindingPower) -> anyhow::Result<Expr>;
 
@@ -268,8 +269,6 @@ pub fn create_token_lookups() {
         );
         stmt(T::Fn, parse_fn_decl_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Return, parse_return_stmt, &mut bp_lu, &mut stmt_lu);
-
-        stmt(T::Pub, parse_pub_stmt, &mut bp_lu, &mut stmt_lu);
 
         let _ = BP_LU.set(bp_lu);
         let _ = NUD_LU.set(nud_lu);

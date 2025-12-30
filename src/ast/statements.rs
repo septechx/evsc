@@ -14,6 +14,7 @@ pub struct ExpressionStmt {
 pub struct VarDeclStmt {
     pub variable_name: String,
     pub is_constant: bool,
+    pub is_public: bool,
     pub assigned_value: Option<Expr>,
     pub type_: Type,
     pub is_static: bool,
@@ -30,6 +31,7 @@ pub struct StructProperty {
 pub struct StructMethod {
     pub is_static: bool,
     pub fn_decl: FnDeclStmt,
+    pub is_public: bool,
 }
 
 #[derive(Debug, Clone)]

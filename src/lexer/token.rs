@@ -1,15 +1,11 @@
-use std::{
-    collections::HashMap,
-    fmt::{Display, Formatter},
-    sync::OnceLock,
-};
+use std::fmt::Display;
 
 use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
 pub struct TokenStream(pub Vec<Token>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
@@ -19,7 +15,7 @@ pub struct Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)
+        write!(f, "{}", self.kind)
     }
 }
 
@@ -29,151 +25,88 @@ impl PartialEq for Token {
     }
 }
 
-impl Eq for Token {}
-
-#[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Copy)]
-pub enum TokenKind {
-    // Symbols
-    Semicolon,
-    Pipe,
-    Colon,
-    Arrow,
-    OpenCurly,
-    CloseCurly,
-    OpenParen,
-    CloseParen,
-    Dot,
-    Equals,
-    PlusEquals,
-    MinusEquals,
-    StarEquals,
-    SlashEquals,
-    PercentEquals,
-    Underscore,
-    OpenBracket,
-    CloseBracket,
-    Hash,
-    Comma,
-    Plus,
-    Dash,
-    Star,
-    Slash,
-    Percent,
-    And,
-    Or,
-    DotDot,
-    EqualsEquals,
-    NotEquals,
-    Less,
-    More,
-    LessEquals,
-    MoreEquals,
-    Reference,
-    Dollar,
-
-    // Literals
-    Identifier,
-    StringLiteral,
-    Number,
-
-    // Reserved
-    Let,
-    True,
-    False,
-    Struct,
-    Fn,
-    Return,
-    Pub,
-    Static,
-    Mut,
-    Extern,
-    Interface,
-
-    // Special
-    Eof,
-    Illegal,
-}
-
-static RESERVED_KEYWORDS: OnceLock<HashMap<&'static str, TokenKind>> = OnceLock::new();
-
-impl Token {
-    pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
-        let lu = RESERVED_KEYWORDS.get_or_init(|| {
-            use TokenKind as T;
-            let mut m = HashMap::new();
-            m.insert("true", T::True);
-            m.insert("false", T::False);
-            m.insert("let", T::Let);
-            m.insert("struct", T::Struct);
-            m.insert("fn", T::Fn);
-            m.insert("return", T::Return);
-            m.insert("pub", T::Pub);
-            m.insert("static", T::Static);
-            m.insert("mut", T::Mut);
-            m.insert("extern", T::Extern);
-            m.insert("interface", T::Interface);
-            m
-        });
-        lu.get(ident).cloned()
-    }
-}
-
-impl Display for TokenKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use TokenKind as T;
-        match self {
-            T::Let => write!(f, "let"),
-            T::True => write!(f, "true"),
-            T::False => write!(f, "false"),
-            T::Struct => write!(f, "struct"),
-            T::Fn => write!(f, "fn"),
-            T::Return => write!(f, "return"),
-            T::Pub => write!(f, "pub"),
-            T::Static => write!(f, "static"),
-            T::Mut => write!(f, "mut"),
-            T::Extern => write!(f, "extern"),
-            T::Interface => write!(f, "interface"),
-            T::Eof => write!(f, "eof"),
-            T::Illegal => write!(f, "illegal"),
-            T::Identifier => write!(f, "identifier"),
-            T::StringLiteral => write!(f, "string literal"),
-            T::Number => write!(f, "number"),
-            T::Semicolon => write!(f, ";"),
-            T::Pipe => write!(f, "|"),
-            T::Colon => write!(f, ":"),
-            T::Arrow => write!(f, "->"),
-            T::OpenCurly => write!(f, "{{"),
-            T::CloseCurly => write!(f, "}}"),
-            T::OpenParen => write!(f, "("),
-            T::CloseParen => write!(f, ")"),
-            T::Dot => write!(f, "."),
-            T::Equals => write!(f, "="),
-            T::PlusEquals => write!(f, "+="),
-            T::MinusEquals => write!(f, "-="),
-            T::StarEquals => write!(f, "*="),
-            T::SlashEquals => write!(f, "/="),
-            T::PercentEquals => write!(f, "%="),
-            T::Underscore => write!(f, "_"),
-            T::OpenBracket => write!(f, "["),
-            T::CloseBracket => write!(f, "]"),
-            T::Hash => write!(f, "#"),
-            T::Comma => write!(f, ","),
-            T::Plus => write!(f, "+"),
-            T::Dash => write!(f, "-"),
-            T::Star => write!(f, "*"),
-            T::Slash => write!(f, "/"),
-            T::Percent => write!(f, "%"),
-            T::And => write!(f, "&"),
-            T::Or => write!(f, "|"),
-            T::DotDot => write!(f, ".."),
-            T::EqualsEquals => write!(f, "=="),
-            T::NotEquals => write!(f, "!="),
-            T::Less => write!(f, "<"),
-            T::More => write!(f, ">"),
-            T::LessEquals => write!(f, "<="),
-            T::MoreEquals => write!(f, ">="),
-            T::Reference => write!(f, "@"),
-            T::Dollar => write!(f, "$"),
+macro_rules! define_tokens {
+    (
+        reserved: [$( $reserved:ident ),* $(,)?],
+        symbols: [$( $symbol:ident => $symbol_str:literal ),* $(,)?],
+        literals: [$( $literal:ident => $literal_str:literal ),* $(,)?],
+        special: [$( $special:ident => $special_str:literal ),* $(,)?]
+    ) => {
+        #[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Copy)]
+        pub enum TokenKind {
+            $( $reserved ),*,
+            $( $symbol ),*,
+            $( $literal ),*,
+            $( $special ),*
         }
-    }
+
+        pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
+            use TokenKind as T;
+            static RESERVED_KEYWORDS: std::sync::OnceLock<std::collections::HashMap<String, TokenKind>> = std::sync::OnceLock::new();
+            let lu = RESERVED_KEYWORDS.get_or_init(|| {
+                let mut m = std::collections::HashMap::new();
+                $(
+                    m.insert(stringify!($reserved).to_lowercase(), T::$reserved);
+                )*
+                m
+            });
+            lu.get(ident).cloned()
+        }
+
+        impl std::fmt::Display for TokenKind {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                use TokenKind as T;
+                match self {
+                    $( T::$reserved => write!(f, "{}", stringify!($reserved).to_lowercase()), )*
+                    $( T::$symbol => write!(f, "{}", $symbol_str), )*
+                    $( T::$literal => write!(f, "{}", $literal_str), )*
+                    $( T::$special => write!(f, "{}", $special_str), )*
+                }
+            }
+        }
+    };
+}
+
+define_tokens! {
+    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface],
+    symbols: [
+        Semicolon => ";",
+        Pipe => "|",
+        Colon => ":",
+        Arrow => "->",
+        OpenCurly => "{",
+        CloseCurly => "}",
+        OpenParen => "(",
+        CloseParen => ")",
+        Dot => ".",
+        Equals => "=",
+        PlusEquals => "+=",
+        MinusEquals => "-=",
+        StarEquals => "*=",
+        SlashEquals => "/=",
+        PercentEquals => "%=",
+        Underscore => "_",
+        OpenBracket => "[",
+        CloseBracket => "]",
+        Hash => "#",
+        Comma => ",",
+        Plus => "+",
+        Dash => "-",
+        Star => "*",
+        Slash => "/",
+        Percent => "%",
+        And => "&",
+        Or => "|",
+        DotDot => "..",
+        EqualsEquals => "==",
+        NotEquals => "!=",
+        Less => "<",
+        More => ">",
+        LessEquals => "<=",
+        MoreEquals => ">=",
+        Reference => "@",
+        Dollar => "$"
+    ],
+    literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number"],
+    special: [Eof => "<eof>", Illegal => "<illegal>"]
 }

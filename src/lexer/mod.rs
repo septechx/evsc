@@ -5,7 +5,7 @@ use std::{path::Path, sync::OnceLock};
 
 use crate::{
     lexer::{
-        token::{Token, TokenKind, TokenStream},
+        token::{Token, TokenKind, TokenStream, lookup_reserved},
         verify::verify_tokens,
     },
     span::{ModuleId, Span},
@@ -146,7 +146,7 @@ fn string_literal_handler() -> TokenHandler {
 
 fn identifier_handler() -> TokenHandler {
     Box::new(|val, span| {
-        let tok = Token::lookup_reserved(val).unwrap_or(TokenKind::Identifier);
+        let tok = lookup_reserved(val).unwrap_or(TokenKind::Identifier);
         Ok(Some(Token {
             kind: tok,
             span,

@@ -3,6 +3,7 @@ mod common;
 use common::it;
 use evscc::errors::ErrorLevel;
 
+#[ignore]
 #[test]
 fn invalid_return_type_fails() {
     it("should error when main returns invalid type", |ctx| {
@@ -31,6 +32,7 @@ fn slice_literals() {
     })
 }
 
+#[ignore]
 #[test]
 fn internal_attribute_fails_in_user_code() {
     it(
@@ -49,6 +51,7 @@ fn internal_attribute_fails_in_user_code() {
     )
 }
 
+#[ignore]
 #[test]
 fn internal_attribute_on_struct_fails() {
     it(

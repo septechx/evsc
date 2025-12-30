@@ -4,15 +4,12 @@ source_filename = "main"
 %Module_std = type { ptr }
 %Slice = type { ptr, i64 }
 
-@inst_Module_std = private constant %Module_std { ptr @print }
-@std = private global %Module_std zeroinitializer
+@std = private constant %Module_std { ptr @print }
 @str = private constant [11 x i8] c"Hello world"
 @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__module_init, ptr null }]
 
 define void @__module_init() {
 entry:
-  %load_ptr = load %Module_std, ptr @inst_Module_std, align 8
-  store %Module_std %load_ptr, ptr @std, align 8
   ret void
 }
 

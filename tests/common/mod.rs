@@ -1,12 +1,10 @@
 use evscc::{
     ERRORS,
-    backend::BackendOptions,
-    backend::linker::linkers::LdLinker,
+    backend::{BackendOptions, linker::linkers::LdLinker},
+    codegen::{self, CompileOptions, EmitType},
     errors::ErrorLevel,
-    intermediate::{self, CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
-    typecheck::TypeChecker,
 };
 use std::{
     env, fs,
@@ -22,6 +20,7 @@ pub struct Test {
     should_compile: Option<bool>,
     expected_ir: Option<String>,
     execute: Option<Box<dyn FnOnce(ExecutionResult)>>,
+    fail_on_level: ErrorLevel,
 }
 
 impl Test {
@@ -32,6 +31,7 @@ impl Test {
             should_compile: None,
             expected_ir: None,
             execute: None,
+            fail_on_level: ErrorLevel::Warning,
         }
     }
 
@@ -58,8 +58,14 @@ impl Test {
         self.execute = Some(Box::new(f));
         self
     }
+
+    pub fn fail_on_level(&mut self, level: ErrorLevel) -> &mut Self {
+        self.fail_on_level = level;
+        self
+    }
 }
 
+#[allow(dead_code)]
 pub struct ExecutionResult {
     pub exit_code: i32,
     pub stdout: String,
@@ -77,6 +83,7 @@ impl ExecutionResult {
         self
     }
 
+    #[allow(dead_code)]
     pub fn stderr(&self, expected: &str) -> &Self {
         assert_eq!(self.stderr, expected);
         self
@@ -119,7 +126,7 @@ impl Drop for Test {
             Err(e) => panic!("Failed to read source file: {}", e),
         };
 
-        let tokens = match tokenize(source, &main_path) {
+        let (tokens, _module_id) = match tokenize(source, &main_path) {
             Ok(t) => t,
             Err(e) => {
                 if self.should_compile == Some(false) {
@@ -129,9 +136,9 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
-        let ast = match parse(tokens.clone()) {
+        let ast = match parse(tokens) {
             Ok(a) => a,
             Err(e) => {
                 if self.should_compile == Some(false) {
@@ -141,11 +148,7 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self.should_compile);
-
-        let typechecker = TypeChecker::new(main_path.clone(), tokens);
-        typechecker.check(&ast.body);
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
         let module_name = "main";
         let opts = CompileOptions {
@@ -161,7 +164,7 @@ impl Drop for Test {
             cache_dir: Some(&test_dir),
         };
 
-        match intermediate::compile(ast.clone(), &opts) {
+        match codegen::compile(ast.clone(), &opts) {
             Ok(_) => {
                 if self.should_compile == Some(false) {
                     panic!("Compilation succeeded but was expected to fail");
@@ -175,7 +178,7 @@ impl Drop for Test {
             }
         }
 
-        check_for_errors(self.should_compile);
+        check_for_errors(self);
 
         if let Some(expected_ir_file) = &self.expected_ir {
             let expected_path = Path::new("tests").join(expected_ir_file);
@@ -240,11 +243,11 @@ impl Drop for Test {
                 cache_dir: Some(&test_dir),
             };
 
-            if let Err(e) = intermediate::compile(ast, &exe_opts) {
+            if let Err(e) = codegen::compile(ast, &exe_opts) {
                 panic!("Failed to compile executable: {}", e);
             }
 
-            check_for_errors(self.should_compile);
+            check_for_errors(self);
 
             let output = match Command::new(&exe_path).output() {
                 Ok(o) => o,
@@ -269,13 +272,13 @@ impl Drop for Test {
     }
 }
 
-fn check_for_errors(should_compile: Option<bool>) {
-    if ERRORS.with(|e| e.collector.borrow().has_errors()) {
-        ERRORS.with(|e| e.collector.borrow().print_errors(ErrorLevel::Error));
-        if should_compile == Some(false) {
+fn check_for_errors(test: &Test) {
+    if ERRORS.with(|e| e.borrow().has_errors_above_level(test.fail_on_level)) {
+        ERRORS.with(|e| e.borrow().print_errors(ErrorLevel::Info));
+        if test.should_compile == Some(false) {
             return;
         }
-        panic!("Compilation had errors");
+        panic!("Compilation had errors or warnings above threshold");
     }
 }
 

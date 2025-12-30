@@ -1,18 +1,21 @@
-use lazy_static::lazy_static;
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
-use crate::errors::SourceLocation;
+use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
+pub struct TokenStream(pub Vec<Token>);
+
+#[derive(Debug, Clone, Eq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub location: SourceLocation,
+    pub span: Span,
+    pub module_id: ModuleId,
     pub value: String,
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)
+        write!(f, "{}", self.kind)
     }
 }
 
@@ -22,90 +25,88 @@ impl PartialEq for Token {
     }
 }
 
-impl Eq for Token {}
+macro_rules! define_tokens {
+    (
+        reserved: [$( $reserved:ident ),* $(,)?],
+        symbols: [$( $symbol:ident => $symbol_str:literal ),* $(,)?],
+        literals: [$( $literal:ident => $literal_str:literal ),* $(,)?],
+        special: [$( $special:ident => $special_str:literal ),* $(,)?]
+    ) => {
+        #[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Copy)]
+        pub enum TokenKind {
+            $( $reserved ),*,
+            $( $symbol ),*,
+            $( $literal ),*,
+            $( $special ),*
+        }
 
-#[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Copy)]
-pub enum TokenKind {
-    // Symbols
-    Semicolon,
-    Pipe,
-    Colon,
-    Arrow,
-    OpenCurly,
-    CloseCurly,
-    OpenParen,
-    CloseParen,
-    Dot,
-    Equals,
-    PlusEquals,
-    MinusEquals,
-    StarEquals,
-    SlashEquals,
-    PercentEquals,
-    Underscore,
-    OpenBracket,
-    CloseBracket,
-    Hash,
-    Comma,
-    Plus,
-    Dash,
-    Star,
-    Slash,
-    Percent,
-    And,
-    Or,
-    DotDot,
-    EqualsEquals,
-    NotEquals,
-    Less,
-    More,
-    LessEquals,
-    MoreEquals,
-    Reference,
-    Dollar,
+        pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
+            use TokenKind as T;
+            static RESERVED_KEYWORDS: std::sync::OnceLock<std::collections::HashMap<String, TokenKind>> = std::sync::OnceLock::new();
+            let lu = RESERVED_KEYWORDS.get_or_init(|| {
+                let mut m = std::collections::HashMap::new();
+                $(
+                    m.insert(stringify!($reserved).to_lowercase(), T::$reserved);
+                )*
+                m
+            });
+            lu.get(ident).cloned()
+        }
 
-    // Literals
-    Identifier,
-    StringLiteral,
-    Number,
-
-    // Reserved
-    Let,
-    True,
-    False,
-    Struct,
-    Fn,
-    Return,
-    Pub,
-    Static,
-    Mut,
-    Extern,
-
-    // Special
-    Eof,
-    Illegal,
-}
-
-use TokenKind as T;
-lazy_static! {
-    static ref RESERVED_KEYWORDS: HashMap<&'static str, TokenKind> = {
-        let mut m = HashMap::new();
-        m.insert("true", T::True);
-        m.insert("false", T::False);
-        m.insert("let", T::Let);
-        m.insert("struct", T::Struct);
-        m.insert("fn", T::Fn);
-        m.insert("return", T::Return);
-        m.insert("pub", T::Pub);
-        m.insert("static", T::Static);
-        m.insert("mut", T::Mut);
-        m.insert("extern", T::Extern);
-        m
+        impl std::fmt::Display for TokenKind {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                use TokenKind as T;
+                match self {
+                    $( T::$reserved => write!(f, "{}", stringify!($reserved).to_lowercase()), )*
+                    $( T::$symbol => write!(f, "{}", $symbol_str), )*
+                    $( T::$literal => write!(f, "{}", $literal_str), )*
+                    $( T::$special => write!(f, "{}", $special_str), )*
+                }
+            }
+        }
     };
 }
 
-impl Token {
-    pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
-        RESERVED_KEYWORDS.get(ident).cloned()
-    }
+define_tokens! {
+    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface],
+    symbols: [
+        Semicolon => ";",
+        Pipe => "|",
+        Colon => ":",
+        Arrow => "->",
+        OpenCurly => "{",
+        CloseCurly => "}",
+        OpenParen => "(",
+        CloseParen => ")",
+        Dot => ".",
+        Equals => "=",
+        PlusEquals => "+=",
+        MinusEquals => "-=",
+        StarEquals => "*=",
+        SlashEquals => "/=",
+        PercentEquals => "%=",
+        Underscore => "_",
+        OpenBracket => "[",
+        CloseBracket => "]",
+        Hash => "#",
+        Comma => ",",
+        Plus => "+",
+        Dash => "-",
+        Star => "*",
+        Slash => "/",
+        Percent => "%",
+        And => "&",
+        Or => "|",
+        DotDot => "..",
+        EqualsEquals => "==",
+        NotEquals => "!=",
+        Less => "<",
+        More => ">",
+        LessEquals => "<=",
+        MoreEquals => ">=",
+        Reference => "@",
+        Dollar => "$"
+    ],
+    literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number"],
+    special: [Eof => "<eof>", Illegal => "<illegal>"]
 }

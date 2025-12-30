@@ -21,7 +21,7 @@ impl LdLinker {
         }
 
         crate::ERRORS.with(|e| {
-            e.collector.borrow_mut().add(builders::fatal(format!(
+            e.borrow_mut().add(builders::fatal(format!(
                 "No suitable linker found. Tried: {}",
                 linkers.join(", ")
             )));

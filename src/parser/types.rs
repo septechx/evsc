@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow, bail};
-use std::{collections::HashMap, sync::Mutex};
+use parking_lot::Once;
+use std::{collections::HashMap, sync::OnceLock};
 
 use colored::Colorize;
-use lazy_static::lazy_static;
 
 use crate::{
     ast::{
@@ -11,11 +11,11 @@ use crate::{
     },
     lexer::token::TokenKind::{self, self as T},
     parser::{
+        Parser,
         lookups::{
             BindingPower::{self, self as BP},
             BpLookup,
         },
-        parser::Parser,
     },
 };
 
@@ -25,27 +25,43 @@ type TypeLedHandler = fn(&mut Parser, Type, BindingPower) -> Result<Type>;
 type TypeNudLookup = HashMap<TokenKind, TypeNudHandler>;
 type TypeLedLookup = HashMap<TokenKind, TypeLedHandler>;
 
-lazy_static! {
-    pub static ref TYPE_BP_LU: Mutex<BpLookup> = Mutex::new(HashMap::new());
-    pub static ref TYPE_NUD_LU: Mutex<TypeNudLookup> = Mutex::new(HashMap::new());
-    pub static ref TYPE_LED_LU: Mutex<TypeLedLookup> = Mutex::new(HashMap::new());
+static INITIALIZE: Once = Once::new();
+pub static TYPE_BP_LU: OnceLock<BpLookup> = OnceLock::new();
+pub static TYPE_NUD_LU: OnceLock<TypeNudLookup> = OnceLock::new();
+pub static TYPE_LED_LU: OnceLock<TypeLedLookup> = OnceLock::new();
+
+#[allow(dead_code)]
+fn type_led(
+    kind: TokenKind,
+    bp: BindingPower,
+    led_fn: TypeLedHandler,
+    bp_lu: &mut BpLookup,
+    led_lu: &mut TypeLedLookup,
+) {
+    bp_lu.insert(kind, bp);
+    led_lu.insert(kind, led_fn);
 }
 
-fn type_led(kind: TokenKind, bp: BindingPower, led_fn: TypeLedHandler) {
-    TYPE_BP_LU.lock().unwrap().insert(kind, bp);
-    TYPE_LED_LU.lock().unwrap().insert(kind, led_fn);
-}
-
-fn type_nud(kind: TokenKind, nud_fn: TypeNudHandler) {
-    TYPE_NUD_LU.lock().unwrap().insert(kind, nud_fn);
+fn type_nud(kind: TokenKind, nud_fn: TypeNudHandler, nud_lu: &mut TypeNudLookup) {
+    nud_lu.insert(kind, nud_fn);
 }
 
 pub fn create_token_type_lookups() {
-    type_nud(T::Identifier, parse_symbol_type);
-    type_nud(T::OpenBracket, parse_array_type);
-    type_nud(T::Mut, parse_mut_type);
-    type_nud(T::OpenParen, parse_function_type);
-    type_nud(T::Reference, parse_pointer_type);
+    INITIALIZE.call_once(|| {
+        let bp_lu = BpLookup::new();
+        let mut nud_lu = TypeNudLookup::new();
+        let led_lu = TypeLedLookup::new();
+
+        type_nud(T::Identifier, parse_symbol_type, &mut nud_lu);
+        type_nud(T::OpenBracket, parse_array_type, &mut nud_lu);
+        type_nud(T::Mut, parse_mut_type, &mut nud_lu);
+        type_nud(T::OpenParen, parse_function_type, &mut nud_lu);
+        type_nud(T::Reference, parse_pointer_type, &mut nud_lu);
+
+        let _ = TYPE_BP_LU.set(bp_lu);
+        let _ = TYPE_NUD_LU.set(nud_lu);
+        let _ = TYPE_LED_LU.set(led_lu);
+    });
 }
 
 fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
@@ -97,8 +113,11 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
 pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
     let token_kind = parser.current_token().kind;
 
+    let bp_lu = TYPE_BP_LU.get().expect("Type lookups not initialized");
+    let nud_lu = TYPE_NUD_LU.get().expect("Type lookups not initialized");
+    let led_lu = TYPE_LED_LU.get().expect("Type lookups not initialized");
+
     let nud_fn = {
-        let nud_lu = TYPE_NUD_LU.lock().unwrap();
         nud_lu.get(&token_kind).cloned().ok_or_else(|| {
             anyhow!(
                 format!("Type nud handler expected for token {token_kind:?}")
@@ -112,7 +131,6 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
 
     loop {
         let current_bp = {
-            let bp_lu = TYPE_BP_LU.lock().unwrap();
             *bp_lu
                 .get(&parser.current_token().kind)
                 .unwrap_or(&BindingPower::DefaultBp)
@@ -124,7 +142,6 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
 
         let token_kind = parser.current_token().kind;
         let led_fn = {
-            let led_lu = TYPE_LED_LU.lock().unwrap();
             led_lu.get(&token_kind).cloned().ok_or_else(|| {
                 anyhow!(
                     format!("Type led handler expected for token {token_kind:?}")

@@ -1,9 +1,10 @@
 use crate::{
-    ast::{Expression, Type},
+    ast::{Expr, Type},
     lexer::token::Token,
 };
 use std::collections::HashMap;
 
+// TODO: Add float support, replace i32
 #[derive(Debug, Clone)]
 pub struct NumberExpr {
     pub value: i32,
@@ -21,52 +22,52 @@ pub struct SymbolExpr {
 
 #[derive(Debug, Clone)]
 pub struct BinaryExpr {
-    pub left: Box<Expression>,
+    pub left: Box<Expr>,
     pub operator: Token,
-    pub right: Box<Expression>,
+    pub right: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PrefixExpr {
     pub operator: Token,
-    pub right: Box<Expression>,
+    pub right: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AssignmentExpr {
-    pub assigne: Box<Expression>,
+    pub assigne: Box<Expr>,
     pub operator: Token,
-    pub value: Box<Expression>,
+    pub value: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructInstantiationExpr {
     pub name: String,
-    pub properties: HashMap<String, Expression>,
+    pub properties: HashMap<String, Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ArrayLiteralExpr {
     pub underlying: Type,
-    pub contents: Vec<Expression>,
+    pub contents: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FixedArrayLiteralExpr {
     pub underlying: Type,
     pub length: usize,
-    pub contents: Vec<Expression>,
+    pub contents: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionCallExpr {
-    pub callee: Box<Expression>,
-    pub arguments: Vec<Expression>,
+    pub callee: Box<Expr>,
+    pub arguments: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct MemberAccessExpr {
-    pub base: Box<Expression>,
+    pub base: Box<Expr>,
     pub member: SymbolExpr,
 }
 

@@ -7,7 +7,7 @@ use inkwell::{
 
 use crate::{
     ast::Type,
-    intermediate::{
+    codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
         compiler::CompilationContext,

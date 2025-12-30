@@ -4,23 +4,23 @@ use anyhow::{Result, bail};
 use inkwell::{
     builder::Builder,
     context::Context,
-    module::{Linkage, Module},
-    types::{BasicType, BasicTypeEnum},
-    values::BasicValue,
+    module::Module,
+    types::BasicTypeEnum,
+    values::{BasicValue, BasicValueEnum},
 };
 
 use crate::{
-    ast::{Expression, expressions::FunctionCallExpr},
+    ast::{ExprKind, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
-    errors::builders,
-    intermediate::{
+    codegen::{
         builtin::{
             BuiltinFunction,
             import::{header::compile_header, resolve_lib::resolve_std_lib},
         },
-        compiler::{self, CompilationContext},
+        compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,
     },
+    errors::builders,
     lexer::tokenize,
     parser::parse,
 };
@@ -44,8 +44,8 @@ impl BuiltinFunction for ImportBuiltin {
             bail!("Expected one argument to @import");
         }
 
-        let module_name = match &expr.arguments[0] {
-            Expression::String(sym) => sym.value.clone(),
+        let module_name = match &expr.arguments[0].kind {
+            ExprKind::String(sym) => sym.value.clone(),
             _ => bail!("Expected string literal as argument to @import"),
         };
 
@@ -84,7 +84,7 @@ fn compile_evsc_module<'ctx>(
     let file = fs::read_to_string(&module_path);
     if let Err(err) = file {
         crate::ERRORS.with(|e| {
-            e.collector.borrow_mut().add(builders::fatal(format!(
+            e.borrow_mut().add(builders::fatal(format!(
                 "Module `{}` (resolved to {}) not found: {}",
                 module_name,
                 module_path.display(),
@@ -95,17 +95,22 @@ fn compile_evsc_module<'ctx>(
     }
     let file = file.unwrap();
 
-    let tokens = tokenize(file, &module_path)?;
+    let (tokens, _module_id) = tokenize(file, &module_path)?;
     let ast = parse(tokens)?;
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
 
-    compiler::compile(context, module, builder, &ast, &mut mod_compilation_context)?;
+    compiler::compile_stmts(
+        context,
+        module,
+        builder,
+        &ast.0,
+        &mut mod_compilation_context,
+    )?;
     // Compile module
 
     create_module(
         context,
-        module,
         module_name,
         compilation_context,
         mod_compilation_context,
@@ -114,7 +119,6 @@ fn compile_evsc_module<'ctx>(
 
 pub fn create_module<'ctx, 'mctx>(
     context: &'ctx Context,
-    module: &Module<'ctx>,
     module_name: String,
     compilation_context: &mut CompilationContext<'ctx>,
     mod_compilation_context: CompilationContext<'mctx>,
@@ -160,14 +164,14 @@ where
 
     compilation_context.type_context.struct_defs.insert(
         module_name.clone(),
-        crate::intermediate::compiler::StructDef {
+        StructDef {
             llvm_type: struct_ty,
             field_indices,
             is_builtin: false,
         },
     );
 
-    let mut const_fields: Vec<inkwell::values::BasicValueEnum> = Vec::new();
+    let mut const_fields: Vec<BasicValueEnum> = Vec::new();
     for (name, _) in entries.iter() {
         let entry = mod_compilation_context
             .symbol_table
@@ -176,21 +180,10 @@ where
         const_fields.push(entry.value.value);
     }
 
-    let const_struct = context.const_struct(&const_fields, false);
+    let const_struct = struct_ty.const_named_struct(&const_fields);
     // Create module struct
 
-    // Instantiate module struct
-    let gv = module.add_global(struct_ty, None, &format!("inst_{module_name}"));
-    gv.set_initializer(&const_struct);
-    gv.set_linkage(Linkage::Private);
-    gv.set_constant(true);
-
-    let gv_ptr = gv.as_pointer_value().as_basic_value_enum();
-    Ok(SmartValue::from_pointer(
-        gv_ptr,
-        struct_ty.as_basic_type_enum(),
-    ))
-    // Instantiate module struct
+    Ok(SmartValue::from_value(const_struct.as_basic_value_enum()))
 }
 
 enum ModuleType {

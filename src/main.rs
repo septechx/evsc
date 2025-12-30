@@ -2,12 +2,12 @@ pub mod ast;
 pub mod backend;
 pub mod bindings;
 pub mod cli;
+pub mod codegen;
 pub mod errors;
-pub mod intermediate;
 pub mod lexer;
 pub mod macros;
 pub mod parser;
-pub mod typecheck;
+pub mod span;
 
 use std::{
     cell::RefCell,
@@ -30,21 +30,16 @@ use crate::{
         },
     },
     cli::{Cli, OptLevel},
+    codegen::{CompileOptions, EmitType},
     errors::{ErrorCollector, builders},
-    intermediate::{CompileOptions, EmitType},
     lexer::tokenize,
     parser::parse,
-    typecheck::TypeChecker,
+    span::sourcemaps::SourceMapManager,
 };
 
-pub struct ErrorState {
-    pub collector: RefCell<ErrorCollector>,
-}
-
 thread_local! {
-    pub static ERRORS: ErrorState = ErrorState {
-        collector: RefCell::new(ErrorCollector::new()),
-    };
+    pub static ERRORS: RefCell<ErrorCollector> = RefCell::new(ErrorCollector::new());
+    pub static SOURCE_MAPS: RefCell<SourceMapManager> = RefCell::new(SourceMapManager::default());
 }
 
 pub fn main() -> Result<()> {
@@ -64,16 +59,16 @@ pub fn main() -> Result<()> {
     }
 
     ERRORS.with(|e| {
-        e.collector.borrow().print_all();
+        e.borrow().print_all();
     });
 
     Ok(())
 }
 
 fn check_for_errors() {
-    if ERRORS.with(|e| e.collector.borrow().has_errors()) {
+    if ERRORS.with(|e| e.borrow().has_errors()) {
         ERRORS.with(|e| {
-            e.collector.borrow().print_all();
+            e.borrow().print_all();
         });
         std::process::exit(1);
     }
@@ -158,30 +153,27 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
         linker_kind: PhantomData::<T>,
     };
 
-    let source_text = fs::read_to_string(&file_path);
-    if let Err(err) = source_text {
-        ERRORS.with(|e| {
-            e.collector.borrow_mut().add(builders::fatal(format!(
-                "Source file `{}` not found: {}",
-                file_path.display(),
-                err
-            )));
-        });
-        unreachable!();
-    }
-    let source_text = source_text.unwrap();
+    let source_text = match fs::read_to_string(&file_path) {
+        Err(err) => {
+            ERRORS.with(|e| {
+                e.borrow_mut().add(builders::fatal(format!(
+                    "Source file `{}` not found: {}",
+                    file_path.display(),
+                    err
+                )));
+            });
+            unreachable!();
+        }
+        Ok(source_text) => source_text,
+    };
 
-    let tokens = tokenize(source_text.clone(), &file_path)?;
+    let (tokens, _module_id) = tokenize(source_text, &file_path)?;
     check_for_errors();
 
-    let ast = parse(tokens.clone())?;
+    let ast = parse(tokens)?;
     check_for_errors();
 
-    let typechecker = TypeChecker::new(file_path.clone(), tokens);
-    typechecker.check(&ast.body);
-    check_for_errors();
-
-    intermediate::compile(ast, &opts)?;
+    codegen::compile(ast, &opts)?;
     check_for_errors();
 
     if cli.files.len() > 1 {

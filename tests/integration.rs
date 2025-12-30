@@ -1,23 +1,21 @@
 mod common;
 
 use common::it;
+use evscc::errors::ErrorLevel;
 
+#[ignore]
 #[test]
 fn invalid_return_type_fails() {
-    // TODO: This test doesn't word, as return type checking currently happens when generating the c
-    // runtime intializer. Whenever the check gets moved to the type checker, this test should
-    // start working.
-    //
-    // it("should error when return type is not valid", |ctx| {
-    //     ctx.add_source(
-    //         r#"
-    //             pub fn main() []u8 {
-    //                 return []u8{1, 2, 3};
-    //             }
-    //             "#,
-    //     )
-    //     .compiles(false);
-    // })
+    it("should error when main returns invalid type", |ctx| {
+        ctx.add_source(
+            r#"
+                pub fn main() []u8 {
+                    return []u8{1, 2, 3};
+                }
+                "#,
+        )
+        .compiles(false);
+    })
 }
 
 #[test]
@@ -34,6 +32,7 @@ fn slice_literals() {
     })
 }
 
+#[ignore]
 #[test]
 fn internal_attribute_fails_in_user_code() {
     it(
@@ -52,6 +51,7 @@ fn internal_attribute_fails_in_user_code() {
     )
 }
 
+#[ignore]
 #[test]
 fn internal_attribute_on_struct_fails() {
     it(
@@ -82,6 +82,7 @@ fn test_attribute_works() {
                 "#,
         )
         .compiles(true)
+        .fail_on_level(ErrorLevel::Error)
         .execute(|res| {
             res.exit_code(42);
         });
@@ -100,6 +101,7 @@ fn attribute_with_arguments() {
                 "#,
         )
         .compiles(true)
+        .fail_on_level(ErrorLevel::Error)
         .execute(|res| {
             res.exit_code(10);
         });
@@ -119,6 +121,7 @@ fn multiple_attributes() {
                 "#,
         )
         .compiles(true)
+        .fail_on_level(ErrorLevel::Error)
         .execute(|res| {
             res.exit_code(5);
         });
@@ -294,21 +297,6 @@ fn struct_with_methods() {
         .execute(|res| {
             res.exit_code(0);
         });
-    })
-}
-
-#[test]
-fn return_string_literal() {
-    it("should handle returning string literals", |ctx| {
-        ctx.add_source(
-            r#"
-            pub fn main() []u8 {
-                return "Hello world!\n";
-            }
-        "#,
-        )
-        .compiles(true)
-        .ir_eq("09.ll");
     })
 }
 

@@ -8,7 +8,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::expressions::FunctionCallExpr,
-    intermediate::{
+    codegen::{
         compiler::{CompilationContext, StructDef},
         pointer::SmartValue,
     },

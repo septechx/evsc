@@ -15,17 +15,18 @@ use inkwell::{
 
 use crate::{
     ast::{
-        Statement, Type,
+        Stmt, StmtKind, Type,
         statements::{
             BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt,
         },
     },
     bindings::llvm_bindings::create_named_struct,
-    intermediate::{
+    codegen::{
         builtin::Builtin,
         compile_expr::compile_expression_to_value,
         compile_type::{compile_function_type, compile_type},
-        pointer::{SmartValue, get_value},
+        inkwell_ext::add_global_constant,
+        pointer::SmartValue,
     },
 };
 
@@ -53,6 +54,7 @@ impl<'ctx> From<FunctionTableEntry<'ctx>> for FunctionValue<'ctx> {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct SymbolTableEntry<'ctx> {
     pub value: SmartValue<'ctx>,
@@ -117,27 +119,25 @@ impl<'ctx> CompilationContext<'ctx> {
     }
 }
 
-pub fn compile<'a, 'ctx>(
+pub fn compile_stmts<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    ast: &BlockStmt,
+    stmts: &[Stmt],
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let body = &ast.body;
-
     // 1st pass: Declare functions and structs
-    for stmt in body {
-        match stmt {
-            Statement::FnDecl(fn_decl) => {
+    for stmt in stmts {
+        match &stmt.kind {
+            StmtKind::FnDecl(fn_decl) => {
                 let param_types: Vec<Type> = fn_decl
                     .arguments
                     .iter()
-                    .map(|arg| arg.explicit_type.clone().unwrap())
+                    .map(|arg| arg.type_.clone())
                     .collect();
                 let fn_type = compile_function_type(
                     context,
-                    &fn_decl.explicit_type,
+                    &fn_decl.return_type,
                     &param_types,
                     compilation_context,
                 )?;
@@ -147,7 +147,7 @@ pub fn compile<'a, 'ctx>(
                     .function_table
                     .insert(fn_decl.name.clone(), function.into());
             }
-            Statement::StructDecl(struct_decl) => {
+            StmtKind::StructDecl(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
             }
             _ => (),
@@ -155,9 +155,9 @@ pub fn compile<'a, 'ctx>(
     }
 
     // 2nd pass: Compile block
-    for stmt in body {
-        match stmt {
-            Statement::FnDecl(fn_decl) => {
+    for stmt in stmts {
+        match &stmt.kind {
+            StmtKind::FnDecl(fn_decl) => {
                 if let Some(function) = compilation_context.function_table.get(&fn_decl.name) {
                     compile_function(
                         context,
@@ -168,26 +168,27 @@ pub fn compile<'a, 'ctx>(
                     )?;
                 }
             }
-            Statement::Return(ret_stmt) => {
+            StmtKind::Return(ret_stmt) => {
                 compile_return(context, module, builder, ret_stmt, compilation_context)?;
             }
-            Statement::Expression(expr_stmt) => {
+            StmtKind::Expression(expr_stmt) => {
                 compile_expression(context, module, builder, expr_stmt, compilation_context)?;
             }
-            Statement::VarDecl(var_decl) => {
+            StmtKind::VarDecl(var_decl) => {
                 compile_var_decl(context, module, builder, var_decl, compilation_context)?;
             }
-            Statement::Block(block) => {
+            StmtKind::Block(block) => {
                 let mut inner_compilation_context = compilation_context.clone();
-                compile(
+                compile_stmts(
                     context,
                     module,
                     builder,
-                    block,
+                    &block.body,
                     &mut inner_compilation_context,
                 )?;
             }
-            Statement::StructDecl(_) => (), // Structs are compiled during the first pass
+            StmtKind::StructDecl(_) => (), // Structs are compiled during the first pass
+            StmtKind::InterfaceDecl(_) => todo!(),
         }
     }
 
@@ -248,11 +249,11 @@ fn compile_function<'ctx>(
     let mut inner_compilation_context = compilation_context.clone();
     inner_compilation_context.symbol_table.extend(symbol_table);
 
-    compile(
+    compile_stmts(
         context,
         module,
         &builder,
-        &body,
+        &body.body,
         &mut inner_compilation_context,
     )?;
 
@@ -290,7 +291,7 @@ fn compile_return<'ctx>(
     if let Some(expr) = &ret_stmt.value {
         let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
 
-        let ret_val = get_value(builder, &ret)?;
+        let ret_val = ret.unwrap(builder)?;
 
         builder.build_return(Some(&ret_val))?;
     } else {
@@ -330,14 +331,11 @@ fn compile_var_decl<'a, 'ctx>(
         bail!("Variable must have an initial value");
     };
 
+    let value = value.unwrap(builder)?;
+
     if var_decl.is_static {
-        let value = get_value(builder, &value)?;
-
-        let gv = module.add_global(value.get_type(), None, &var_decl.variable_name);
-        gv.set_initializer(&value.get_type().const_zero());
+        let gv = add_global_constant(module, value.get_type(), &var_decl.variable_name, value)?;
         gv.set_linkage(Linkage::Private);
-
-        builder.build_store(gv.as_pointer_value(), value)?;
 
         compilation_context.symbol_table.insert(
             var_decl.variable_name.clone(),
@@ -350,8 +348,6 @@ fn compile_var_decl<'a, 'ctx>(
 
         return Ok(());
     }
-
-    let value = get_value(builder, &value)?;
 
     let alloca = builder.build_alloca(value.get_type(), &var_decl.variable_name)?;
     builder.build_store(alloca, value)?;
@@ -374,7 +370,7 @@ fn compile_struct_decl<'ctx>(
     let mut field_indices = HashMap::new();
 
     for (index, property) in struct_decl.properties.iter().enumerate() {
-        let field_ty = compile_type(context, &property.explicit_type, compilation_context)?;
+        let field_ty = compile_type(context, &property.type_, compilation_context)?;
         field_types.push(field_ty);
         field_indices.insert(property.name.clone(), index as u32);
     }
@@ -386,11 +382,11 @@ fn compile_struct_decl<'ctx>(
         let param_types: Vec<Type> = method
             .arguments
             .iter()
-            .map(|arg| arg.explicit_type.clone().unwrap())
+            .map(|arg| arg.type_.clone())
             .collect();
         let fn_type = compile_function_type(
             context,
-            &method.explicit_type,
+            &method.return_type,
             &param_types,
             compilation_context,
         )?;

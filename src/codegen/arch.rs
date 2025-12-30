@@ -11,7 +11,7 @@ pub fn is_64() -> bool {
         }
         _ => {
             crate::ERRORS.with(|e| {
-                e.collector.borrow_mut().add(builders::fatal(format!(
+                e.borrow_mut().add(builders::fatal(format!(
                     "Unknown architecture `{}`",
                     std::env::consts::ARCH
                 )));

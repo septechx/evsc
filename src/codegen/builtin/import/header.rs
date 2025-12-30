@@ -1,19 +1,21 @@
 use anyhow::{Result, anyhow};
-use clang::{Clang, EntityKind, Index};
+use clang::{Clang, EntityKind, Index, source::SourceLocation};
 use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        Statement, Type,
-        statements::{BlockStmt, FnArgument, FnDeclStmt},
+        Ast, NodeId, Stmt, StmtKind, Type,
+        statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
     },
-    intermediate::{
+    codegen::{
         builtin::import::create_module,
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
+    span::{ModuleId, Span},
 };
+use std::fs;
 
 pub fn compile_header<'ctx>(
     context: &'ctx Context,
@@ -32,47 +34,57 @@ pub fn compile_header<'ctx>(
     let index = Index::new(&clang, false, false);
     let tu = index.parser(module_path.clone()).parse()?;
 
-    let mut functions: Vec<FnDeclStmt> = Vec::new();
+    let mut ast: Vec<Stmt> = Vec::new();
 
-    for e in tu.get_entity().get_children() {
+    for (i, e) in tu.get_entity().get_children().iter().enumerate() {
         if e.get_kind() == EntityKind::FunctionDecl {
             let name = parse_function_name(e.get_display_name().expect("function has no name"))
                 .expect("function has no name");
             let ty = parse_function_type(e.get_type().expect("function has no type"))?;
 
             let arguments =
-                ty.1.iter()
+                ty.1.into_iter()
                     .enumerate()
                     .map(|(i, arg)| FnArgument {
                         name: format!("arg{}", i),
-                        explicit_type: Some(arg.clone()),
+                        type_: arg,
                     })
                     .collect::<Vec<_>>();
 
-            let stmt = FnDeclStmt {
-                name,
-                arguments,
-                body: Vec::new(),
-                explicit_type: ty.0,
-                is_public: true,
-                is_extern: true,
-                attributes: Vec::new(),
+            let location = e.get_location().expect("function has no location");
+            let (span, _module_id) = convert_clang_location(location);
+
+            let stmt = Stmt {
+                kind: StmtKind::FnDecl(FnDeclStmt {
+                    name,
+                    arguments,
+                    body: Vec::new(),
+                    return_type: ty.0,
+                    is_public: true,
+                    is_extern: true,
+                    attributes: Vec::new(),
+                }),
+                id: NodeId(i),
+                span,
             };
 
-            functions.push(stmt);
+            ast.push(stmt);
         }
     }
 
-    let ast = BlockStmt {
-        body: functions.into_iter().map(Statement::FnDecl).collect(),
-    };
+    let ast = Ast(ast);
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
-    compiler::compile(context, module, builder, &ast, &mut mod_compilation_context)?;
+    compiler::compile_stmts(
+        context,
+        module,
+        builder,
+        &ast.0,
+        &mut mod_compilation_context,
+    )?;
 
     create_module(
         context,
-        module,
         module_name,
         compilation_context,
         mod_compilation_context,
@@ -106,6 +118,7 @@ fn parse_type(ty: &str) -> Type {
 fn map_c_type(ty: &str) -> &str {
     match ty {
         "void" => "void",
+        "bool" => "bool",
         "char" => "i8",
         "short" => "i16",
         "int" => "i32",
@@ -120,4 +133,21 @@ fn map_c_type(ty: &str) -> &str {
         "double" => "f64",
         sym => sym,
     }
+}
+
+fn convert_clang_location(location: SourceLocation) -> (Span, ModuleId) {
+    let loc = location.get_file_location();
+    let clang_file = loc.file.expect("file location has no file").get_path();
+    let file_path = clang_file.clone();
+
+    let module_id = crate::SOURCE_MAPS.with(|sm| {
+        let mut maps = sm.borrow_mut();
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            maps.add_source(content, file_path)
+        } else {
+            ModuleId(0)
+        }
+    });
+
+    (Span::new(loc.offset, loc.offset + 1), module_id)
 }

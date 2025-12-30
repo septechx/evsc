@@ -4,6 +4,7 @@ mod compile_expr;
 mod compile_type;
 mod compiler;
 mod emmiter;
+mod inkwell_ext;
 mod pointer;
 mod runtime;
 
@@ -28,13 +29,14 @@ use inkwell::{
 };
 
 use crate::{
-    ast::statements::BlockStmt,
+    ast::Ast,
     backend::{
         BackendOptions, build_assembly_file, build_object_file,
         linker::{Linker, link_object_files},
     },
-    intermediate::{
-        compiler::{CompilationContext, compile as compile_ast},
+    check_for_errors,
+    codegen::{
+        compiler::{CompilationContext, compile_stmts},
         emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
@@ -62,7 +64,7 @@ pub enum EmitType {
     Executable,
 }
 
-pub fn compile<T: Linker>(ast: BlockStmt, opts: &CompileOptions<T>) -> Result<()> {
+pub fn compile<T: Linker>(ast: Ast, opts: &CompileOptions<T>) -> Result<()> {
     let context = Context::create();
     let module = context.create_module(opts.module_name);
     let builder = context.create_builder();
@@ -70,12 +72,10 @@ pub fn compile<T: Linker>(ast: BlockStmt, opts: &CompileOptions<T>) -> Result<()
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name));
 
     let init_fn = setup_module(&context, &module, &builder)?;
-    compile_ast(&context, &module, &builder, &ast, &mut cc)?;
+    compile_stmts(&context, &module, &builder, &ast.0, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
-    if crate::ERRORS.with(|e| e.collector.borrow().has_errors()) {
-        return Err(anyhow::anyhow!("Type checking failed"));
-    }
+    check_for_errors();
 
     if *opts.emit == EmitType::Executable {
         generate_c_runtime_integration(&context, &module, &builder)?;

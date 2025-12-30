@@ -6,17 +6,11 @@ mod string;
 pub mod types;
 mod utils;
 
-use std::sync::atomic::Ordering;
-
 use crate::{
     ast::{Ast, Expr, ExprKind, NodeId, Stmt, StmtKind},
     errors::{CodeLine, CodeType, builders},
     lexer::token::{Token, TokenKind, TokenStream},
-    parser::{
-        lookups::{LOOKUPS_INITIALIZED, create_token_lookups},
-        stmt::parse_stmt,
-        types::create_token_type_lookups,
-    },
+    parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
     span::Span,
 };
 
@@ -131,11 +125,8 @@ impl Parser {
 }
 
 pub fn parse(tokens: TokenStream) -> Result<Ast> {
-    if !LOOKUPS_INITIALIZED.load(Ordering::Relaxed) {
-        create_token_lookups();
-        create_token_type_lookups();
-        LOOKUPS_INITIALIZED.store(true, Ordering::Relaxed);
-    }
+    create_token_lookups();
+    create_token_type_lookups();
 
     let mut body: Vec<Stmt> = vec![];
     let mut parser = Parser::new(tokens);

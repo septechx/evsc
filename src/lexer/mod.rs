@@ -1,7 +1,7 @@
 pub mod token;
 pub mod verify;
 
-use std::path::Path;
+use std::{path::Path, sync::OnceLock};
 
 use crate::{
     lexer::{
@@ -11,7 +11,7 @@ use crate::{
     span::{ModuleId, Span},
 };
 use anyhow::Result;
-use lazy_static::lazy_static;
+use parking_lot::Once;
 use regex::Regex;
 
 type TokenHandler = Box<dyn Fn(&str, Span) -> Result<Option<Token>> + Send + Sync>;
@@ -53,7 +53,8 @@ impl Lexer {
             let mut match_len = 0;
             let current_pos = self.pos;
 
-            for handler in REGEXES.iter() {
+            let regexes = REGEXES.get().expect("Regexes not initialized");
+            for handler in regexes.iter() {
                 if let Some(mat) = handler.regex.find(remaining)
                     && mat.start() == 0
                 {
@@ -92,6 +93,8 @@ impl Lexer {
 }
 
 pub fn tokenize(file: String, path: &Path) -> Result<(TokenStream, ModuleId)> {
+    initialize_regexes();
+
     let module_id = crate::SOURCE_MAPS.with(|sm| {
         let mut maps = sm.borrow_mut();
         maps.add_source(file.clone(), path.to_path_buf())
@@ -174,53 +177,59 @@ macro_rules! regex_handler {
     };
 }
 
-use TokenKind as T;
-lazy_static! {
-    static ref REGEXES: Vec<RegexHandler> = vec![
-        // Skip
-        regex_handler!(r"^\s+", skip_handler()),
-        regex_handler!(r"^//[^\n]*", skip_handler()),
-        // Multi-char
-        regex_handler!(r"^->", def T::Arrow),
-        regex_handler!(r"^&&", def T::And),
-        regex_handler!(r"^\|\|", def T::Or),
-        regex_handler!(r"^\.\.", def T::DotDot),
-        regex_handler!(r"^<=", def T::LessEquals),
-        regex_handler!(r"^>=", def T::MoreEquals),
-        regex_handler!(r"^==", def T::EqualsEquals),
-        regex_handler!(r"^!=", def T::NotEquals),
-        regex_handler!(r"^\+=", def T::PlusEquals),
-        regex_handler!(r"^-=", def T::MinusEquals),
-        regex_handler!(r"^\*=", def T::StarEquals),
-        regex_handler!(r"^/=", def T::SlashEquals),
-        regex_handler!(r"^%=", def T::PercentEquals),
-        // Lit & Ident
-        regex_handler!(r#"^"[^"]*""#, string_literal_handler()),
-        regex_handler!(r"^[0-9]+(\.[0-9]+)?", number_handler()),
-        regex_handler!(r"^[@]?[a-zA-Z_][a-zA-Z0-9_]*", identifier_handler()),
-        // Single-char
-        regex_handler!(r"^;", def T::Semicolon),
-        regex_handler!(r"^&", def T::Reference),
-        regex_handler!(r"^\+", def T::Plus),
-        regex_handler!(r"^\-", def T::Dash),
-        regex_handler!(r"^\*", def T::Star),
-        regex_handler!(r"^/", def T::Slash),
-        regex_handler!(r"^%", def T::Percent),
-        regex_handler!(r"^\|", def T::Pipe),
-        regex_handler!(r"^:", def T::Colon),
-        regex_handler!(r"^\{", def T::OpenCurly),
-        regex_handler!(r"^\}", def T::CloseCurly),
-        regex_handler!(r"^\(", def T::OpenParen),
-        regex_handler!(r"^\)", def T::CloseParen),
-        regex_handler!(r"^\.", def T::Dot),
-        regex_handler!(r"^=", def T::Equals),
-        regex_handler!(r"^_", def T::Underscore),
-        regex_handler!(r"^\[", def T::OpenBracket),
-        regex_handler!(r"^\]", def T::CloseBracket),
-        regex_handler!(r"^,", def T::Comma),
-        regex_handler!(r"^#", def T::Hash),
-        regex_handler!(r"^>", def T::More),
-        regex_handler!(r"^<", def T::Less),
-        regex_handler!(r"^\$", def T::Dollar),
-    ];
+static INITIALIZE: Once = Once::new();
+static REGEXES: OnceLock<Vec<RegexHandler>> = OnceLock::new();
+
+fn initialize_regexes() {
+    INITIALIZE.call_once(|| {
+        use TokenKind as T;
+        let regexes = vec![
+            // Skip
+            regex_handler!(r"^\s+", skip_handler()),
+            regex_handler!(r"^//[^\n]*", skip_handler()),
+            // Multi-char
+            regex_handler!(r"^->", def T::Arrow),
+            regex_handler!(r"^&&", def T::And),
+            regex_handler!(r"^\|\|", def T::Or),
+            regex_handler!(r"^\.\.", def T::DotDot),
+            regex_handler!(r"^<=", def T::LessEquals),
+            regex_handler!(r"^>=", def T::MoreEquals),
+            regex_handler!(r"^==", def T::EqualsEquals),
+            regex_handler!(r"^!=", def T::NotEquals),
+            regex_handler!(r"^\+=", def T::PlusEquals),
+            regex_handler!(r"^-=", def T::MinusEquals),
+            regex_handler!(r"^\*=", def T::StarEquals),
+            regex_handler!(r"^/=", def T::SlashEquals),
+            regex_handler!(r"^%=", def T::PercentEquals),
+            // Lit & Ident
+            regex_handler!(r#"^"[^"]*""#, string_literal_handler()),
+            regex_handler!(r"^[0-9]+(\.[0-9]+)?", number_handler()),
+            regex_handler!(r"^[@]?[a-zA-Z_][a-zA-Z0-9_]*", identifier_handler()),
+            // Single-char
+            regex_handler!(r"^;", def T::Semicolon),
+            regex_handler!(r"^&", def T::Reference),
+            regex_handler!(r"^\+", def T::Plus),
+            regex_handler!(r"^\-", def T::Dash),
+            regex_handler!(r"^\*", def T::Star),
+            regex_handler!(r"^/", def T::Slash),
+            regex_handler!(r"^%", def T::Percent),
+            regex_handler!(r"^\|", def T::Pipe),
+            regex_handler!(r"^:", def T::Colon),
+            regex_handler!(r"^\{", def T::OpenCurly),
+            regex_handler!(r"^\}", def T::CloseCurly),
+            regex_handler!(r"^\(", def T::OpenParen),
+            regex_handler!(r"^\)", def T::CloseParen),
+            regex_handler!(r"^\.", def T::Dot),
+            regex_handler!(r"^=", def T::Equals),
+            regex_handler!(r"^_", def T::Underscore),
+            regex_handler!(r"^\[", def T::OpenBracket),
+            regex_handler!(r"^\]", def T::CloseBracket),
+            regex_handler!(r"^,", def T::Comma),
+            regex_handler!(r"^#", def T::Hash),
+            regex_handler!(r"^>", def T::More),
+            regex_handler!(r"^<", def T::Less),
+            regex_handler!(r"^\$", def T::Dollar),
+        ];
+        let _ = REGEXES.set(regexes);
+    });
 }

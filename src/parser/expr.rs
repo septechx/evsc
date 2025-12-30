@@ -26,38 +26,33 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expr> {
     let token = parser.current_token();
     let start_span = token.span;
 
-    let nud_fn = {
-        let nud_lu = NUD_LU.lock();
-        nud_lu
-            .get(&token.kind)
-            .cloned()
-            .unwrap_or_else(|| unexpected_token(token.clone()))
-    };
+    let bp_lu = BP_LU.get().expect("Lookups not initialized");
+    let nud_lu = NUD_LU.get().expect("Lookups not initialized");
+    let led_lu = LED_LU.get().expect("Lookups not initialized");
+
+    let nud_fn = nud_lu
+        .get(&token.kind)
+        .cloned()
+        .unwrap_or_else(|| unexpected_token(token.clone()));
 
     let mut left = nud_fn(parser)?;
 
     let mut end_span = left.span;
 
     loop {
-        let current_bp = {
-            let bp_lu = BP_LU.lock();
-            *bp_lu
-                .get(&parser.current_token().kind)
-                .unwrap_or(&BindingPower::DefaultBp)
-        };
+        let current_bp = *bp_lu
+            .get(&parser.current_token().kind)
+            .unwrap_or(&BindingPower::DefaultBp);
 
         if current_bp <= bp {
             break;
         }
 
         let token_kind = parser.current_token();
-        let led_fn = {
-            let led_lu = LED_LU.lock();
-            led_lu
-                .get(&token_kind.kind)
-                .cloned()
-                .unwrap_or_else(|| unexpected_token(token_kind.clone()))
-        };
+        let led_fn = led_lu
+            .get(&token_kind.kind)
+            .cloned()
+            .unwrap_or_else(|| unexpected_token(token_kind.clone()));
 
         left = led_fn(parser, left.clone(), current_bp)?;
         end_span = Span::new(start_span.start(), parser.current_token().span.end());

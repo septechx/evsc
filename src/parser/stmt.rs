@@ -27,10 +27,9 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
 }
 
 fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
-    let stmt_fn = {
-        let stmt_lu = STMT_LU.lock();
-        stmt_lu.get(&parser.current_token().kind).cloned()
-    };
+    let stmt_lu = STMT_LU.get().expect("Lookups not initialized");
+
+    let stmt_fn = stmt_lu.get(&parser.current_token().kind).cloned();
 
     if let Some(stmt_fn) = stmt_fn {
         stmt_fn(parser, attributes)

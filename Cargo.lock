@@ -173,7 +173,6 @@ dependencies = [
  "clap",
  "colored",
  "inkwell",
- "lazy_static",
  "parking_lot",
  "regex",
  "similar",

@@ -1,7 +1,7 @@
-use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
+    sync::OnceLock,
 };
 
 use crate::span::{ModuleId, Span};
@@ -94,33 +94,33 @@ pub enum TokenKind {
     Illegal,
 }
 
-use TokenKind as T;
-lazy_static! {
-    static ref RESERVED_KEYWORDS: HashMap<&'static str, TokenKind> = {
-        let mut m = HashMap::new();
-        m.insert("true", T::True);
-        m.insert("false", T::False);
-        m.insert("let", T::Let);
-        m.insert("struct", T::Struct);
-        m.insert("fn", T::Fn);
-        m.insert("return", T::Return);
-        m.insert("pub", T::Pub);
-        m.insert("static", T::Static);
-        m.insert("mut", T::Mut);
-        m.insert("extern", T::Extern);
-        m.insert("interface", T::Interface);
-        m
-    };
-}
+static RESERVED_KEYWORDS: OnceLock<HashMap<&'static str, TokenKind>> = OnceLock::new();
 
 impl Token {
     pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
-        RESERVED_KEYWORDS.get(ident).cloned()
+        let lu = RESERVED_KEYWORDS.get_or_init(|| {
+            use TokenKind as T;
+            let mut m = HashMap::new();
+            m.insert("true", T::True);
+            m.insert("false", T::False);
+            m.insert("let", T::Let);
+            m.insert("struct", T::Struct);
+            m.insert("fn", T::Fn);
+            m.insert("return", T::Return);
+            m.insert("pub", T::Pub);
+            m.insert("static", T::Static);
+            m.insert("mut", T::Mut);
+            m.insert("extern", T::Extern);
+            m.insert("interface", T::Interface);
+            m
+        });
+        lu.get(ident).cloned()
     }
 }
 
 impl Display for TokenKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use TokenKind as T;
         match self {
             T::Let => write!(f, "let"),
             T::True => write!(f, "true"),

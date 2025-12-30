@@ -8,7 +8,7 @@ pub mod types;
 use colored::Colorize;
 
 use crate::{
-    ast::{Ast, Statement, statements::BlockStmt},
+    ast::{Ast, Expr, ExprKind, NodeId, Stmt, StmtKind},
     lexer::token::{Token, TokenKind, TokenStream},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
 };
@@ -18,6 +18,7 @@ use anyhow::{Result, bail};
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    cur_node_id: usize,
 }
 
 impl Parser {
@@ -25,7 +26,27 @@ impl Parser {
         Parser {
             tokens: tokens.0,
             pos: 0,
+            cur_node_id: 0,
         }
+    }
+
+    pub fn stmt(&mut self, kind: StmtKind) -> Stmt {
+        Stmt {
+            id: self.next_id(),
+            kind,
+        }
+    }
+
+    pub fn expr(&mut self, kind: ExprKind) -> Expr {
+        Expr {
+            id: self.next_id(),
+            kind,
+        }
+    }
+
+    pub fn next_id(&mut self) -> NodeId {
+        self.cur_node_id += 1;
+        NodeId(self.cur_node_id)
     }
 
     pub fn tokens(&self) -> &[Token] {
@@ -81,7 +102,7 @@ pub fn parse(tokens: TokenStream) -> Result<Ast> {
     create_token_lookups();
     create_token_type_lookups();
 
-    let mut body: Vec<Statement> = vec![];
+    let mut body: Vec<Stmt> = vec![];
     let mut parser = Parser::new(tokens);
 
     while parser.has_tokens() {

@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::{
     ast::{
-        Expression,
+        Expr, ExprKind,
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FixedArrayLiteralExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr,
@@ -41,7 +41,7 @@ fn handle_unexpected_token(parser: &mut Parser, token: Token) -> ! {
     unreachable!()
 }
 
-pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
+pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expr> {
     let token = parser.current_token();
 
     let nud_fn = {
@@ -81,24 +81,24 @@ pub fn parse_expr(parser: &mut Parser, bp: BindingPower) -> Result<Expression> {
     Ok(left)
 }
 
-pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
+pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
     let value = parser.current_token().value.clone();
     match parser.current_token().kind {
         TokenKind::Number => {
             parser.advance();
-            Ok(Expression::Number(NumberExpr {
+            Ok(parser.expr(ExprKind::Number(NumberExpr {
                 value: value.parse::<i32>()?,
-            }))
+            })))
         }
         TokenKind::StringLiteral => {
             let token = parser.advance();
-            Ok(Expression::String(StringExpr {
+            Ok(parser.expr(ExprKind::String(StringExpr {
                 value: process_string(&value, token.location, parser.tokens()),
-            }))
+            })))
         }
         TokenKind::Identifier => {
             parser.advance();
-            Ok(Expression::Symbol(SymbolExpr { value }))
+            Ok(parser.expr(ExprKind::Symbol(SymbolExpr { value })))
         }
         _ => bail!(
             format!(
@@ -111,47 +111,43 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expression> {
     }
 }
 
-pub fn parse_binary_expr(
-    parser: &mut Parser,
-    left: Expression,
-    bp: BindingPower,
-) -> Result<Expression> {
+pub fn parse_binary_expr(parser: &mut Parser, left: Expr, bp: BindingPower) -> Result<Expr> {
     let operator = parser.advance();
     let right = parse_expr(parser, bp)?;
 
-    Ok(Expression::Binary(BinaryExpr {
+    Ok(parser.expr(ExprKind::Binary(BinaryExpr {
         left: Box::new(left),
         operator,
         right: Box::new(right),
-    }))
+    })))
 }
 
-pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expression> {
+pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expr> {
     let operator = parser.advance();
     let right = parse_expr(parser, BindingPower::DefaultBp)?;
 
-    Ok(Expression::Prefix(PrefixExpr {
+    Ok(parser.expr(ExprKind::Prefix(PrefixExpr {
         operator,
         right: Box::new(right),
-    }))
+    })))
 }
 
 pub fn parse_assignment_expr(
     parser: &mut Parser,
-    assigne: Expression,
+    assigne: Expr,
     _bp: BindingPower,
-) -> Result<Expression> {
+) -> Result<Expr> {
     let operator = parser.advance();
     let value = parse_expr(parser, BindingPower::Assignment)?;
 
-    Ok(Expression::Assignment(AssignmentExpr {
+    Ok(parser.expr(ExprKind::Assignment(AssignmentExpr {
         assigne: Box::new(assigne),
         operator,
         value: Box::new(value),
-    }))
+    })))
 }
 
-pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expression> {
+pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expr> {
     parser.advance();
     let expr = parse_expr(parser, BindingPower::DefaultBp)?;
     parser.expect(TokenKind::CloseParen)?;
@@ -161,17 +157,17 @@ pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expression> {
 
 pub fn parse_struct_instantiation_expr(
     parser: &mut Parser,
-    name_expr: Expression,
+    name_expr: Expr,
     _bp: BindingPower,
-) -> Result<Expression> {
+) -> Result<Expr> {
     parser.advance();
 
-    let name = match name_expr {
-        Expression::Symbol(symbol_expr) => symbol_expr.value,
+    let name = match name_expr.kind {
+        ExprKind::Symbol(symbol_expr) => symbol_expr.value,
         _ => return Err(anyhow!("Expected struct name to be a symbol")),
     };
 
-    let mut properties: HashMap<String, Expression> = HashMap::new();
+    let mut properties: HashMap<String, Expr> = HashMap::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {
@@ -194,20 +190,22 @@ pub fn parse_struct_instantiation_expr(
         parser.expect(TokenKind::Comma)?;
     }
 
-    Ok(Expression::StructInstantiation(StructInstantiationExpr {
-        name,
-        properties,
-    }))
+    Ok(
+        parser.expr(ExprKind::StructInstantiation(StructInstantiationExpr {
+            name,
+            properties,
+        })),
+    )
 }
 
 pub fn parse_function_call_expr(
     parser: &mut Parser,
-    callee: Expression,
+    callee: Expr,
     _bp: BindingPower,
-) -> Result<Expression> {
+) -> Result<Expr> {
     parser.advance();
 
-    let mut arguments: Vec<Expression> = Vec::new();
+    let mut arguments: Vec<Expr> = Vec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
@@ -227,13 +225,13 @@ pub fn parse_function_call_expr(
         parser.expect(TokenKind::Comma)?;
     }
 
-    Ok(Expression::FunctionCall(FunctionCallExpr {
+    Ok(parser.expr(ExprKind::FunctionCall(FunctionCallExpr {
         callee: Box::new(callee),
         arguments,
-    }))
+    })))
 }
 
-pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
+pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
     parser.advance();
 
     match parser.current_token().kind {
@@ -270,11 +268,13 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
                 );
             }
 
-            Ok(Expression::FixedArrayLiteral(FixedArrayLiteralExpr {
-                underlying,
-                length,
-                contents,
-            }))
+            Ok(
+                parser.expr(ExprKind::FixedArrayLiteral(FixedArrayLiteralExpr {
+                    underlying,
+                    length,
+                    contents,
+                })),
+            )
         }
         TokenKind::CloseBracket => {
             // Variable-length array
@@ -293,10 +293,10 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
             }
             parser.expect(TokenKind::CloseCurly)?;
 
-            Ok(Expression::ArrayLiteral(ArrayLiteralExpr {
+            Ok(parser.expr(ExprKind::ArrayLiteral(ArrayLiteralExpr {
                 underlying,
                 contents,
-            }))
+            })))
         }
         _ => Err(anyhow!(
             format!(
@@ -311,22 +311,22 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expression> {
 
 pub fn parse_member_access_expr(
     parser: &mut Parser,
-    base: Expression,
+    base: Expr,
     _bp: BindingPower,
-) -> Result<Expression> {
+) -> Result<Expr> {
     parser.expect(TokenKind::Dot)?;
     let member = SymbolExpr {
         value: parser.expect(TokenKind::Identifier)?.value,
     };
-    Ok(Expression::MemberAccess(MemberAccessExpr {
+    Ok(parser.expr(ExprKind::MemberAccess(MemberAccessExpr {
         base: Box::new(base),
         member,
-    }))
+    })))
 }
 
-pub fn parse_type_expr(parser: &mut Parser) -> Result<Expression> {
+pub fn parse_type_expr(parser: &mut Parser) -> Result<Expr> {
     parser.expect(TokenKind::Dollar)?;
 
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
-    Ok(Expression::Type(TypeExpr { underlying }))
+    Ok(parser.expr(ExprKind::Type(TypeExpr { underlying })))
 }

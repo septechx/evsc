@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, bail};
 use inkwell::{context::Context, types::BasicType, values::BasicValue};
 
 use crate::{
-    ast::{Expression, expressions::FunctionCallExpr},
+    ast::{ExprKind, expressions::FunctionCallExpr},
     codegen::{
         builtin::BuiltinFunction, compile_type::compile_type, compiler::CompilationContext,
         pointer::SmartValue,
@@ -20,8 +20,8 @@ impl BuiltinFunction for SizeofBuiltin {
         expr: &FunctionCallExpr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
-        let ty = match &expr.arguments[0] {
-            Expression::Type(ty) => ty.underlying.clone(),
+        let ty = match &expr.arguments[0].kind {
+            ExprKind::Type(ty) => ty.underlying.clone(),
             _ => bail!("First argument must be a type expression"),
         };
 

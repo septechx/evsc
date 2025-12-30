@@ -4,7 +4,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        Ast, Statement, Type,
+        Ast, NodeId, Stmt, StmtKind, Type,
         statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
     },
@@ -65,7 +65,14 @@ pub fn compile_header<'ctx>(
         }
     }
 
-    let ast = Ast(functions.into_iter().map(Statement::FnDecl).collect());
+    let ast = Ast(functions
+        .into_iter()
+        .enumerate()
+        .map(|(i, stmt)| Stmt {
+            kind: StmtKind::FnDecl(stmt),
+            id: NodeId(i),
+        })
+        .collect());
 
     let mut mod_compilation_context = CompilationContext::new(module_path);
     compiler::compile_stmts(

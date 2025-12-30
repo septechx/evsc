@@ -9,7 +9,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expression, Type, types::SliceType},
+    ast::{Expr, ExprKind, Type, types::SliceType},
     codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
@@ -24,17 +24,17 @@ pub fn compile_expression_to_value<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    expr: &Expression,
+    expr: &Expr,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<SmartValue<'ctx>> {
-    Ok(match expr {
-        Expression::Number(n) => SmartValue::from_value(
+    Ok(match &expr.kind {
+        ExprKind::Number(n) => SmartValue::from_value(
             context
                 .i32_type()
                 .const_int(n.value as u64, false)
                 .as_basic_value_enum(),
         ),
-        Expression::String(s) => {
+        ExprKind::String(s) => {
             let string_val = context.const_string(s.value.as_bytes(), false);
             let global = module.add_global(string_val.get_type(), None, "str");
             global.set_initializer(&string_val);
@@ -58,7 +58,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             SmartValue::from_value(slice_val.as_basic_value_enum())
         }
         // Returns a pointer
-        Expression::Symbol(sym) => {
+        ExprKind::Symbol(sym) => {
             let entry = compilation_context
                 .symbol_table
                 .get(&sym.value)
@@ -67,7 +67,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             entry.value
         }
-        Expression::Prefix(expr) => {
+        ExprKind::Prefix(expr) => {
             let right = compile_expression_to_value(
                 context,
                 module,
@@ -86,7 +86,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => unimplemented!(),
             }
         }
-        Expression::Binary(expr) => {
+        ExprKind::Binary(expr) => {
             let left = compile_expression_to_value(
                 context,
                 module,
@@ -139,8 +139,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => unimplemented!(),
             }
         }
-        Expression::FunctionCall(expr) => {
-            if let Expression::Symbol(sym) = expr.callee.as_ref()
+        ExprKind::FunctionCall(expr) => {
+            if let ExprKind::Symbol(sym) = &expr.callee.kind
                 && let Some(builtin) = sym.value.strip_prefix("@")
                 && let Some(builtin) = Builtin::from_str(builtin)
             {
@@ -195,7 +195,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
             )
         }
-        Expression::MemberAccess(expr) => {
+        ExprKind::MemberAccess(expr) => {
             let base = compile_expression_to_value(
                 context,
                 module,
@@ -252,7 +252,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 bail!("No such field or function: {}", expr.member.value);
             }
         }
-        Expression::StructInstantiation(expr) => {
+        ExprKind::StructInstantiation(expr) => {
             let struct_def = compilation_context
                 .type_context
                 .struct_defs
@@ -300,7 +300,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(val.as_basic_value_enum())
         }
-        Expression::ArrayLiteral(expr) => {
+        ExprKind::ArrayLiteral(expr) => {
             let element_ty = compile_type(context, &expr.underlying, compilation_context)?;
             let len = expr.contents.len();
 

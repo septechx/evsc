@@ -15,7 +15,7 @@ use inkwell::{
 
 use crate::{
     ast::{
-        Statement, Type,
+        Stmt, StmtKind, Type,
         statements::{
             BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt,
         },
@@ -123,13 +123,13 @@ pub fn compile_stmts<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    stmts: &[Statement],
+    stmts: &[Stmt],
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     // 1st pass: Declare functions and structs
     for stmt in stmts {
-        match stmt {
-            Statement::FnDecl(fn_decl) => {
+        match &stmt.kind {
+            StmtKind::FnDecl(fn_decl) => {
                 let param_types: Vec<Type> = fn_decl
                     .arguments
                     .iter()
@@ -147,7 +147,7 @@ pub fn compile_stmts<'a, 'ctx>(
                     .function_table
                     .insert(fn_decl.name.clone(), function.into());
             }
-            Statement::StructDecl(struct_decl) => {
+            StmtKind::StructDecl(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
             }
             _ => (),
@@ -156,8 +156,8 @@ pub fn compile_stmts<'a, 'ctx>(
 
     // 2nd pass: Compile block
     for stmt in stmts {
-        match stmt {
-            Statement::FnDecl(fn_decl) => {
+        match &stmt.kind {
+            StmtKind::FnDecl(fn_decl) => {
                 if let Some(function) = compilation_context.function_table.get(&fn_decl.name) {
                     compile_function(
                         context,
@@ -168,16 +168,16 @@ pub fn compile_stmts<'a, 'ctx>(
                     )?;
                 }
             }
-            Statement::Return(ret_stmt) => {
+            StmtKind::Return(ret_stmt) => {
                 compile_return(context, module, builder, ret_stmt, compilation_context)?;
             }
-            Statement::Expression(expr_stmt) => {
+            StmtKind::Expression(expr_stmt) => {
                 compile_expression(context, module, builder, expr_stmt, compilation_context)?;
             }
-            Statement::VarDecl(var_decl) => {
+            StmtKind::VarDecl(var_decl) => {
                 compile_var_decl(context, module, builder, var_decl, compilation_context)?;
             }
-            Statement::Block(block) => {
+            StmtKind::Block(block) => {
                 let mut inner_compilation_context = compilation_context.clone();
                 compile_stmts(
                     context,
@@ -187,8 +187,8 @@ pub fn compile_stmts<'a, 'ctx>(
                     &mut inner_compilation_context,
                 )?;
             }
-            Statement::StructDecl(_) => (), // Structs are compiled during the first pass
-            Statement::InterfaceDecl(_) => todo!(),
+            StmtKind::StructDecl(_) => (), // Structs are compiled during the first pass
+            StmtKind::InterfaceDecl(_) => todo!(),
         }
     }
 

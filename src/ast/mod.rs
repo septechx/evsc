@@ -9,7 +9,10 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Ast(pub Vec<Statement>);
+pub struct Ast(pub Vec<Stmt>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
@@ -19,7 +22,13 @@ pub struct Attribute {
 }
 
 #[derive(Debug, Clone)]
-pub enum Statement {
+pub struct Stmt {
+    pub kind: StmtKind,
+    pub id: NodeId,
+}
+
+#[derive(Debug, Clone)]
+pub enum StmtKind {
     Block(BlockStmt),
     Expression(ExpressionStmt),
     VarDecl(VarDeclStmt),
@@ -30,7 +39,13 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone)]
-pub enum Expression {
+pub struct Expr {
+    pub kind: ExprKind,
+    pub id: NodeId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprKind {
     Number(NumberExpr),
     String(StringExpr),
     Symbol(SymbolExpr),

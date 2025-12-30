@@ -9,7 +9,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expression, expressions::FunctionCallExpr},
+    ast::{ExprKind, expressions::FunctionCallExpr},
     codegen::{
         arch::compile_arch_size_type, builtin::BuiltinFunction,
         compile_expr::compile_expression_to_value, compiler::CompilationContext,
@@ -28,8 +28,8 @@ impl BuiltinFunction for AsmBuiltin {
         expr: &FunctionCallExpr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
-        let (asm_str, constraints) = match (&expr.arguments[0], &expr.arguments[1]) {
-            (Expression::String(asm), Expression::String(cons)) => (asm, cons),
+        let (asm_str, constraints) = match (&expr.arguments[0].kind, &expr.arguments[1].kind) {
+            (ExprKind::String(asm), ExprKind::String(cons)) => (asm, cons),
             _ => bail!("First two arguments must be string literals"),
         };
 

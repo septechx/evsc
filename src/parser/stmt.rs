@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use crate::{
     ast::{
-        Attribute, Expression, Statement, Type,
+        Attribute, Expr, Stmt, StmtKind, Type,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, InterfaceDeclStmt, InterfaceMethod, ReturnStmt,
             StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
@@ -20,12 +20,12 @@ use crate::{
     },
 };
 
-pub fn parse_stmt(parser: &mut Parser) -> Result<Statement> {
+pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
     let attributes = parse_attributes(parser)?;
     parse_stmt_with_attrs(parser, attributes)
 }
 
-fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Statement> {
+fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
     let stmt_fn = {
         let stmt_lu = STMT_LU.lock();
         stmt_lu.get(&parser.current_token().kind).cloned()
@@ -37,17 +37,14 @@ fn parse_stmt_with_attrs(parser: &mut Parser, attributes: Vec<Attribute>) -> Res
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
         parser.expect(TokenKind::Semicolon)?;
 
-        Ok(Statement::Expression(ExpressionStmt { expression }))
+        Ok(parser.stmt(StmtKind::Expression(ExpressionStmt { expression })))
     }
 }
 
-pub fn parse_var_decl_statement(
-    parser: &mut Parser,
-    _attributes: Vec<Attribute>,
-) -> Result<Statement> {
+pub fn parse_var_decl_statement(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
     let var_token = parser.advance();
     let mut explicit_type: Option<Type> = None;
-    let mut assigned_value: Option<Expression> = None;
+    let mut assigned_value: Option<Expr> = None;
 
     let is_static = match var_token.kind {
         TokenKind::Static => true,
@@ -99,20 +96,17 @@ pub fn parse_var_decl_statement(
         );
     }
 
-    Ok(Statement::VarDecl(VarDeclStmt {
+    Ok(parser.stmt(StmtKind::VarDecl(VarDeclStmt {
         explicit_type,
         is_constant,
         is_static,
         variable_name,
         assigned_value,
         location: var_token.location,
-    }))
+    })))
 }
 
-pub fn parse_struct_decl_stmt(
-    parser: &mut Parser,
-    attributes: Vec<Attribute>,
-) -> Result<Statement> {
+pub fn parse_struct_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
     let struct_token = parser.expect(TokenKind::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
     let mut methods: Vec<StructMethod> = Vec::new();
@@ -136,7 +130,7 @@ pub fn parse_struct_decl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let Statement::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])? {
+            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])?.kind {
                 methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
                         is_extern: false,
@@ -212,20 +206,17 @@ pub fn parse_struct_decl_stmt(
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(Statement::StructDecl(StructDeclStmt {
+    Ok(parser.stmt(StmtKind::StructDecl(StructDeclStmt {
         name,
         properties,
         methods,
         attributes,
         is_public: false,
         location: struct_token.location,
-    }))
+    })))
 }
 
-pub fn parse_interface_decl_stmt(
-    parser: &mut Parser,
-    attributes: Vec<Attribute>,
-) -> Result<Statement> {
+pub fn parse_interface_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
     let interface_token = parser.expect(TokenKind::Interface)?;
     let mut methods: Vec<InterfaceMethod> = Vec::new();
     let name = parser.expect(TokenKind::Identifier)?.value;
@@ -237,7 +228,7 @@ pub fn parse_interface_decl_stmt(
             break;
         }
 
-        if let Statement::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])? {
+        if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![])?.kind {
             methods.push(InterfaceMethod {
                 fn_decl: FnDeclStmt {
                     is_extern: false,
@@ -250,25 +241,25 @@ pub fn parse_interface_decl_stmt(
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(Statement::InterfaceDecl(InterfaceDeclStmt {
+    Ok(parser.stmt(StmtKind::InterfaceDecl(InterfaceDeclStmt {
         name,
         methods,
         attributes,
         is_public: false,
         location: interface_token.location,
-    }))
+    })))
 }
 
-pub fn parse_pub_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Statement> {
+pub fn parse_pub_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
     parser.expect(TokenKind::Pub)?;
 
     let inner_attributes = parse_attributes(parser)?;
     let mut stmt = parse_stmt_with_attrs(parser, merge_attributes(attributes, inner_attributes))?;
-    match &mut stmt {
-        Statement::StructDecl(struct_decl_stmt) => {
+    match &mut stmt.kind {
+        StmtKind::StructDecl(struct_decl_stmt) => {
             struct_decl_stmt.is_public = true;
         }
-        Statement::FnDecl(fn_decl_stmt) => {
+        StmtKind::FnDecl(fn_decl_stmt) => {
             fn_decl_stmt.is_public = true;
         }
         _ => return Err(anyhow::anyhow!("Expected function or struct declaration")),
@@ -282,10 +273,10 @@ fn merge_attributes(outer: Vec<Attribute>, inner: Vec<Attribute>) -> Vec<Attribu
     merged
 }
 
-pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Statement> {
+pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Result<Stmt> {
     let fn_token = parser.expect(TokenKind::Fn)?;
     let mut arguments: Vec<FnArgument> = Vec::new();
-    let mut body: Vec<Statement> = Vec::new();
+    let mut body: Vec<Stmt> = Vec::new();
     let name = parser.expect(TokenKind::Identifier)?.value;
 
     parser.expect(TokenKind::OpenParen)?;
@@ -353,7 +344,7 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Re
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(Statement::FnDecl(FnDeclStmt {
+    Ok(parser.stmt(StmtKind::FnDecl(FnDeclStmt {
         name,
         arguments,
         body,
@@ -362,10 +353,10 @@ pub fn parse_fn_decl_stmt(parser: &mut Parser, attributes: Vec<Attribute>) -> Re
         is_extern: false,
         attributes,
         location: fn_token.location,
-    }))
+    })))
 }
 
-pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Statement> {
+pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Result<Stmt> {
     let return_token = parser.expect(TokenKind::Return)?;
 
     let expression = if parser.current_token().kind != TokenKind::Semicolon {
@@ -376,8 +367,8 @@ pub fn parse_return_stmt(parser: &mut Parser, _attributes: Vec<Attribute>) -> Re
 
     parser.expect(TokenKind::Semicolon)?;
 
-    Ok(Statement::Return(ReturnStmt {
+    Ok(parser.stmt(StmtKind::Return(ReturnStmt {
         value: expression,
         location: return_token.location,
-    }))
+    })))
 }

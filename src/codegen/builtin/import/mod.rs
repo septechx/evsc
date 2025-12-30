@@ -10,7 +10,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expression, expressions::FunctionCallExpr},
+    ast::{ExprKind, expressions::FunctionCallExpr},
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::{
@@ -44,8 +44,8 @@ impl BuiltinFunction for ImportBuiltin {
             bail!("Expected one argument to @import");
         }
 
-        let module_name = match &expr.arguments[0] {
-            Expression::String(sym) => sym.value.clone(),
+        let module_name = match &expr.arguments[0].kind {
+            ExprKind::String(sym) => sym.value.clone(),
             _ => bail!("Expected string literal as argument to @import"),
         };
 

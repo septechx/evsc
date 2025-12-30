@@ -53,8 +53,8 @@ impl BuiltinFunction for AsmBuiltin {
 
         let inline_asm = context.create_inline_asm(
             fn_type,
-            asm_str.value.clone(),
-            constraints.value.clone(),
+            asm_str.value.to_string(),
+            constraints.value.to_string(),
             true,
             false,
             Some(InlineAsmDialect::Intel),

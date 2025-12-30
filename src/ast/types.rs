@@ -2,7 +2,7 @@ use crate::ast::Type;
 
 #[derive(Debug, Clone)]
 pub struct SymbolType {
-    pub name: String,
+    pub name: Box<str>,
 }
 
 #[derive(Debug, Clone)]

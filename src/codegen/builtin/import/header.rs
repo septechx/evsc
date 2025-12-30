@@ -39,14 +39,15 @@ pub fn compile_header<'ctx>(
     for (i, e) in tu.get_entity().get_children().iter().enumerate() {
         if e.get_kind() == EntityKind::FunctionDecl {
             let name = parse_function_name(e.get_display_name().expect("function has no name"))
-                .expect("function has no name");
+                .expect("function has no name")
+                .into();
             let ty = parse_function_type(e.get_type().expect("function has no type"))?;
 
             let arguments =
                 ty.1.into_iter()
                     .enumerate()
                     .map(|(i, arg)| FnArgument {
-                        name: format!("arg{}", i),
+                        name: format!("arg{}", i).into(),
                         type_: arg,
                     })
                     .collect::<Vec<_>>();
@@ -110,9 +111,7 @@ fn parse_function_type(ty: clang::Type) -> Result<(Type, Vec<Type>)> {
 fn parse_type(ty: &str) -> Type {
     let ty = map_c_type(ty);
 
-    Type::Symbol(SymbolType {
-        name: ty.to_string(),
-    })
+    Type::Symbol(SymbolType { name: ty.into() })
 }
 
 fn map_c_type(ty: &str) -> &str {

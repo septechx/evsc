@@ -1,7 +1,7 @@
 pub mod sourcemaps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct ModuleId(pub usize);
+pub struct ModuleId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {

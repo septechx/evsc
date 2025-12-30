@@ -76,7 +76,7 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
         )),
         TokenKind::StringLiteral => Ok(parser.expr(
             ExprKind::String(StringExpr {
-                value: process_string(&value, span, token.module_id),
+                value: process_string(&value, span, token.module_id).into(),
             }),
             span,
         )),
@@ -159,7 +159,7 @@ pub fn parse_struct_instantiation_expr(
 
     parser.expect(TokenKind::OpenCurly)?;
 
-    let mut properties: HashMap<String, Expr> = HashMap::new();
+    let mut properties: HashMap<Box<str>, Expr> = HashMap::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {

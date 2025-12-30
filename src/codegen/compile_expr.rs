@@ -61,7 +61,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         ExprKind::Symbol(sym) => {
             let entry = compilation_context
                 .symbol_table
-                .get(&sym.value)
+                .get(sym.value.as_ref())
                 .cloned()
                 .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?;
 
@@ -217,7 +217,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .get(struct_name)
                 .ok_or_else(|| anyhow!("Unknown struct: {}", struct_name))?;
 
-            if let Some(field_index) = struct_def.field_indices.get(&expr.member.value) {
+            if let Some(field_index) = struct_def.field_indices.get(expr.member.value.as_ref()) {
                 match base.value.get_type() {
                     BasicTypeEnum::StructType(_) => {
                         SmartValue::from_value(builder.build_extract_value(
@@ -256,7 +256,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let struct_def = compilation_context
                 .type_context
                 .struct_defs
-                .get(&expr.name)
+                .get(expr.name.as_ref())
                 .cloned()
                 .ok_or_else(|| anyhow!("Unknown struct: {}", expr.name))?;
 
@@ -264,13 +264,13 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             // Field in instantiation but not in struct
             for field_name in expr.properties.keys() {
-                if !struct_def.field_indices.contains_key(field_name) {
+                if !struct_def.field_indices.contains_key(field_name.as_ref()) {
                     bail!("No such field {} in struct: {}", field_name, expr.name);
                 }
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
-                if !expr.properties.contains_key(field_name) {
+                if !expr.properties.contains_key(field_name.as_str()) {
                     bail!("Missing field {} in struct {}", field_name, expr.name);
                 }
             }
@@ -278,7 +278,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name))?;
 
             for (field_name, field_index) in &struct_def.field_indices {
-                let expr_val = expr.properties.get(field_name).unwrap();
+                let expr_val = expr.properties.get(field_name.as_str()).unwrap();
                 let val = compile_expression_to_value(
                     context,
                     module,

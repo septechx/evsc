@@ -12,12 +12,12 @@ pub struct NumberExpr {
 
 #[derive(Debug, Clone)]
 pub struct StringExpr {
-    pub value: String,
+    pub value: Box<str>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SymbolExpr {
-    pub value: String,
+    pub value: Box<str>,
 }
 
 #[derive(Debug, Clone)]
@@ -42,8 +42,8 @@ pub struct AssignmentExpr {
 
 #[derive(Debug, Clone)]
 pub struct StructInstantiationExpr {
-    pub name: String,
-    pub properties: HashMap<String, Expr>,
+    pub name: Box<str>,
+    pub properties: HashMap<Box<str>, Expr>,
 }
 
 #[derive(Debug, Clone)]

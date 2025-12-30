@@ -16,8 +16,8 @@ pub struct NodeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
-    pub name: String,
-    pub arguments: Option<Vec<String>>,
+    pub name: Box<str>,
+    pub arguments: Option<Vec<Box<str>>>,
     pub span: Span,
 }
 

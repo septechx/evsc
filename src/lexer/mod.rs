@@ -80,7 +80,7 @@ impl Lexer {
                     kind: TokenKind::Illegal,
                     span,
                     module_id,
-                    value: next_char.to_string(),
+                    value: next_char.to_string().into(),
                 });
                 match_len = 1;
             }
@@ -112,7 +112,7 @@ fn default_handler(tok: TokenKind) -> TokenHandler {
             kind: tok,
             span,
             module_id: ModuleId(0),
-            value: value.to_string(),
+            value: value.into(),
         }))
     })
 }
@@ -123,7 +123,7 @@ fn number_handler() -> TokenHandler {
             kind: TokenKind::Number,
             span,
             module_id: ModuleId(0),
-            value: val.to_string(),
+            value: val.into(),
         }))
     })
 }
@@ -139,7 +139,7 @@ fn string_literal_handler() -> TokenHandler {
             kind: TokenKind::StringLiteral,
             span,
             module_id: ModuleId(0),
-            value: inner.to_string(),
+            value: inner.into(),
         }))
     })
 }
@@ -151,7 +151,7 @@ fn identifier_handler() -> TokenHandler {
             kind: tok,
             span,
             module_id: ModuleId(0),
-            value: val.to_string(),
+            value: val.into(),
         }))
     })
 }

@@ -22,7 +22,7 @@ pub fn compile_type<'ctx>(
     Ok(match ty {
         // Skip mut as LLVM does not support it
         Type::Mut(inner) => compile_type(context, &inner.underlying, compilation_context)?,
-        Type::Symbol(sym) => match sym.name.as_str() {
+        Type::Symbol(sym) => match sym.name.as_ref() {
             "u8" | "i8" => context.i8_type().as_basic_type_enum(),
             "u16" | "i16" => context.i16_type().as_basic_type_enum(),
             "u32" | "i32" => context.i32_type().as_basic_type_enum(),
@@ -52,7 +52,7 @@ pub fn compile_function_type<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<FunctionType<'ctx>> {
     let return_llvm_type: Option<BasicTypeEnum> = match return_type {
-        Type::Symbol(sym) if sym.name == "void" => None,
+        Type::Symbol(sym) if sym.name.as_ref() == "void" => None,
         _ => Some(compile_type(context, return_type, compilation_context)?),
     };
 

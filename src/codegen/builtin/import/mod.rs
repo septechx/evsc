@@ -50,12 +50,20 @@ impl BuiltinFunction for ImportBuiltin {
         };
 
         match ModuleType::from(&module_name) {
-            ModuleType::Library | ModuleType::Evsc => {
-                compile_evsc_module(context, module, builder, module_name, compilation_context)
-            }
-            ModuleType::Header => {
-                compile_header(context, module, builder, module_name, compilation_context)
-            }
+            ModuleType::Library | ModuleType::Evsc => compile_evsc_module(
+                context,
+                module,
+                builder,
+                module_name.into(),
+                compilation_context,
+            ),
+            ModuleType::Header => compile_header(
+                context,
+                module,
+                builder,
+                module_name.into(),
+                compilation_context,
+            ),
         }
         // Resolve path
     }
@@ -192,8 +200,8 @@ enum ModuleType {
     Header,
 }
 
-impl From<&String> for ModuleType {
-    fn from(path: &String) -> Self {
+impl From<&Box<str>> for ModuleType {
+    fn from(path: &Box<str>) -> Self {
         if path.ends_with(".evsc") {
             ModuleType::Evsc
         } else if path.ends_with(".h") {

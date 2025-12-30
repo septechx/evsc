@@ -10,7 +10,7 @@ pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
     pub module_id: ModuleId,
-    pub value: String,
+    pub value: Box<str>,
 }
 
 impl Display for Token {

@@ -68,7 +68,7 @@ impl Parser {
                 kind: TokenKind::Eof,
                 span: prev_token.span,
                 module_id: prev_token.module_id,
-                value: "".to_string(),
+                value: "".into(),
             }
         }
     }

@@ -12,7 +12,7 @@ pub struct ExpressionStmt {
 
 #[derive(Debug, Clone)]
 pub struct VarDeclStmt {
-    pub variable_name: String,
+    pub variable_name: Box<str>,
     pub is_constant: bool,
     pub is_public: bool,
     pub assigned_value: Option<Expr>,
@@ -22,7 +22,7 @@ pub struct VarDeclStmt {
 
 #[derive(Debug, Clone)]
 pub struct StructProperty {
-    pub name: String,
+    pub name: Box<str>,
     pub type_: Type,
     pub is_public: bool,
 }
@@ -36,7 +36,7 @@ pub struct StructMethod {
 
 #[derive(Debug, Clone)]
 pub struct StructDeclStmt {
-    pub name: String,
+    pub name: Box<str>,
     pub properties: Vec<StructProperty>,
     pub methods: Vec<StructMethod>,
     pub is_public: bool,
@@ -49,20 +49,20 @@ pub struct InterfaceMethod {
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDeclStmt {
-    pub name: String,
+    pub name: Box<str>,
     pub methods: Vec<InterfaceMethod>,
     pub is_public: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct FnArgument {
-    pub name: String,
+    pub name: Box<str>,
     pub type_: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct FnDeclStmt {
-    pub name: String,
+    pub name: Box<str>,
     pub arguments: Vec<FnArgument>,
     pub body: Vec<Stmt>,
     pub return_type: Type,

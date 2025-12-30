@@ -145,7 +145,7 @@ pub fn compile_stmts<'a, 'ctx>(
                 let function = module.add_function(&fn_decl.name, fn_type, None);
                 compilation_context
                     .function_table
-                    .insert(fn_decl.name.clone(), function.into());
+                    .insert(fn_decl.name.to_string(), function.into());
             }
             StmtKind::StructDecl(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
@@ -158,7 +158,10 @@ pub fn compile_stmts<'a, 'ctx>(
     for stmt in stmts {
         match &stmt.kind {
             StmtKind::FnDecl(fn_decl) => {
-                if let Some(function) = compilation_context.function_table.get(&fn_decl.name) {
+                if let Some(function) = compilation_context
+                    .function_table
+                    .get(fn_decl.name.as_ref())
+                {
                     compile_function(
                         context,
                         module,
@@ -203,7 +206,7 @@ fn compile_function<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     compilation_context.symbol_table.insert(
-        fn_decl.name.clone(),
+        fn_decl.name.to_string(),
         SymbolTableEntry::from_value(
             function.as_global_value().as_basic_value_enum(),
             function
@@ -232,7 +235,7 @@ fn compile_function<'ctx>(
             builder.build_store(alloca, param)?;
 
             symbol_table.insert(
-                arg_decl.name.clone(),
+                arg_decl.name.to_string(),
                 SymbolTableEntry::from_pointer(
                     context,
                     alloca.as_basic_value_enum(),
@@ -267,7 +270,7 @@ fn compile_function<'ctx>(
     }
 
     compilation_context.symbol_table.insert(
-        fn_decl.name.clone(),
+        fn_decl.name.to_string(),
         SymbolTableEntry::from_value(
             function.as_global_value().as_basic_value_enum(),
             function
@@ -338,7 +341,7 @@ fn compile_var_decl<'a, 'ctx>(
         gv.set_linkage(Linkage::Private);
 
         compilation_context.symbol_table.insert(
-            var_decl.variable_name.clone(),
+            var_decl.variable_name.to_string(),
             SymbolTableEntry::from_pointer(
                 context,
                 gv.as_pointer_value().as_basic_value_enum(),
@@ -353,7 +356,7 @@ fn compile_var_decl<'a, 'ctx>(
     builder.build_store(alloca, value)?;
 
     compilation_context.symbol_table.insert(
-        var_decl.variable_name.clone(),
+        var_decl.variable_name.to_string(),
         SymbolTableEntry::from_pointer(context, alloca.as_basic_value_enum(), value.get_type()),
     );
 
@@ -372,12 +375,12 @@ fn compile_struct_decl<'ctx>(
     for (index, property) in struct_decl.properties.iter().enumerate() {
         let field_ty = compile_type(context, &property.type_, compilation_context)?;
         field_types.push(field_ty);
-        field_indices.insert(property.name.clone(), index as u32);
+        field_indices.insert(property.name.to_string(), index as u32);
     }
 
     for method in &struct_decl.methods {
         let mut method = method.fn_decl.clone();
-        method.name = format!("{}_{}", struct_decl.name, method.name);
+        method.name = format!("{}_{}", struct_decl.name, method.name).into();
 
         let param_types: Vec<Type> = method
             .arguments
@@ -394,7 +397,7 @@ fn compile_struct_decl<'ctx>(
         let function = module.add_function(&method.name, fn_type, None);
         compilation_context
             .function_table
-            .insert(method.name.clone(), function.into());
+            .insert(method.name.to_string(), function.into());
 
         compile_function(context, module, function, &method, compilation_context)?;
     }
@@ -402,7 +405,7 @@ fn compile_struct_decl<'ctx>(
     let struct_ty = create_named_struct(context, &field_types, &struct_decl.name, false)?;
 
     compilation_context.type_context.struct_defs.insert(
-        struct_decl.name.clone(),
+        struct_decl.name.to_string(),
         StructDef {
             llvm_type: struct_ty,
             is_builtin: false,

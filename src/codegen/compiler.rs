@@ -30,8 +30,8 @@ use crate::{
     },
 };
 
-pub type FunctionTable<'ctx> = HashMap<String, FunctionTableEntry<'ctx>>;
-pub type SymbolTable<'ctx> = HashMap<String, SymbolTableEntry<'ctx>>;
+pub type FunctionTable<'ctx> = HashMap<Box<str>, FunctionTableEntry<'ctx>>;
+pub type SymbolTable<'ctx> = HashMap<Box<str>, SymbolTableEntry<'ctx>>;
 
 #[derive(Clone, Debug)]
 pub struct FunctionTableEntry<'ctx> {
@@ -84,13 +84,13 @@ impl<'ctx> SymbolTableEntry<'ctx> {
 
 #[derive(Clone, Debug, Default)]
 pub struct TypeContext<'ctx> {
-    pub struct_defs: HashMap<String, StructDef<'ctx>>,
+    pub struct_defs: HashMap<Box<str>, StructDef<'ctx>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct StructDef<'ctx> {
     pub llvm_type: inkwell::types::StructType<'ctx>,
-    pub field_indices: HashMap<String, u32>,
+    pub field_indices: HashMap<Box<str>, u32>,
     pub is_builtin: bool,
 }
 
@@ -145,7 +145,7 @@ pub fn compile_stmts<'a, 'ctx>(
                 let function = module.add_function(&fn_decl.name, fn_type, None);
                 compilation_context
                     .function_table
-                    .insert(fn_decl.name.to_string(), function.into());
+                    .insert(fn_decl.name.clone(), function.into());
             }
             StmtKind::StructDecl(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
@@ -206,7 +206,7 @@ fn compile_function<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     compilation_context.symbol_table.insert(
-        fn_decl.name.to_string(),
+        fn_decl.name.clone(),
         SymbolTableEntry::from_value(
             function.as_global_value().as_basic_value_enum(),
             function
@@ -221,7 +221,7 @@ fn compile_function<'ctx>(
         return Ok(());
     }
 
-    let mut symbol_table: HashMap<String, SymbolTableEntry> = HashMap::new();
+    let mut symbol_table: HashMap<Box<str>, SymbolTableEntry> = HashMap::new();
 
     let entry_bb = context.append_basic_block(function, "entry");
     let builder = context.create_builder();
@@ -235,7 +235,7 @@ fn compile_function<'ctx>(
             builder.build_store(alloca, param)?;
 
             symbol_table.insert(
-                arg_decl.name.to_string(),
+                arg_decl.name.clone(),
                 SymbolTableEntry::from_pointer(
                     context,
                     alloca.as_basic_value_enum(),
@@ -270,7 +270,7 @@ fn compile_function<'ctx>(
     }
 
     compilation_context.symbol_table.insert(
-        fn_decl.name.to_string(),
+        fn_decl.name.clone(),
         SymbolTableEntry::from_value(
             function.as_global_value().as_basic_value_enum(),
             function
@@ -341,7 +341,7 @@ fn compile_var_decl<'a, 'ctx>(
         gv.set_linkage(Linkage::Private);
 
         compilation_context.symbol_table.insert(
-            var_decl.variable_name.to_string(),
+            var_decl.variable_name.clone(),
             SymbolTableEntry::from_pointer(
                 context,
                 gv.as_pointer_value().as_basic_value_enum(),
@@ -356,7 +356,7 @@ fn compile_var_decl<'a, 'ctx>(
     builder.build_store(alloca, value)?;
 
     compilation_context.symbol_table.insert(
-        var_decl.variable_name.to_string(),
+        var_decl.variable_name.clone(),
         SymbolTableEntry::from_pointer(context, alloca.as_basic_value_enum(), value.get_type()),
     );
 
@@ -375,7 +375,7 @@ fn compile_struct_decl<'ctx>(
     for (index, property) in struct_decl.properties.iter().enumerate() {
         let field_ty = compile_type(context, &property.type_, compilation_context)?;
         field_types.push(field_ty);
-        field_indices.insert(property.name.to_string(), index as u32);
+        field_indices.insert(property.name.clone(), index as u32);
     }
 
     for method in &struct_decl.methods {
@@ -397,7 +397,7 @@ fn compile_struct_decl<'ctx>(
         let function = module.add_function(&method.name, fn_type, None);
         compilation_context
             .function_table
-            .insert(method.name.to_string(), function.into());
+            .insert(method.name.clone(), function.into());
 
         compile_function(context, module, function, &method, compilation_context)?;
     }
@@ -405,7 +405,7 @@ fn compile_struct_decl<'ctx>(
     let struct_ty = create_named_struct(context, &field_types, &struct_decl.name, false)?;
 
     compilation_context.type_context.struct_defs.insert(
-        struct_decl.name.to_string(),
+        struct_decl.name.clone(),
         StructDef {
             llvm_type: struct_ty,
             is_builtin: false,

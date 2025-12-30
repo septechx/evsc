@@ -150,7 +150,7 @@ where
     // Transfer builtins
 
     // Create module struct
-    let entries: Vec<(String, BasicTypeEnum)> = mod_compilation_context
+    let entries: Vec<(Box<str>, BasicTypeEnum)> = mod_compilation_context
         .symbol_table
         .iter()
         .map(|(name, entry)| (name.clone(), entry.value.value.get_type()))
@@ -165,13 +165,13 @@ where
 
     let struct_ty = create_named_struct(context, &values, &module_name, false)?;
 
-    let mut field_indices: HashMap<String, u32> = HashMap::new();
+    let mut field_indices: HashMap<Box<str>, u32> = HashMap::new();
     for (i, (name, _ty)) in entries.iter().enumerate() {
         field_indices.insert(name.clone(), i as u32);
     }
 
     compilation_context.type_context.struct_defs.insert(
-        module_name.clone(),
+        module_name.into(),
         StructDef {
             llvm_type: struct_ty,
             field_indices,

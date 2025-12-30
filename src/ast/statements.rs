@@ -1,4 +1,4 @@
-use crate::ast::{Attribute, Expr, Stmt, Type};
+use crate::ast::{Expr, Stmt, Type};
 
 #[derive(Debug, Clone)]
 pub struct BlockStmt {
@@ -40,7 +40,6 @@ pub struct StructDeclStmt {
     pub properties: Vec<StructProperty>,
     pub methods: Vec<StructMethod>,
     pub is_public: bool,
-    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +52,6 @@ pub struct InterfaceDeclStmt {
     pub name: String,
     pub methods: Vec<InterfaceMethod>,
     pub is_public: bool,
-    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,7 +68,6 @@ pub struct FnDeclStmt {
     pub return_type: Type,
     pub is_public: bool,
     pub is_extern: bool,
-    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Clone)]

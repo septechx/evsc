@@ -62,10 +62,10 @@ pub fn compile_header<'ctx>(
                     return_type: ty.0,
                     is_public: true,
                     is_extern: true,
-                    attributes: Vec::new(),
                 }),
                 id: NodeId(i),
                 span,
+                attributes: Vec::new(),
             };
 
             ast.push(stmt);

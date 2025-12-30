@@ -68,15 +68,34 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         parser.expect(TokenKind::Semicolon)?;
 
         let span = expression.span;
-        Ok(parser.stmt(StmtKind::Expression(ExpressionStmt { expression }), span))
+        Ok(parser.stmt(
+            StmtKind::Expression(ExpressionStmt { expression }),
+            span,
+            vec![],
+        ))
     }
 }
 
 pub fn parse_var_decl_statement(
     parser: &mut Parser,
-    _attributes: Vec<Attribute>,
+    attributes: Vec<Attribute>,
     modifiers: Vec<Modifier>,
 ) -> Result<Stmt> {
+    if !attributes.is_empty() {
+        let code_line = get_code_line(
+            parser.current_token().module_id,
+            attributes[0].span,
+            CodeType::None,
+        );
+        crate::ERRORS.with(|e| {
+            e.borrow_mut().add(
+                builders::error("Attribute not allowed here")
+                    .with_span(attributes[0].span, parser.current_token().module_id)
+                    .with_code(code_line),
+            );
+        });
+    }
+
     let var_token = parser.advance();
     let mut type_: Type = Type::Infer;
     let mut assigned_value: Option<Expr> = None;
@@ -186,6 +205,7 @@ pub fn parse_var_decl_statement(
             assigned_value,
         }),
         span,
+        vec![],
     ))
 }
 
@@ -317,9 +337,9 @@ pub fn parse_struct_decl_stmt(
             properties,
             methods,
             is_public,
-            attributes,
         }),
         span,
+        attributes,
     ))
 }
 
@@ -369,9 +389,9 @@ pub fn parse_interface_decl_stmt(
             name,
             methods,
             is_public,
-            attributes,
         }),
         span,
+        attributes,
     ))
 }
 
@@ -408,7 +428,7 @@ pub fn parse_fn_decl_stmt(
         }
     }
 
-    parser.expect(TokenKind::CloseParen)?;
+    let mut end_span = parser.expect(TokenKind::CloseParen)?.span;
 
     let return_type = parse_type(parser, BindingPower::DefaultBp)?;
 
@@ -425,8 +445,18 @@ pub fn parse_fn_decl_stmt(
             body.push(parse_stmt(parser)?);
         }
 
-        parser.expect(TokenKind::CloseCurly)?;
+        end_span = parser.expect(TokenKind::CloseCurly)?.span;
     }
+
+    let mut start_span = fn_token.span;
+
+    if let Some(pub_mod) = pub_mod {
+        start_span = pub_mod.span;
+    } else if let Some(extern_mod) = extern_mod {
+        start_span = extern_mod.span;
+    }
+
+    let span = Span::new(start_span.start(), end_span.end());
 
     Ok(parser.stmt(
         StmtKind::FnDecl(FnDeclStmt {
@@ -436,9 +466,9 @@ pub fn parse_fn_decl_stmt(
             return_type,
             is_public: pub_mod.is_some(),
             is_extern: extern_mod.is_some(),
-            attributes,
         }),
-        fn_token.span,
+        span,
+        attributes,
     ))
 }
 
@@ -455,7 +485,9 @@ pub fn parse_return_stmt(
         None
     };
 
-    parser.expect(TokenKind::Semicolon)?;
+    let end_span = parser.expect(TokenKind::Semicolon)?.span;
 
-    Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), return_token.span))
+    let span = Span::new(return_token.span.start(), end_span.end());
+
+    Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), span, vec![]))
 }

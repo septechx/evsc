@@ -270,7 +270,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
-                if !expr.properties.contains_key(field_name.as_str()) {
+                if !expr.properties.contains_key(field_name.as_ref()) {
                     bail!("Missing field {} in struct {}", field_name, expr.name);
                 }
             }
@@ -278,7 +278,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name))?;
 
             for (field_name, field_index) in &struct_def.field_indices {
-                let expr_val = expr.properties.get(field_name.as_str()).unwrap();
+                let expr_val = expr.properties.get(field_name.as_ref()).unwrap();
                 let val = compile_expression_to_value(
                     context,
                     module,

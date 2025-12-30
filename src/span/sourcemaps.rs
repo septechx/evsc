@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct SourceMap {
-    content: String,
+    content: Box<str>,
     path: PathBuf,
     line_starts: Vec<u32>,
 }
@@ -21,7 +21,7 @@ impl SourceMap {
             }
         }
         Self {
-            content,
+            content: content.into_boxed_str(),
             path,
             line_starts,
         }

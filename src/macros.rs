@@ -8,7 +8,7 @@ macro_rules! struct_fields {
         let names = [ $( stringify!($name) ),* ];
         names.iter()
              .enumerate()
-             .map(|(i, &s)| (s.to_string(), i as u32))
-             .collect::<HashMap<String, u32>>()
+             .map(|(i, &s)| (s.into(), i as u32))
+             .collect::<HashMap<Box<str>, u32>>()
     }};
 }

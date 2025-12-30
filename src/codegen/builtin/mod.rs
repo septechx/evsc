@@ -48,7 +48,7 @@ pub fn get_builtin<'ctx>(
         compilation_context
             .type_context
             .struct_defs
-            .insert(builtin.name().to_string(), struct_def.clone());
+            .insert(builtin.name().into(), struct_def.clone());
         Ok(struct_def)
     }
 }

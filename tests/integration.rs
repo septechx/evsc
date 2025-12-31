@@ -3,6 +3,25 @@ mod common;
 use common::it;
 use evscc::errors::ErrorLevel;
 
+#[test]
+fn can_compile_empty_program() {
+    it("should compile an empty program successfully", |ctx| {
+        ctx.add_source("").compiles(true);
+    })
+}
+
+#[test]
+fn compiling_empty_program_emits_warning() {
+    it(
+        "should emit warning when compiling an empty program",
+        |ctx| {
+            ctx.add_source("")
+                .compiles(true)
+                .fail_on_level(ErrorLevel::Warning);
+        },
+    )
+}
+
 #[ignore]
 #[test]
 fn invalid_return_type_fails() {

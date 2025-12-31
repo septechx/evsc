@@ -55,6 +55,7 @@ impl CompilationError {
 
         for widget in &self.widgets {
             widget.render(f)?;
+            writeln!(f)?;
         }
 
         Ok(())

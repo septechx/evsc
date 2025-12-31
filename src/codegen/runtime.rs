@@ -11,7 +11,7 @@ use crate::{
     codegen::arch::{compile_arch_size_type, is_64},
     errors::{
         builders,
-        widgets::{CodeExampleWidget, CodeType, InfoWidget},
+        widgets::{CodeExampleWidget, CodeType},
     },
 };
 
@@ -62,19 +62,16 @@ pub fn generate_c_runtime_integration<'ctx>(
         create_exit_syscall(context, builder, result_value)?;
     } else {
         crate::ERRORS.with(|e| {
-            e.borrow_mut().add(
-                builders::error("Main function not found")
-                    .add_widget(CodeExampleWidget::new(
-                        "pub fn main() isize {}",
-                        1,
-                        CodeType::Add,
-                    ))
-                    .add_widget(InfoWidget::from_raw(
-                        1,
-                        "Add a main function or compile with `--no-link`".into(),
-                    )),
-            );
+            e.borrow_mut()
+                .add(builders::warning("Main function not found").add_widget(
+                    CodeExampleWidget::new("pub fn main() void {}", 1, CodeType::Add),
+                ));
         });
+
+        let exit_code = compile_arch_size_type(context)
+            .const_zero()
+            .as_basic_value_enum();
+        create_exit_syscall(context, builder, exit_code)?;
     }
 
     Ok(())

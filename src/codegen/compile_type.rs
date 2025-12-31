@@ -1,8 +1,10 @@
 use anyhow::Result;
 use inkwell::{
     AddressSpace,
+    builder::Builder,
     context::Context,
     types::{BasicType, BasicTypeEnum, FunctionType},
+    values::{BasicValue, BasicValueEnum},
 };
 
 use crate::{
@@ -13,6 +15,30 @@ use crate::{
         compiler::CompilationContext,
     },
 };
+
+pub fn cast_int_to_type<'ctx>(
+    builder: &Builder<'ctx>,
+    val: BasicValueEnum<'ctx>,
+    dest_type: BasicTypeEnum<'ctx>,
+) -> Result<BasicValueEnum<'ctx>> {
+    if val.get_type() != dest_type && val.is_int_value() && dest_type.is_int_type() {
+        let src_int = val.into_int_value();
+        let dest_int_type = dest_type.into_int_type();
+        let src_width = src_int.get_type().get_bit_width();
+        let dest_width = dest_int_type.get_bit_width();
+
+        if src_width > dest_width {
+            return Ok(builder
+                .build_int_truncate(src_int, dest_int_type, "trunc")?
+                .as_basic_value_enum());
+        } else if src_width < dest_width {
+            return Ok(builder
+                .build_int_s_extend(src_int, dest_int_type, "sext")?
+                .as_basic_value_enum());
+        }
+    }
+    Ok(val)
+}
 
 pub fn compile_type<'ctx>(
     context: &'ctx Context,

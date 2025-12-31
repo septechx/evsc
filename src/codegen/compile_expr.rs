@@ -13,7 +13,7 @@ use crate::{
     codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
-        compile_type::compile_type,
+        compile_type::{cast_int_to_type, compile_type},
         compiler::CompilationContext,
         pointer::SmartValue,
     },
@@ -29,8 +29,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 ) -> Result<SmartValue<'ctx>> {
     Ok(match &expr.kind {
         ExprKind::Number(n) => SmartValue::from_value(
-            context
-                .i32_type()
+            compile_arch_size_type(context)
                 .const_int(n.value as u64, false)
                 .as_basic_value_enum(),
         ),
@@ -65,7 +64,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .cloned()
                 .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?;
 
-            entry.value
+            if let Some(fn_entry) = compilation_context.function_table.get(sym.value.as_ref()) {
+                entry.value.with_fn_type(fn_entry.function.get_type())
+            } else {
+                entry.value
+            }
         }
         ExprKind::Prefix(expr) => {
             let right = compile_expression_to_value(
@@ -168,9 +171,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 )
             };
 
+            let fn_type = callee_val.fn_type;
+
             let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
             let mut arg_types: Vec<BasicMetadataTypeEnum> = Vec::new();
-            for arg_expr in &fn_expr.arguments {
+            for (i, arg_expr) in fn_expr.arguments.iter().enumerate() {
                 let arg_val = compile_expression_to_value(
                     context,
                     module,
@@ -178,12 +183,24 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     arg_expr,
                     compilation_context,
                 )?;
-                let loaded_val = arg_val.unwrap(builder)?;
+                let mut loaded_val = arg_val.unwrap(builder)?;
+
+                if let Some(ft) = fn_type
+                    && let Some(param_type) = ft.get_param_types().get(i)
+                    && let Ok(basic_type) = (*param_type).try_into()
+                {
+                    loaded_val = cast_int_to_type(builder, loaded_val, basic_type)?;
+                }
+
                 args.push(loaded_val.into());
                 arg_types.push(loaded_val.get_type().into());
             }
 
-            let function_ty = function_ty.as_basic_type_enum().fn_type(&arg_types, false);
+            let function_ty = if let Some(ft) = fn_type {
+                ft
+            } else {
+                function_ty.as_basic_type_enum().fn_type(&arg_types, false)
+            };
 
             let call_site_value =
                 builder.build_indirect_call(function_ty, function_ptr, &args, "calltmp")?;
@@ -248,6 +265,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     func.as_global_value().as_basic_value_enum(),
                     func.get_type().get_return_type().unwrap(),
                 )
+                .with_fn_type(func.get_type())
             } else {
                 bail!("No such field or function: {}", expr.member.value);
             }
@@ -293,7 +311,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     *field_index,
                     &format!("{field_name}_ptr"),
                 )?;
-                builder.build_store(field_ptr, val.value)?;
+
+                let field_type = struct_ty.get_field_type_at_index(*field_index).unwrap();
+                let store_val = cast_int_to_type(builder, val.value, field_type)?;
+
+                builder.build_store(field_ptr, store_val)?;
             }
 
             let val = builder.build_load(struct_ty, alloca, "load_inst")?;

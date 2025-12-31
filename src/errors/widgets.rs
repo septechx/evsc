@@ -57,6 +57,7 @@ impl<T: Write> Widget<T> for CodeExampleWidget {
                 CodeType::Default => self.code.normal(),
             }
         )?;
+        write!(f, "{} {}", " ".repeat(pad), "|".purple(),)?;
 
         Ok(())
     }

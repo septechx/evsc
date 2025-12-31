@@ -9,7 +9,10 @@ mod utils;
 
 use crate::{
     ast::{Ast, Attribute, Expr, ExprKind, NodeId, Stmt, StmtKind},
-    errors::{CodeLine, CodeType, builders},
+    errors::{
+        builders,
+        widgets::{CodeWidget, LocationWidget},
+    },
     lexer::token::{Token, TokenKind, TokenStream},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
     span::Span,
@@ -87,35 +90,17 @@ impl Parser {
         let token = self.current_token();
 
         if token.kind != expected_kind {
-            let (_, line, ..) = crate::SOURCE_MAPS.with(|sm| {
-                let maps = sm.borrow();
-                maps.get_source(token.module_id)
-                    .map(|sm| sm.span_to_source_location(&token.span))
-                    .unwrap_or(Default::default())
-            });
-
-            let line_content = crate::SOURCE_MAPS.with(|sm| {
-                let maps = sm.borrow();
-                maps.get_source(token.module_id)
-                    .and_then(|sm| sm.get_line(line))
-                    .unwrap_or("")
-                    .to_string()
-            });
-
-            crate::ERRORS.with(|e| {
+            crate::ERRORS.with(|e| -> Result<()> {
                 e.borrow_mut().add(
                     builders::fatal(err.unwrap_or(format!(
                         "Syntax error: Expected {} but recieved {} instead.",
                         expected_kind, token.kind
                     )))
-                    .with_span(token.span, token.module_id)
-                    .with_code(CodeLine::new(
-                        line,
-                        line_content,
-                        CodeType::None,
-                    )),
+                    .add_widget(LocationWidget::new(token.span, token.module_id)?)
+                    .add_widget(CodeWidget::new(token.span, token.module_id)?),
                 );
-            });
+                Ok(())
+            })?;
         }
 
         Ok(self.advance())

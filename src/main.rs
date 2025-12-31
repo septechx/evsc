@@ -75,6 +75,26 @@ fn check_for_errors() {
 }
 
 fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
+    let source_text = match fs::read_to_string(&file_path) {
+        Err(err) => {
+            ERRORS.with(|e| {
+                e.borrow_mut().add(builders::fatal(format!(
+                    "Source file `{}` not found: {}",
+                    file_path.display(),
+                    err
+                )));
+            });
+            unreachable!();
+        }
+        Ok(source_text) => source_text,
+    };
+
+    let (tokens, module_id) = tokenize(source_text, &file_path)?;
+    check_for_errors();
+
+    let ast = parse(tokens)?;
+    check_for_errors();
+
     let source_dir = file_path
         .parent()
         .expect("source file must have a parent directory"); // $1/
@@ -143,6 +163,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let opts = CompileOptions {
         module_name,
         source_dir,
+        module_id,
         emit: &emit,
         output_file: &output,
         source_file: &file_path,
@@ -152,26 +173,6 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
         cache_dir: None,
         linker_kind: PhantomData::<T>,
     };
-
-    let source_text = match fs::read_to_string(&file_path) {
-        Err(err) => {
-            ERRORS.with(|e| {
-                e.borrow_mut().add(builders::fatal(format!(
-                    "Source file `{}` not found: {}",
-                    file_path.display(),
-                    err
-                )));
-            });
-            unreachable!();
-        }
-        Ok(source_text) => source_text,
-    };
-
-    let (tokens, _module_id) = tokenize(source_text, &file_path)?;
-    check_for_errors();
-
-    let ast = parse(tokens)?;
-    check_for_errors();
 
     codegen::compile(ast, &opts)?;
     check_for_errors();

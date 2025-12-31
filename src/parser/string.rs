@@ -1,5 +1,10 @@
+use anyhow::Result;
+
 use crate::{
-    errors::builders,
+    errors::{
+        builders,
+        widgets::{CodeWidget, LocationWidget},
+    },
     span::{ModuleId, Span},
 };
 
@@ -18,12 +23,16 @@ pub fn process_string(str: &str, span: Span, module_id: ModuleId) -> String {
                 _ => {
                     let error_span =
                         Span::new(span.start() + i as u32, span.start() + (i + 2) as u32);
-                    crate::ERRORS.with(|e| {
-                        e.borrow_mut().add(
-                            builders::warning(format!("Unknown escape sequence \\{c}"))
-                                .with_span(error_span, module_id),
-                        );
-                    });
+                    crate::ERRORS
+                        .with(|e| -> Result<()> {
+                            e.borrow_mut().add(
+                                builders::warning(format!("Unknown escape sequence \\{c}"))
+                                    .add_widget(LocationWidget::new(error_span, module_id)?)
+                                    .add_widget(CodeWidget::new(error_span, module_id)?),
+                            );
+                            Ok(())
+                        })
+                        .expect("failed to create error");
                 }
             }
 

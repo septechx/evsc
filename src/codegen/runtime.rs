@@ -9,7 +9,10 @@ use inkwell::{
 
 use crate::{
     codegen::arch::{compile_arch_size_type, is_64},
-    errors::{CodeLine, CodeType, InfoBlock, builders},
+    errors::{
+        builders,
+        widgets::{CodeExampleWidget, CodeType, InfoWidget},
+    },
 };
 
 pub fn generate_c_runtime_integration<'ctx>(
@@ -61,9 +64,14 @@ pub fn generate_c_runtime_integration<'ctx>(
         crate::ERRORS.with(|e| {
             e.borrow_mut().add(
                 builders::error("Main function not found")
-                    .with_code(CodeLine::new(1, "pub fn main() isize {}", CodeType::Add))
-                    .with_info(InfoBlock::new(
-                        "Add a main function or compile with `--no-link`",
+                    .add_widget(CodeExampleWidget::new(
+                        "pub fn main() isize {}",
+                        1,
+                        CodeType::Add,
+                    ))
+                    .add_widget(InfoWidget::from_raw(
+                        1,
+                        "Add a main function or compile with `--no-link`".into(),
                     )),
             );
         });

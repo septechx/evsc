@@ -1,4 +1,4 @@
-mod widgets;
+pub mod widgets;
 
 use std::{
     collections::HashMap,
@@ -27,13 +27,13 @@ impl Display for ErrorLevel {
 }
 
 #[derive(Debug)]
-pub struct CompilationError<'a> {
+pub struct CompilationError {
     level: ErrorLevel,
     message: Box<str>,
-    widgets: Vec<Box<dyn Widget<Formatter<'a>>>>,
+    widgets: Vec<Box<dyn for<'a> Widget<Formatter<'a>>>>,
 }
 
-impl<'a> CompilationError<'a> {
+impl CompilationError {
     pub fn new(level: ErrorLevel, message: impl Into<Box<str>>) -> Self {
         Self {
             level,
@@ -42,7 +42,15 @@ impl<'a> CompilationError<'a> {
         }
     }
 
-    fn display_with_context(&self, f: &mut Formatter<'a>) -> fmt::Result {
+    pub fn add_widget<W>(mut self, widget: W) -> Self
+    where
+        W: for<'a> Widget<Formatter<'a>> + 'static,
+    {
+        self.widgets.push(Box::new(widget));
+        self
+    }
+
+    fn display_with_context(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "{}: {}", self.level, self.message.bold())?;
 
         for widget in &self.widgets {
@@ -53,7 +61,7 @@ impl<'a> CompilationError<'a> {
     }
 }
 
-impl<'a> Display for CompilationError<'a> {
+impl Display for CompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.display_with_context(f)
     }
@@ -164,10 +172,6 @@ impl Default for ErrorCollector {
 pub mod builders {
     use super::*;
 
-    pub fn info(message: impl Into<String>) -> CompilationError {
-        CompilationError::new(ErrorLevel::Info, message.into())
-    }
-
     pub fn warning(message: impl Into<String>) -> CompilationError {
         CompilationError::new(ErrorLevel::Warning, message.into())
     }
@@ -184,11 +188,9 @@ pub mod builders {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::span::Span;
 
     #[test]
     fn test_error_levels() {
-        assert!(ErrorLevel::Info < ErrorLevel::Warning);
         assert!(ErrorLevel::Warning < ErrorLevel::Error);
         assert!(ErrorLevel::Error < ErrorLevel::Fatal);
     }
@@ -198,10 +200,6 @@ mod tests {
         let mut collector = ErrorCollector::new();
 
         collector.add(CompilationError::new(
-            ErrorLevel::Info,
-            "Info message".to_string(),
-        ));
-        collector.add(CompilationError::new(
             ErrorLevel::Warning,
             "Warning message".to_string(),
         ));
@@ -210,30 +208,9 @@ mod tests {
             "Error message".to_string(),
         ));
 
-        assert_eq!(collector.get_all_errors().len(), 3);
+        assert_eq!(collector.get_all_errors().len(), 2);
         assert!(collector.has_errors());
         assert!(collector.has_warnings());
         assert!(collector.can_continue());
-    }
-
-    #[test]
-    fn test_error_with_span() {
-        let span = Span::new(100, 105);
-        let module_id = crate::SOURCE_MAPS.with(|sm| {
-            let mut maps = sm.borrow_mut();
-            maps.add_source(
-                "test source content\nline 2\nline 3".to_string(),
-                PathBuf::from("test.evsc"),
-            )
-        });
-
-        let error = CompilationError::new(ErrorLevel::Error, "Test error".to_string())
-            .with_span(span, module_id);
-
-        assert!(error.location.is_some());
-        if let Some(loc) = &error.location {
-            assert_eq!(loc.span, span);
-            assert_eq!(loc.module_id, module_id);
-        }
     }
 }

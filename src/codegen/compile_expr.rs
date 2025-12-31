@@ -139,8 +139,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => unimplemented!(),
             }
         }
-        ExprKind::FunctionCall(expr) => {
-            if let ExprKind::Symbol(sym) = &expr.callee.kind
+        ExprKind::FunctionCall(fn_expr) => {
+            if let ExprKind::Symbol(sym) = &fn_expr.callee.kind
                 && let Some(builtin) = sym.value.strip_prefix("@")
                 && let Some(builtin) = Builtin::from_str(builtin)
             {
@@ -151,7 +151,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 context,
                 module,
                 builder,
-                &expr.callee,
+                &fn_expr.callee,
                 compilation_context,
             )?;
 
@@ -170,7 +170,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
             let mut arg_types: Vec<BasicMetadataTypeEnum> = Vec::new();
-            for arg_expr in &expr.arguments {
+            for arg_expr in &fn_expr.arguments {
                 let arg_val = compile_expression_to_value(
                     context,
                     module,

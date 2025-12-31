@@ -9,7 +9,10 @@ use crate::{
             StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
-    errors::{CodeType, builders},
+    errors::{
+        builders,
+        widgets::{CodeWidget, LocationWidget},
+    },
     get_modifiers,
     lexer::token::TokenKind,
     parser::{
@@ -17,11 +20,11 @@ use crate::{
         attributes::parse_attributes,
         expr::parse_expr,
         lookups::{BindingPower, STMT_LU},
-        modifiers::{Modifier, ModifierKind, get_modifiers_span, parse_modifiers},
+        modifiers::{Modifier, ModifierKind, parse_modifiers},
         types::parse_type,
         utils::unexpected_token,
     },
-    span::{Span, sourcemaps::get_code_line},
+    span::Span,
 };
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
@@ -35,33 +38,37 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         stmt_fn(parser, attributes, modifiers)
     } else {
         if !attributes.is_empty() {
-            let code_line = get_code_line(
-                parser.current_token().module_id,
-                attributes[0].span,
-                CodeType::None,
-            );
-            crate::ERRORS.with(|e| {
+            crate::ERRORS.with(|e| -> Result<()> {
                 e.borrow_mut().add(
                     builders::error("Attribute not allowed here")
-                        .with_span(attributes[0].span, parser.current_token().module_id)
-                        .with_code(code_line),
+                        .add_widget(LocationWidget::new(
+                            attributes[0].span,
+                            parser.current_token().module_id,
+                        )?)
+                        .add_widget(CodeWidget::new(
+                            attributes[0].span,
+                            parser.current_token().module_id,
+                        )?),
                 );
-            });
+                Ok(())
+            })?;
         }
 
         if !modifiers.is_empty() {
-            let code_line = get_code_line(
-                parser.current_token().module_id,
-                modifiers[0].span,
-                CodeType::None,
-            );
-            crate::ERRORS.with(|e| {
+            crate::ERRORS.with(|e| -> Result<()> {
                 e.borrow_mut().add(
                     builders::error("Modifier not allowed here")
-                        .with_span(modifiers[0].span, parser.current_token().module_id)
-                        .with_code(code_line),
+                        .add_widget(LocationWidget::new(
+                            modifiers[0].span,
+                            parser.current_token().module_id,
+                        )?)
+                        .add_widget(CodeWidget::new(
+                            modifiers[0].span,
+                            parser.current_token().module_id,
+                        )?),
                 );
-            });
+                Ok(())
+            })?;
         }
 
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
@@ -82,18 +89,20 @@ pub fn parse_var_decl_statement(
     modifiers: Vec<Modifier>,
 ) -> Result<Stmt> {
     if !attributes.is_empty() {
-        let code_line = get_code_line(
-            parser.current_token().module_id,
-            attributes[0].span,
-            CodeType::None,
-        );
-        crate::ERRORS.with(|e| {
+        crate::ERRORS.with(|e| -> Result<()> {
             e.borrow_mut().add(
                 builders::error("Attribute not allowed here")
-                    .with_span(attributes[0].span, parser.current_token().module_id)
-                    .with_code(code_line),
+                    .add_widget(LocationWidget::new(
+                        attributes[0].span,
+                        parser.current_token().module_id,
+                    )?)
+                    .add_widget(CodeWidget::new(
+                        attributes[0].span,
+                        parser.current_token().module_id,
+                    )?),
             );
-        });
+            Ok(())
+        })?;
     }
 
     let var_token = parser.advance();
@@ -106,15 +115,15 @@ pub fn parse_var_decl_statement(
 
     if is_static && !is_constant {
         let span = parser.current_token().span;
-        let code_line = get_code_line(parser.current_token().module_id, span, CodeType::None);
 
-        crate::ERRORS.with(|e| {
+        crate::ERRORS.with(|e| -> Result<()> {
             e.borrow_mut().add(
                 builders::error("Static variables must be constant")
-                    .with_span(span, parser.current_token().module_id)
-                    .with_code(code_line),
+                    .add_widget(LocationWidget::new(span, parser.current_token().module_id)?)
+                    .add_widget(CodeWidget::new(span, parser.current_token().module_id)?),
             );
-        });
+            Ok(())
+        })?;
     }
 
     if !is_constant {
@@ -140,7 +149,7 @@ pub fn parse_var_decl_statement(
         assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
     }
 
-    let (pub_mod,) = get_modifiers!(parser, modifiers, [Pub]);
+    let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
     let mut is_public = false;
 
@@ -149,18 +158,20 @@ pub fn parse_var_decl_statement(
 
     if let Some(pub_mod) = pub_mod {
         if !is_static {
-            let code = get_code_line(
-                parser.current_token().module_id,
-                pub_mod.span,
-                CodeType::None,
-            );
-            crate::ERRORS.with(|e| {
+            crate::ERRORS.with(|e| -> Result<()> {
                 e.borrow_mut().add(
                     builders::error("Modifier 'pub' is only allowed on static variables")
-                        .with_span(pub_mod.span, parser.current_token().module_id)
-                        .with_code(code),
+                        .add_widget(LocationWidget::new(
+                            pub_mod.span,
+                            parser.current_token().module_id,
+                        )?)
+                        .add_widget(CodeWidget::new(
+                            pub_mod.span,
+                            parser.current_token().module_id,
+                        )?),
                 );
-            });
+                Ok(())
+            })?;
         }
 
         start_span = pub_mod.span;
@@ -172,27 +183,25 @@ pub fn parse_var_decl_statement(
     if assigned_value.is_none()
         && let Type::Infer = type_
     {
-        let code_line = get_code_line(parser.current_token().module_id, span, CodeType::None);
-
-        crate::ERRORS.with(|e| {
+        crate::ERRORS.with(|e| -> Result<()> {
             e.borrow_mut().add(
                 builders::error("Missing type or value in variable declaration")
-                    .with_span(span, parser.current_token().module_id)
-                    .with_code(code_line),
+                    .add_widget(LocationWidget::new(span, parser.current_token().module_id)?)
+                    .add_widget(CodeWidget::new(span, parser.current_token().module_id)?),
             );
-        });
+            Ok(())
+        })?;
     }
 
     if assigned_value.is_none() && is_constant {
-        let code_line = get_code_line(parser.current_token().module_id, span, CodeType::None);
-
-        crate::ERRORS.with(|e| {
+        crate::ERRORS.with(|e| -> Result<()> {
             e.borrow_mut().add(
                 builders::warning("Declared constant without providing a value")
-                    .with_span(span, parser.current_token().module_id)
-                    .with_code(code_line),
+                    .add_widget(LocationWidget::new(span, parser.current_token().module_id)?)
+                    .add_widget(CodeWidget::new(span, parser.current_token().module_id)?),
             );
-        });
+            Ok(())
+        })?;
     }
 
     Ok(parser.stmt(
@@ -255,15 +264,14 @@ pub fn parse_struct_decl_stmt(
             let span = parser.current_token().span;
             let module_id = parser.current_token().module_id;
 
-            let code_line = get_code_line(module_id, span, CodeType::None);
-
-            crate::ERRORS.with(|e| {
+            crate::ERRORS.with(|e| -> Result<()> {
                 e.borrow_mut().add(
                     builders::error("Only struct methods are allowed to be static")
-                        .with_span(span, module_id)
-                        .with_code(code_line),
+                        .add_widget(LocationWidget::new(span, module_id)?)
+                        .add_widget(CodeWidget::new(span, module_id)?),
                 );
-            })
+                Ok(())
+            })?;
         }
 
         if parser.current_token().kind == TokenKind::Identifier {
@@ -287,21 +295,22 @@ pub fn parse_struct_decl_stmt(
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                let code_line = get_code_line(
-                    parser.current_token().module_id,
-                    property.span,
-                    CodeType::None,
-                );
-
-                crate::ERRORS.with(|e| {
+                crate::ERRORS.with(|e| -> Result<()> {
                     e.borrow_mut().add(
                         builders::error(format!(
                             "Property {property_name} has already been defined in struct"
                         ))
-                        .with_span(property.span, parser.current_token().module_id)
-                        .with_code(code_line),
+                        .add_widget(LocationWidget::new(
+                            property.span,
+                            parser.current_token().module_id,
+                        )?)
+                        .add_widget(CodeWidget::new(
+                            property.span,
+                            parser.current_token().module_id,
+                        )?),
                     );
-                });
+                    Ok(())
+                })?;
             }
 
             properties.push(StructProperty {
@@ -318,7 +327,7 @@ pub fn parse_struct_decl_stmt(
 
     let end_span = parser.expect(TokenKind::CloseCurly)?.span;
 
-    let (pub_mod,) = get_modifiers!(parser, modifiers, [Pub]);
+    let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
     let mut is_public = false;
 
@@ -371,7 +380,7 @@ pub fn parse_interface_decl_stmt(
 
     let end_span = parser.expect(TokenKind::CloseCurly)?.span;
 
-    let (pub_mod,) = get_modifiers!(parser, modifiers, [Pub]);
+    let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
     let mut is_public = false;
 
@@ -400,7 +409,7 @@ pub fn parse_fn_decl_stmt(
     attributes: Vec<Attribute>,
     modifiers: Vec<Modifier>,
 ) -> Result<Stmt> {
-    let (pub_mod, extern_mod) = get_modifiers!(parser, modifiers, [Pub, Extern]);
+    let (pub_mod, extern_mod) = get_modifiers!(&parser, modifiers, [Pub, Extern]);
 
     let fn_token = parser.expect(TokenKind::Fn)?;
     let name = parser.expect(TokenKind::Identifier)?.value;

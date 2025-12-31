@@ -18,7 +18,7 @@ entry:
   %loaded_struct = load %Module_std, ptr @std, align 8
   %field = extractvalue %Module_std %loaded_struct, 0
   %calltmp = call ptr %field(%Slice { ptr @str, i64 11 })
-  ret i32 0
+  ret i64 0
 }
 
 define void @print(%Slice %str) {

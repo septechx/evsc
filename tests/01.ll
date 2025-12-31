@@ -10,5 +10,5 @@ entry:
 
 define i64 @main() {
 entry:
-  ret i32 0
+  ret i64 0
 }

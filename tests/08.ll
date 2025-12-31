@@ -34,5 +34,6 @@ entry:
   %field = extractvalue %Foo %loaded_struct, 0
   %calltmp = call i32 @Foo_bar(i32 2, i32 1)
   %subtmp = sub i32 %field, %calltmp
-  ret i32 %subtmp
+  %sext = sext i32 %subtmp to i64
+  ret i64 %sext
 }

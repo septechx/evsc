@@ -1,10 +1,11 @@
 use anyhow::Result;
-use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
+use inkwell::{builder::Builder, types::{BasicTypeEnum, FunctionType}, values::BasicValueEnum};
 
 #[derive(Clone, Debug)]
 pub struct SmartValue<'ctx> {
     pub value: BasicValueEnum<'ctx>,
     pub pointee_ty: Option<BasicTypeEnum<'ctx>>,
+    pub fn_type: Option<FunctionType<'ctx>>,
 }
 
 impl<'ctx> SmartValue<'ctx> {
@@ -12,6 +13,7 @@ impl<'ctx> SmartValue<'ctx> {
         Self {
             value,
             pointee_ty: None,
+            fn_type: None,
         }
     }
 
@@ -19,7 +21,13 @@ impl<'ctx> SmartValue<'ctx> {
         Self {
             value,
             pointee_ty: Some(pointee_ty),
+            fn_type: None,
         }
+    }
+
+    pub fn with_fn_type(mut self, fn_type: FunctionType<'ctx>) -> Self {
+        self.fn_type = Some(fn_type);
+        self
     }
 
     pub fn unwrap(&self, builder: &Builder<'ctx>) -> Result<BasicValueEnum<'ctx>> {

@@ -10,8 +10,8 @@ entry:
 
 define i64 @main() {
 entry:
-  %a = alloca i32, align 4
-  store i32 2, ptr %a, align 4
-  %load_ptr = load i32, ptr %a, align 4
-  ret i32 %load_ptr
+  %a = alloca i64, align 8
+  store i64 2, ptr %a, align 4
+  %load_ptr = load i64, ptr %a, align 4
+  ret i64 %load_ptr
 }

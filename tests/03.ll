@@ -10,15 +10,15 @@ entry:
 
 define i64 @main() {
 entry:
-  %a = alloca i32, align 4
-  store i32 1, ptr %a, align 4
-  %b = alloca i32, align 4
-  store i32 2, ptr %b, align 4
-  %load_ptr = load i32, ptr %a, align 4
-  %load_ptr1 = load i32, ptr %b, align 4
-  %sumtmp = add i32 %load_ptr, %load_ptr1
-  %c = alloca i32, align 4
-  store i32 %sumtmp, ptr %c, align 4
-  %load_ptr2 = load i32, ptr %c, align 4
-  ret i32 %load_ptr2
+  %a = alloca i64, align 8
+  store i64 1, ptr %a, align 4
+  %b = alloca i64, align 8
+  store i64 2, ptr %b, align 4
+  %load_ptr = load i64, ptr %a, align 4
+  %load_ptr1 = load i64, ptr %b, align 4
+  %sumtmp = add i64 %load_ptr, %load_ptr1
+  %c = alloca i64, align 8
+  store i64 %sumtmp, ptr %c, align 4
+  %load_ptr2 = load i64, ptr %c, align 4
+  ret i64 %load_ptr2
 }

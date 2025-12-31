@@ -20,5 +20,6 @@ entry:
   store %Foo %load_inst, ptr %foo, align 4
   %loaded_struct = load %Foo, ptr %foo, align 4
   %field = extractvalue %Foo %loaded_struct, 0
-  ret i32 %field
+  %sext = sext i32 %field to i64
+  ret i64 %sext
 }

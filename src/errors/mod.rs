@@ -1,15 +1,16 @@
-use colored::*;
+mod widgets;
+
 use std::{
     collections::HashMap,
     fmt::{self, Display, Formatter},
-    path::PathBuf,
 };
 
-use crate::span::{ModuleId, Span};
+use colored::Colorize;
+
+use crate::errors::widgets::Widget;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorLevel {
-    Info,
     Warning,
     Error,
     Fatal,
@@ -18,181 +19,41 @@ pub enum ErrorLevel {
 impl Display for ErrorLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorLevel::Info => write!(f, "{}", "INFO".blue().bold()),
-            ErrorLevel::Warning => write!(f, "{}", "WARNING".yellow().bold()),
-            ErrorLevel::Error => write!(f, "{}", "ERROR".red().bold()),
-            ErrorLevel::Fatal => write!(f, "{}", "FATAL".red().bold()),
+            ErrorLevel::Warning => write!(f, "{}", "warning".yellow().bold()),
+            ErrorLevel::Error => write!(f, "{}", "error".red().bold()),
+            ErrorLevel::Fatal => write!(f, "{}", "fatal".red().bold()),
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct LocatedSpan {
-    pub span: Span,
-    pub module_id: ModuleId,
+#[derive(Debug)]
+pub struct CompilationError<'a> {
+    level: ErrorLevel,
+    message: Box<str>,
+    widgets: Vec<Box<dyn Widget<Formatter<'a>>>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct InfoBlock {
-    pub title: String,
-}
-
-impl InfoBlock {
-    pub fn new(title: impl Into<String>) -> Self {
-        Self {
-            title: title.into(),
-        }
-    }
-}
-
-impl Display for InfoBlock {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}", self.title)?;
-
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CodeType {
-    Add,
-    Remove,
-    None,
-}
-
-#[derive(Debug, Clone)]
-pub struct CodeLine {
-    pub line: usize,
-    pub code: String,
-    pub code_type: CodeType,
-}
-
-impl CodeLine {
-    pub fn new(line: usize, code: impl Into<String>, code_type: CodeType) -> Self {
-        Self {
-            line,
-            code_type,
-            code: code.into(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CompilationError {
-    pub level: ErrorLevel,
-    pub message: String,
-    pub location: Option<LocatedSpan>,
-    pub info_blocks: Vec<InfoBlock>,
-    pub code: Option<CodeLine>,
-}
-
-impl CompilationError {
-    pub fn new(level: ErrorLevel, message: String) -> Self {
+impl<'a> CompilationError<'a> {
+    pub fn new(level: ErrorLevel, message: impl Into<Box<str>>) -> Self {
         Self {
             level,
-            message,
-            location: None,
-            info_blocks: Vec::new(),
-            code: None,
+            message: message.into(),
+            widgets: Vec::new(),
         }
     }
 
-    pub fn with_span(mut self, span: Span, module_id: ModuleId) -> Self {
-        self.location = Some(LocatedSpan { span, module_id });
-        self
-    }
-
-    pub fn with_info(mut self, info: InfoBlock) -> Self {
-        self.info_blocks.push(info);
-        self
-    }
-
-    pub fn with_code(mut self, code: CodeLine) -> Self {
-        self.code = Some(code);
-        self
-    }
-
-    fn display_with_context(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn display_with_context(&self, f: &mut Formatter<'a>) -> fmt::Result {
         writeln!(f, "{}: {}", self.level, self.message.bold())?;
 
-        if let Some(located_span) = &self.location {
-            let (file, ..) = crate::SOURCE_MAPS.with(|sm| {
-                let maps = sm.borrow();
-                maps.get_source(located_span.module_id)
-                    .map(|sm| sm.span_to_source_location(&located_span.span))
-                    .unwrap_or((PathBuf::from("unknown"), 0, 0, 0))
-            });
-
-            if let Some(code) = &self.code {
-                writeln!(
-                    f,
-                    "{}{} {}",
-                    " ".repeat(code.line.ilog10() as usize + 1),
-                    "-->".purple(),
-                    file.display()
-                )?;
-            } else {
-                writeln!(f, " {} {}", "-->".purple(), file.display())?;
-            }
-        }
-
-        if let Some(code) = &self.code {
-            let line = code.line.to_string();
-            writeln!(f, "{} {}", " ".repeat(line.len()), "|".purple())?;
-            writeln!(
-                f,
-                "{} {} {}",
-                line.purple(),
-                "|".purple(),
-                match code.code_type {
-                    CodeType::Add => code.code.green(),
-                    CodeType::Remove => code.code.red(),
-                    CodeType::None => code.code.normal(),
-                }
-            )?;
-
-            if let Some(located_span) = &self.location {
-                let (_, _, column, length) = crate::SOURCE_MAPS.with(|sm| {
-                    let maps = sm.borrow();
-                    maps.get_source(located_span.module_id)
-                        .map(|sm| sm.span_to_source_location(&located_span.span))
-                        .unwrap_or((PathBuf::new(), 0, 0, 0))
-                });
-
-                let underline = if length > 1 {
-                    " ".repeat(column - 1) + &"^".repeat(length)
-                } else {
-                    " ".repeat(column - 1) + "^"
-                };
-                writeln!(
-                    f,
-                    "{} {} {}",
-                    " ".repeat(line.len()),
-                    "|".purple(),
-                    underline.red().bold()
-                )?;
-            } else {
-                writeln!(f, "{} {}", " ".repeat(line.len()), "|".purple())?;
-            }
-        }
-
-        if let Some(code) = &self.code {
-            for info in &self.info_blocks {
-                writeln!(
-                    f,
-                    "{} {} note: {}",
-                    " ".repeat(code.line.to_string().len()),
-                    "=".purple(),
-                    info
-                )?;
-            }
+        for widget in &self.widgets {
+            widget.render(f)?;
         }
 
         Ok(())
     }
 }
 
-impl Display for CompilationError {
+impl<'a> Display for CompilationError<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.display_with_context(f)
     }

@@ -1,22 +1,27 @@
+use anyhow::Result;
+
 use crate::{
-    errors::{CodeType, builders},
+    errors::{
+        builders,
+        widgets::{CodeWidget, LocationWidget},
+    },
     lexer::token::Token,
-    span::sourcemaps::get_code_line,
 };
 
 pub fn unexpected_token(token: Token) -> ! {
     let span = token.span;
     let module_id = token.module_id;
 
-    let code_line = get_code_line(module_id, span, CodeType::None);
-
-    crate::ERRORS.with(|e| {
-        e.borrow_mut().add(
-            builders::fatal(format!("Syntax error: Unexpected token `{}`", token.value))
-                .with_span(span, module_id)
-                .with_code(code_line),
-        );
-    });
+    crate::ERRORS
+        .with(|e| -> Result<()> {
+            e.borrow_mut().add(
+                builders::fatal(format!("Syntax error: Unexpected token `{}`", token.value))
+                    .add_widget(LocationWidget::new(span, module_id)?)
+                    .add_widget(CodeWidget::new(span, module_id)?),
+            );
+            Ok(())
+        })
+        .expect("failed to create error");
 
     unreachable!()
 }

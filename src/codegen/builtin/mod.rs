@@ -7,7 +7,7 @@ use anyhow::Result;
 use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
-    ast::expressions::FunctionCallExpr,
+    ast::Expr,
     codegen::{
         compiler::{CompilationContext, StructDef},
         pointer::SmartValue,
@@ -19,7 +19,7 @@ pub trait BuiltinFunction {
         context: &'ctx Context,
         module: &Module<'ctx>,
         builder: &Builder<'ctx>,
-        expr: &FunctionCallExpr,
+        expr: &Expr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>>;
 }
@@ -89,7 +89,7 @@ macro_rules! define_builtins {
                 context: &'ctx Context,
                 module: &Module<'ctx>,
                 builder: &Builder<'ctx>,
-                expr: &FunctionCallExpr,
+                expr: &Expr,
                 compilation_context: &mut CompilationContext<'ctx>,
             ) -> Result<SmartValue<'ctx>> {
                 match self {

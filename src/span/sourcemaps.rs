@@ -1,9 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{
-    errors::{CodeLine, CodeType},
-    span::{ModuleId, Span},
-};
+use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
 pub struct SourceMap {
@@ -91,6 +88,12 @@ impl SourceMapManager {
         id
     }
 
+    pub fn next_id(&mut self) -> ModuleId {
+        let id = self.next_id;
+        self.next_id = ModuleId(self.next_id.0 + 1);
+        id
+    }
+
     pub fn get_source(&self, id: ModuleId) -> Option<&SourceMap> {
         self.source_maps.get(&id)
     }
@@ -98,25 +101,6 @@ impl SourceMapManager {
     pub fn get_line_column(&self, id: ModuleId, offset: u32) -> Option<(usize, usize)> {
         self.source_maps.get(&id).map(|sm| sm.line_column(offset))
     }
-}
-
-pub fn get_code_line(module_id: ModuleId, span: Span, code_type: CodeType) -> CodeLine {
-    let (_, line, ..) = crate::SOURCE_MAPS.with(|sm| {
-        let maps = sm.borrow();
-        maps.get_source(module_id)
-            .map(|sm| sm.span_to_source_location(&span))
-            .unwrap_or(Default::default())
-    });
-
-    let line_content = crate::SOURCE_MAPS.with(|sm| {
-        let maps = sm.borrow();
-        maps.get_source(module_id)
-            .and_then(|sm| sm.get_line(line))
-            .unwrap_or("")
-            .to_string()
-    });
-
-    CodeLine::new(line, line_content, code_type)
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{ExprKind, expressions::FunctionCallExpr},
+    ast::{Expr, ExprKind},
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::{
@@ -36,15 +36,20 @@ impl BuiltinFunction for ImportBuiltin {
         context: &'ctx Context,
         module: &Module<'ctx>,
         builder: &Builder<'ctx>,
-        expr: &FunctionCallExpr,
+        expr: &Expr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
+        let fn_expr = match &expr.kind {
+            ExprKind::FunctionCall(fn_expr) => fn_expr,
+            _ => unreachable!(),
+        };
+
         // Resolve path
-        if expr.arguments.len() != 1 {
+        if fn_expr.arguments.len() != 1 {
             bail!("Expected one argument to @import");
         }
 
-        let module_name = match &expr.arguments[0].kind {
+        let module_name = match &fn_expr.arguments[0].kind {
             ExprKind::String(sym) => sym.value.clone(),
             _ => bail!("Expected string literal as argument to @import"),
         };
@@ -54,6 +59,7 @@ impl BuiltinFunction for ImportBuiltin {
                 context,
                 module,
                 builder,
+                expr,
                 module_name.into(),
                 compilation_context,
             ),
@@ -73,12 +79,13 @@ fn compile_evsc_module<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
+    expr: &Expr,
     module_name: String,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<SmartValue<'ctx>> {
     // Resolve path
     let module_path = if module_name == "std" {
-        resolve_std_lib()?
+        resolve_std_lib(expr.span, compilation_context.module_id)?
     } else {
         compilation_context
             .module_path
@@ -103,10 +110,10 @@ fn compile_evsc_module<'ctx>(
     }
     let file = file.unwrap();
 
-    let (tokens, _module_id) = tokenize(file, &module_path)?;
+    let (tokens, module_id) = tokenize(file, &module_path)?;
     let ast = parse(tokens)?;
 
-    let mut mod_compilation_context = CompilationContext::new(module_path);
+    let mut mod_compilation_context = CompilationContext::new(module_path, module_id);
 
     compiler::compile_stmts(
         context,

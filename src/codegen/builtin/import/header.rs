@@ -75,7 +75,12 @@ pub fn compile_header<'ctx>(
 
     let ast = Ast(ast);
 
-    let mut mod_compilation_context = CompilationContext::new(module_path);
+    let module_id = crate::SOURCE_MAPS.with(|sm| {
+        let mut maps = sm.borrow_mut();
+        maps.next_id()
+    });
+
+    let mut mod_compilation_context = CompilationContext::new(module_path, module_id);
     compiler::compile_stmts(
         context,
         module,

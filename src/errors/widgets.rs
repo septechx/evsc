@@ -13,12 +13,6 @@ pub trait Widget<T: Write>: Debug {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
-pub enum HighlightType {
-    Warning,
-    Error,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
 pub enum CodeType {
     Add,
     Remove,
@@ -26,14 +20,60 @@ pub enum CodeType {
 }
 
 #[derive(Debug, Clone)]
+pub struct CodeExampleWidget {
+    code: Box<str>,
+    line: usize,
+    code_type: CodeType,
+}
+
+impl CodeExampleWidget {
+    pub fn new(code: impl Into<Box<str>>, line: usize, code_type: CodeType) -> Self {
+        Self {
+            line,
+            code_type,
+            code: code.into(),
+        }
+    }
+
+    pub fn code_type(&mut self, code_type: CodeType) -> &mut Self {
+        self.code_type = code_type;
+        self
+    }
+}
+
+impl<T: Write> Widget<T> for CodeExampleWidget {
+    fn render(&self, f: &mut T) -> std::fmt::Result {
+        let pad = (self.line.ilog10() + 1) as usize;
+
+        writeln!(f, "{} {}", " ".repeat(pad), "|".purple())?;
+        writeln!(
+            f,
+            "{} {} {}",
+            self.line.to_string().purple(),
+            "|".purple(),
+            match self.code_type {
+                CodeType::Add => self.code.green(),
+                CodeType::Remove => self.code.red(),
+                CodeType::Default => self.code.normal(),
+            }
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
+pub enum HighlightType {
+    Warning,
+    Error,
+}
+
+#[derive(Debug, Clone)]
 pub struct CodeWidget {
-    span: Span,
-    module_id: ModuleId,
     line: usize,
     column: usize,
     length: usize,
     code: Box<str>,
-    code_type: CodeType,
     highlight_type: HighlightType,
 }
 
@@ -55,42 +95,28 @@ impl CodeWidget {
         });
 
         Ok(Self {
-            span,
-            module_id,
             line,
             column,
             length,
-            code_type: CodeType::Default,
             highlight_type: HighlightType::Error,
             code: code.into(),
         })
     }
 
     pub fn from_raw(
-        span: Span,
-        module_id: ModuleId,
         line: usize,
         column: usize,
         length: usize,
         code: Box<str>,
-        code_type: CodeType,
         highlight_type: HighlightType,
     ) -> Self {
         Self {
-            span,
-            module_id,
             line,
             column,
             length,
             code,
-            code_type,
             highlight_type,
         }
-    }
-
-    pub fn code_type(&mut self, code_type: CodeType) -> &mut Self {
-        self.code_type = code_type;
-        self
     }
 
     pub fn highlight_type(&mut self, highlight_type: HighlightType) -> &mut Self {
@@ -109,11 +135,7 @@ impl<T: Write> Widget<T> for CodeWidget {
             "{} {} {}",
             self.line.to_string().purple(),
             "|".purple(),
-            match self.code_type {
-                CodeType::Add => self.code.green(),
-                CodeType::Remove => self.code.red(),
-                CodeType::Default => self.code.normal(),
-            }
+            self.code
         )?;
 
         let underline = if self.length > 1 {
@@ -138,8 +160,6 @@ impl<T: Write> Widget<T> for CodeWidget {
 
 #[derive(Debug, Clone)]
 pub struct LocationWidget {
-    span: Span,
-    module_id: ModuleId,
     line: usize,
     column: usize,
     file: PathBuf,
@@ -154,29 +174,11 @@ impl LocationWidget {
                 .ok_or_else(|| anyhow::anyhow!("Source map not found for module id {module_id}"))
         })?;
 
-        Ok(Self {
-            span,
-            module_id,
-            line,
-            column,
-            file,
-        })
+        Ok(Self { line, column, file })
     }
 
-    pub fn from_raw(
-        span: Span,
-        module_id: ModuleId,
-        line: usize,
-        column: usize,
-        file: PathBuf,
-    ) -> Self {
-        Self {
-            span,
-            module_id,
-            line,
-            column,
-            file,
-        }
+    pub fn from_raw(line: usize, column: usize, file: PathBuf) -> Self {
+        Self { line, column, file }
     }
 }
 
@@ -197,8 +199,6 @@ impl<T: Write> Widget<T> for LocationWidget {
 
 #[derive(Debug, Clone)]
 pub struct InfoWidget {
-    span: Span,
-    module_id: ModuleId,
     line: usize,
     content: Box<str>,
 }
@@ -213,20 +213,13 @@ impl InfoWidget {
         })?;
 
         Ok(Self {
-            span,
-            module_id,
             line,
             content: content.into(),
         })
     }
 
-    pub fn from_raw(span: Span, module_id: ModuleId, line: usize, content: Box<str>) -> Self {
-        Self {
-            span,
-            module_id,
-            line,
-            content,
-        }
+    pub fn from_raw(line: usize, content: Box<str>) -> Self {
+        Self { line, content }
     }
 }
 

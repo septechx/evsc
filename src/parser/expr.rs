@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::{
     ast::{
-        Expr, ExprKind,
+        Expr, ExprKind, Ident,
         expressions::{
             ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PostfixExpr, PrefixExpr, StringExpr,
@@ -81,7 +81,12 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
             }),
             span,
         )),
-        TokenKind::Identifier => Ok(parser.expr(ExprKind::Symbol(SymbolExpr { value }), span)),
+        TokenKind::Identifier => Ok(parser.expr(
+            ExprKind::Symbol(SymbolExpr {
+                value: Ident { value, span },
+            }),
+            span,
+        )),
         _ => bail!(
             format!(
                 "Cannot create primary expression from {:?}",
@@ -285,8 +290,9 @@ pub fn parse_member_access_expr(
     parser.expect(TokenKind::Dot)?;
 
     let member_token = parser.expect(TokenKind::Identifier)?;
-    let member = SymbolExpr {
+    let member = Ident {
         value: member_token.value,
+        span: member_token.span,
     };
 
     let span = Span::new(left.span.start(), member_token.span.end());

@@ -86,7 +86,7 @@ pub enum TypeKind {
 
 #[derive(Debug, Clone)]
 pub struct Ident {
-    pub value: SymbolExpr,
+    pub value: Box<str>,
     pub span: Span,
 }
 

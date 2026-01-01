@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Expr, Type},
+    ast::{Expr, Ident, Type},
     lexer::token::Token,
 };
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ pub struct StringExpr {
 
 #[derive(Debug, Clone)]
 pub struct SymbolExpr {
-    pub value: Box<str>,
+    pub value: Ident,
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ pub struct AssignmentExpr {
 
 #[derive(Debug, Clone)]
 pub struct StructInstantiationExpr {
-    pub name: Box<str>,
+    pub name: Ident,
     pub properties: HashMap<Box<str>, Expr>,
 }
 
@@ -67,7 +67,7 @@ pub struct FunctionCallExpr {
 #[derive(Debug, Clone)]
 pub struct MemberAccessExpr {
     pub base: Box<Expr>,
-    pub member: SymbolExpr,
+    pub member: Ident,
 }
 
 #[derive(Debug, Clone)]

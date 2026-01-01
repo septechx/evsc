@@ -4,7 +4,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        Ast, NodeId, Stmt, StmtKind, Type, TypeKind,
+        Ast, Ident, NodeId, Stmt, StmtKind, Type, TypeKind,
         statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
     },
@@ -66,7 +66,10 @@ pub fn compile_header<'ctx>(
                 ty.1.into_iter()
                     .enumerate()
                     .map(|(i, arg)| FnArgument {
-                        name: format!("arg{}", i).into(),
+                        name: Ident {
+                            value: format!("arg{}", i).into(),
+                            span: arg.span,
+                        },
                         type_: arg,
                     })
                     .collect::<Vec<_>>();
@@ -76,7 +79,7 @@ pub fn compile_header<'ctx>(
 
             let stmt = Stmt {
                 kind: StmtKind::FnDecl(FnDeclStmt {
-                    name,
+                    name: Ident { value: name, span },
                     arguments,
                     body: Vec::new(),
                     return_type: ty.0,

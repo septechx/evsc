@@ -276,6 +276,7 @@ pub fn create_token_lookups() {
         );
         stmt(T::Fn, parse_fn_decl_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Return, parse_return_stmt, &mut bp_lu, &mut stmt_lu);
+        stmt(T::Import, parse_import_stmt, &mut bp_lu, &mut stmt_lu);
 
         let _ = BP_LU.set(bp_lu);
         let _ = NUD_LU.set(nud_lu);

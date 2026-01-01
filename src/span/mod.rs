@@ -22,13 +22,20 @@ pub struct Span {
 impl Span {
     pub fn new(mut low: u32, mut high: u32) -> Self {
         if low > high {
-            elogln!("Warning: Span created with low > high: {low} > {high}");
+            elogln!("Warning: Span created with low > high: {} > {}", low, high);
             std::mem::swap(&mut low, &mut high);
         }
 
-        Span {
+        Self {
             low,
             len: (high - low),
+        }
+    }
+
+    pub fn shrink_to_start(&self) -> Self {
+        Self {
+            low: self.low,
+            len: 0,
         }
     }
 

@@ -68,7 +68,7 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface, Macro, If, Else, While, For, Break, Continue, As],
+    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface, Macro, If, Else, While, For, Break, Continue, As, Import],
     symbols: [
         Semicolon => ";",
         Bar => "|",
@@ -107,6 +107,7 @@ define_tokens! {
         And => "&&",
         Or => "||",
         Pipe => "|>",
+        ColonColon => "::",
         Dollar => "$"
     ],
     literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number"],

@@ -54,6 +54,9 @@ pub struct Cli {
     #[clap(long, help = "Print AST")]
     pub print_ast: bool,
 
+    #[clap(long, help = "Do not print any output")]
+    pub quiet: bool,
+
     #[clap(
         long = "Dcpu",
         help = "Select a CPU architecture to target. Default: x86-64"

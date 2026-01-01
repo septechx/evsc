@@ -68,10 +68,10 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface],
+    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface, Macro, If, Else, While, For, Break, Continue],
     symbols: [
         Semicolon => ";",
-        Pipe => "|",
+        Bar => "|",
         Colon => ":",
         Arrow => "->",
         OpenCurly => "{",
@@ -79,6 +79,7 @@ define_tokens! {
         OpenParen => "(",
         CloseParen => ")",
         Dot => ".",
+        Question => "?",
         Equals => "=",
         PlusEquals => "+=",
         MinusEquals => "-=",
@@ -95,8 +96,7 @@ define_tokens! {
         Star => "*",
         Slash => "/",
         Percent => "%",
-        And => "&",
-        Or => "|",
+        Reference => "&",
         DotDot => "..",
         EqualsEquals => "==",
         NotEquals => "!=",
@@ -104,7 +104,9 @@ define_tokens! {
         More => ">",
         LessEquals => "<=",
         MoreEquals => ">=",
-        Reference => "@",
+        And => "&&",
+        Or => "||",
+        Pipe => "|>",
         Dollar => "$"
     ],
     literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number"],

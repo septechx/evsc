@@ -91,13 +91,6 @@ pub fn create_token_lookups() {
             &mut led_lu,
         );
         led(
-            T::StarEquals,
-            BP::Assignment,
-            parse_assignment_expr,
-            &mut bp_lu,
-            &mut led_lu,
-        );
-        led(
             T::SlashEquals,
             BP::Assignment,
             parse_assignment_expr,
@@ -197,13 +190,6 @@ pub fn create_token_lookups() {
 
         // Multiplicative
         led(
-            T::Star,
-            BP::Multiplicative,
-            parse_binary_expr,
-            &mut bp_lu,
-            &mut led_lu,
-        );
-        led(
             T::Slash,
             BP::Multiplicative,
             parse_binary_expr,
@@ -239,6 +225,20 @@ pub fn create_token_lookups() {
             T::OpenParen,
             BP::Call,
             parse_function_call_expr,
+            &mut bp_lu,
+            &mut led_lu,
+        );
+        led(
+            T::Question,
+            BP::Call,
+            parse_postfix_expr,
+            &mut bp_lu,
+            &mut led_lu,
+        );
+        led(
+            T::Star,
+            BP::Call,
+            parse_postfix_expr,
             &mut bp_lu,
             &mut led_lu,
         );

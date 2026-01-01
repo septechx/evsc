@@ -76,6 +76,20 @@ impl Parser {
         }
     }
 
+    pub fn peek(&self) -> Token {
+        if self.pos + 1 < self.tokens.len() {
+            self.tokens[self.pos + 1].clone()
+        } else {
+            let prev_token = self.tokens[self.tokens.len() - 1].clone();
+            Token {
+                kind: TokenKind::Eof,
+                span: prev_token.span,
+                module_id: prev_token.module_id,
+                value: "".into(),
+            }
+        }
+    }
+
     pub fn advance(&mut self) -> Token {
         let current = self.current_token();
         self.pos += 1;

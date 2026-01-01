@@ -51,6 +51,9 @@ pub struct Cli {
     #[clap(long, help = "Emit assembly")]
     pub emit_asm: bool,
 
+    #[clap(long, help = "Print AST")]
+    pub print_ast: bool,
+
     #[clap(
         long = "Dcpu",
         help = "Select a CPU architecture to target. Default: x86-64"

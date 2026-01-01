@@ -8,7 +8,8 @@ use crate::{
         Expr, ExprKind,
         expressions::{
             ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr, MemberAccessExpr,
-            NumberExpr, PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr, TypeExpr,
+            NumberExpr, PostfixExpr, PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
+            TypeExpr,
         },
     },
     lexer::token::TokenKind,
@@ -107,6 +108,24 @@ pub fn parse_binary_expr(parser: &mut Parser, left: Expr, bp: BindingPower) -> R
     ))
 }
 
+pub fn parse_postfix_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) -> Result<Expr> {
+    if parser.current_token().kind == TokenKind::Star && parser.peek().kind != TokenKind::Semicolon
+    {
+        return parse_binary_expr(parser, left, BindingPower::Multiplicative);
+    }
+
+    let operator = parser.advance();
+
+    let span = Span::new(left.span.start(), operator.span.end());
+    Ok(parser.expr(
+        ExprKind::Postfix(PostfixExpr {
+            left: Box::new(left),
+            operator,
+        }),
+        span,
+    ))
+}
+
 pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expr> {
     let operator = parser.advance();
     let right = parse_expr(parser, BindingPower::DefaultBp)?;
@@ -189,6 +208,7 @@ pub fn parse_struct_instantiation_expr(
     ))
 }
 
+// TODO: This only parses slices, not arrays
 pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
     let start_token = parser.expect(TokenKind::OpenBracket)?;
     parser.expect(TokenKind::CloseBracket)?;

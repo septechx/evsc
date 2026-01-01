@@ -9,7 +9,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expr, ExprKind, Type, types::SliceType},
+    ast::{Expr, ExprKind, Type, TypeKind, types::SliceType},
     codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
@@ -322,15 +322,15 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(val.as_basic_value_enum())
         }
-        ExprKind::ArrayLiteral(expr) => {
-            let element_ty = compile_type(context, &expr.underlying, compilation_context)?;
-            let len = expr.contents.len();
+        ExprKind::ArrayLiteral(ar_expr) => {
+            let element_ty = compile_type(context, &ar_expr.underlying, compilation_context)?;
+            let len = ar_expr.contents.len();
 
             let array_ty = element_ty.array_type(len as u32);
 
             let array_ptr = builder.build_alloca(array_ty, "array")?;
 
-            for (i, elem_expr) in expr.contents.iter().enumerate() {
+            for (i, elem_expr) in ar_expr.contents.iter().enumerate() {
                 let elem_smart_val = compile_expression_to_value(
                     context,
                     module,
@@ -374,9 +374,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 )?
             };
 
-            let slice_ty = Type::Slice(SliceType {
-                underlying: Box::new(expr.underlying.clone()),
-            });
+            // TODO: This is a temporary hack to get an id and span for a built-in type
+            let slice_ty = Type {
+                kind: TypeKind::Slice(SliceType {
+                    underlying: Box::new(ar_expr.underlying.clone()),
+                }),
+                id: expr.id,
+                span: expr.span,
+            };
 
             let slice_llvm_type = compile_type(context, &slice_ty, compilation_context)?;
 

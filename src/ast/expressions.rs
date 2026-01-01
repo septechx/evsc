@@ -59,13 +59,6 @@ pub struct ArrayLiteralExpr {
 }
 
 #[derive(Debug, Clone)]
-pub struct FixedArrayLiteralExpr {
-    pub underlying: Type,
-    pub length: usize,
-    pub contents: Vec<Expr>,
-}
-
-#[derive(Debug, Clone)]
 pub struct FunctionCallExpr {
     pub callee: Box<Expr>,
     pub arguments: Vec<Expr>,
@@ -80,4 +73,10 @@ pub struct MemberAccessExpr {
 #[derive(Debug, Clone)]
 pub struct TypeExpr {
     pub underlying: Type,
+}
+
+#[derive(Debug, Clone)]
+pub struct AsExpr {
+    pub expr: Box<Expr>,
+    pub ty: Type,
 }

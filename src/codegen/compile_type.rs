@@ -8,7 +8,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::Type,
+    ast::{Type, TypeKind},
     codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
@@ -45,10 +45,10 @@ pub fn compile_type<'ctx>(
     ty: &Type,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<BasicTypeEnum<'ctx>> {
-    Ok(match ty {
+    Ok(match &ty.kind {
         // Skip mut as LLVM does not support it
-        Type::Mut(inner) => compile_type(context, &inner.underlying, compilation_context)?,
-        Type::Symbol(sym) => match sym.name.as_ref() {
+        TypeKind::Mut(inner) => compile_type(context, &inner.underlying, compilation_context)?,
+        TypeKind::Symbol(sym) => match sym.name.as_ref() {
             "u8" | "i8" => context.i8_type().as_basic_type_enum(),
             "u16" | "i16" => context.i16_type().as_basic_type_enum(),
             "u32" | "i32" => context.i32_type().as_basic_type_enum(),
@@ -61,10 +61,10 @@ pub fn compile_type<'ctx>(
             "usize" | "isize" => compile_arch_size_type(context).as_basic_type_enum(),
             tyname => unimplemented!("{tyname}"),
         },
-        Type::Slice(_) => get_builtin(context, compilation_context, Builtin::Slice)?
+        TypeKind::Slice(_) => get_builtin(context, compilation_context, Builtin::Slice)?
             .llvm_type
             .as_basic_type_enum(),
-        Type::Function(_) | Type::Pointer(_) => context
+        TypeKind::Function(_) | TypeKind::Pointer(_) => context
             .ptr_type(AddressSpace::default())
             .as_basic_type_enum(),
         ty => unimplemented!("{ty:#?}"),
@@ -77,8 +77,8 @@ pub fn compile_function_type<'ctx>(
     param_types: &[Type],
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<FunctionType<'ctx>> {
-    let return_llvm_type: Option<BasicTypeEnum> = match return_type {
-        Type::Symbol(sym) if sym.name.as_ref() == "void" => None,
+    let return_llvm_type: Option<BasicTypeEnum> = match &return_type.kind {
+        TypeKind::Symbol(sym) if sym.name.as_ref() == "void" => None,
         _ => Some(compile_type(context, return_type, compilation_context)?),
     };
 

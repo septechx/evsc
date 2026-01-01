@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::{
     ERRORS,
     ast::{
-        Attribute, Expr, Stmt, StmtKind, Type,
+        Attribute, Expr, Stmt, StmtKind, Type, TypeKind,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, InterfaceDeclStmt, InterfaceMethod, ReturnStmt,
             StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
@@ -106,7 +106,10 @@ pub fn parse_var_decl_statement(
     }
 
     let var_token = parser.advance();
-    let mut type_: Type = Type::Infer;
+    let mut type_: Type = parser.type_(
+        TypeKind::Infer,
+        Span::new(var_token.span.end(), var_token.span.end()),
+    );
     let mut assigned_value: Option<Expr> = None;
 
     let is_static = var_token.kind == TokenKind::Static;
@@ -179,19 +182,6 @@ pub fn parse_var_decl_statement(
     };
 
     let span = Span::new(start_span.start(), end_span.end());
-
-    if assigned_value.is_none()
-        && let Type::Infer = type_
-    {
-        crate::ERRORS.with(|e| -> Result<()> {
-            e.borrow_mut().add(
-                builders::error("Missing type or value in variable declaration")
-                    .add_widget(LocationWidget::new(span, parser.current_token().module_id)?)
-                    .add_widget(CodeWidget::new(span, parser.current_token().module_id)?),
-            );
-            Ok(())
-        })?;
-    }
 
     if assigned_value.is_none() && is_constant {
         crate::ERRORS.with(|e| -> Result<()> {

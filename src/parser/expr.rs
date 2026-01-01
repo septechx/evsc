@@ -7,9 +7,9 @@ use crate::{
     ast::{
         Expr, ExprKind,
         expressions::{
-            ArrayLiteralExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr, MemberAccessExpr,
-            NumberExpr, PostfixExpr, PrefixExpr, StringExpr, StructInstantiationExpr, SymbolExpr,
-            TypeExpr,
+            ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr,
+            MemberAccessExpr, NumberExpr, PostfixExpr, PrefixExpr, StringExpr,
+            StructInstantiationExpr, SymbolExpr, TypeExpr,
         },
     },
     lexer::token::TokenKind,
@@ -307,4 +307,19 @@ pub fn parse_type_expr(parser: &mut Parser) -> Result<Expr> {
     let span = Span::new(start_token.span.start(), end_token.span.end());
 
     Ok(parser.expr(ExprKind::Type(TypeExpr { underlying: ty }), span))
+}
+
+pub fn parse_as_cast_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) -> Result<Expr> {
+    parser.expect(TokenKind::As)?;
+
+    let ty = parse_type(parser, BindingPower::DefaultBp)?;
+
+    let span = Span::new(left.span.start(), ty.span.end());
+    Ok(parser.expr(
+        ExprKind::As(AsExpr {
+            expr: Box::new(left),
+            ty,
+        }),
+        span,
+    ))
 }

@@ -19,9 +19,9 @@ clean:
     rm -rf include/*.a include/*.o tests/*-test.ll
     cargo clean
 
-install: bindings
-    cargo install --path .
-    sudo mkdir -p /opt/evsc && sudo rsync -a --delete lib/ /opt/evsc/lib/
+install: build
+    sudo install -D -m755 target/release/evscc /usr/bin/evscc
+    sudo rsync -a --delete lib/evsc/ /usr/lib/evsc
 
 lint:
     cargo clippy --all-targets --all-features -- -Dwarnings

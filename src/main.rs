@@ -43,10 +43,15 @@ pub static DEFAULT_ROOT: &str = "..";
 thread_local! {
     pub static ERRORS: RefCell<ErrorCollector> = RefCell::new(ErrorCollector::new());
     pub static SOURCE_MAPS: RefCell<SourceMapManager> = RefCell::new(SourceMapManager::default());
+    pub static ENABLE_PRINTING: RefCell<bool> = const { RefCell::new(true) };
 }
 
 pub fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    if cli.quiet {
+        ENABLE_PRINTING.with(|e| *e.borrow_mut() = false);
+    }
 
     let file_path = cli
         .files
@@ -61,18 +66,22 @@ pub fn main() -> Result<()> {
         build_file::<LdLinker>(file_path, &cli)?;
     }
 
-    ERRORS.with(|e| {
-        e.borrow().print_all();
-    });
+    if ENABLE_PRINTING.with(|e| *e.borrow()) {
+        ERRORS.with(|e| {
+            e.borrow().print_all();
+        });
+    }
 
     Ok(())
 }
 
 fn check_for_errors() {
     if ERRORS.with(|e| e.borrow().has_errors()) {
-        ERRORS.with(|e| {
-            e.borrow().print_all();
-        });
+        if ENABLE_PRINTING.with(|e| *e.borrow()) {
+            ERRORS.with(|e| {
+                e.borrow().print_all();
+            });
+        }
         std::process::exit(1);
     }
 }

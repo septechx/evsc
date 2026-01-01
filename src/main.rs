@@ -95,6 +95,11 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let ast = parse(tokens)?;
     check_for_errors();
 
+    if cli.print_ast {
+        println!("{:#?}", ast);
+        return Ok(());
+    }
+
     let source_dir = file_path
         .parent()
         .expect("source file must have a parent directory"); // $1/

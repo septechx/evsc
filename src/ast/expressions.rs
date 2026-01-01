@@ -28,6 +28,12 @@ pub struct BinaryExpr {
 }
 
 #[derive(Debug, Clone)]
+pub struct PostfixExpr {
+    pub left: Box<Expr>,
+    pub operator: Token,
+}
+
+#[derive(Debug, Clone)]
 pub struct PrefixExpr {
     pub operator: Token,
     pub right: Box<Expr>,

@@ -53,6 +53,7 @@ pub enum ExprKind {
     String(StringExpr),
     Symbol(SymbolExpr),
     Binary(BinaryExpr),
+    Postfix(PostfixExpr),
     Prefix(PrefixExpr),
     Assignment(AssignmentExpr),
     StructInstantiation(StructInstantiationExpr),

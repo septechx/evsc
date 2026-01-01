@@ -20,7 +20,9 @@ pub struct Span {
 impl Span {
     pub fn new(mut low: u32, mut high: u32) -> Self {
         if low > high {
-            eprintln!("Warning: Span created with low > high: {low} > {high}");
+            if crate::ENABLE_PRINTING.with(|e| *e.borrow()) {
+                eprintln!("Warning: Span created with low > high: {low} > {high}");
+            }
             std::mem::swap(&mut low, &mut high);
         }
 

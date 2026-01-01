@@ -58,14 +58,21 @@ pub enum ExprKind {
     Assignment(AssignmentExpr),
     StructInstantiation(StructInstantiationExpr),
     ArrayLiteral(ArrayLiteralExpr),
-    FixedArrayLiteral(FixedArrayLiteralExpr),
     FunctionCall(FunctionCallExpr),
     MemberAccess(MemberAccessExpr),
     Type(TypeExpr),
+    As(AsExpr),
 }
 
 #[derive(Debug, Clone)]
-pub enum Type {
+pub struct Type {
+    pub kind: TypeKind,
+    pub id: NodeId,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeKind {
     Symbol(SymbolType),
     Pointer(PointerType),
     Slice(SliceType),

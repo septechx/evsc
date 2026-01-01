@@ -6,7 +6,7 @@ use colored::Colorize;
 
 use crate::{
     ast::{
-        Type,
+        Type, TypeKind,
         types::{FixedArrayType, FunctionType, MutType, PointerType, SliceType, SymbolType},
     },
     lexer::token::TokenKind::{self, self as T},
@@ -17,6 +17,7 @@ use crate::{
             BpLookup,
         },
     },
+    span::Span,
 };
 
 type TypeNudHandler = fn(&mut Parser) -> Result<Type>;
@@ -65,21 +66,29 @@ pub fn create_token_type_lookups() {
 }
 
 fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
-    Ok(Type::Symbol(SymbolType {
-        name: parser.expect(T::Identifier)?.value,
-    }))
+    let ident = parser.expect(T::Identifier)?;
+
+    Ok(parser.type_(
+        TypeKind::Symbol(SymbolType { name: ident.value }),
+        ident.span,
+    ))
 }
 
 fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {
-    parser.expect(T::Reference)?;
+    let start_token = parser.expect(T::Reference)?;
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
-    Ok(Type::Pointer(PointerType {
-        underlying: Box::new(underlying),
-    }))
+    let end_span = underlying.span;
+
+    Ok(parser.type_(
+        TypeKind::Pointer(PointerType {
+            underlying: Box::new(underlying),
+        }),
+        Span::new(start_token.span.start(), end_span.end()),
+    ))
 }
 
 fn parse_array_type(parser: &mut Parser) -> Result<Type> {
-    parser.advance();
+    let start_token = parser.advance();
 
     match parser.current_token().kind {
         T::Number => {
@@ -87,17 +96,27 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
             parser.advance();
             parser.expect(T::CloseBracket)?;
             let underlying = parse_type(parser, BP::DefaultBp)?;
-            Ok(Type::FixedArray(FixedArrayType {
-                length,
-                underlying: Box::new(underlying),
-            }))
+            let end_span = underlying.span;
+
+            Ok(parser.type_(
+                TypeKind::FixedArray(FixedArrayType {
+                    length,
+                    underlying: Box::new(underlying),
+                }),
+                Span::new(start_token.span.start(), end_span.end()),
+            ))
         }
         T::CloseBracket => {
             parser.advance();
             let underlying = parse_type(parser, BP::DefaultBp)?;
-            Ok(Type::Slice(SliceType {
-                underlying: Box::new(underlying),
-            }))
+            let end_span = underlying.span;
+
+            Ok(parser.type_(
+                TypeKind::Slice(SliceType {
+                    underlying: Box::new(underlying),
+                }),
+                Span::new(start_token.span.start(), end_span.end()),
+            ))
         }
         _ => Err(anyhow!(
             format!(
@@ -158,15 +177,20 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
 }
 
 fn parse_mut_type(parser: &mut Parser) -> Result<Type> {
-    parser.expect(TokenKind::Mut)?;
+    let start_token = parser.expect(TokenKind::Mut)?;
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
-    Ok(Type::Mut(MutType {
-        underlying: Box::new(underlying),
-    }))
+    let end_span = underlying.span;
+
+    Ok(parser.type_(
+        TypeKind::Mut(MutType {
+            underlying: Box::new(underlying),
+        }),
+        Span::new(start_token.span.start(), end_span.end()),
+    ))
 }
 
 fn parse_function_type(parser: &mut Parser) -> Result<Type> {
-    parser.expect(TokenKind::OpenParen)?;
+    let start_token = parser.expect(TokenKind::OpenParen)?;
 
     let mut parameters = Vec::new();
     while parser.current_token().kind != TokenKind::CloseParen {
@@ -186,9 +210,13 @@ fn parse_function_type(parser: &mut Parser) -> Result<Type> {
 
     parser.expect(TokenKind::Arrow)?;
     let return_type = parse_type(parser, BindingPower::DefaultBp)?;
+    let end_span = return_type.span;
 
-    Ok(Type::Function(FunctionType {
-        parameters,
-        return_type: Box::new(return_type),
-    }))
+    Ok(parser.type_(
+        TypeKind::Function(FunctionType {
+            parameters,
+            return_type: Box::new(return_type),
+        }),
+        Span::new(start_token.span.start(), end_span.end()),
+    ))
 }

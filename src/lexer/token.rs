@@ -68,7 +68,7 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface, Macro, If, Else, While, For, Break, Continue],
+    reserved: [Let, True, False, Struct, Fn, Return, Pub, Static, Mut, Extern, Interface, Macro, If, Else, While, For, Break, Continue, As],
     symbols: [
         Semicolon => ";",
         Bar => "|",

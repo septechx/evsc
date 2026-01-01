@@ -8,7 +8,7 @@ mod types;
 mod utils;
 
 use crate::{
-    ast::{Ast, Attribute, Expr, ExprKind, NodeId, Stmt, StmtKind},
+    ast::{Ast, Attribute, Expr, ExprKind, NodeId, Stmt, StmtKind, Type, TypeKind},
     errors::{
         builders,
         widgets::{CodeWidget, LocationWidget},
@@ -46,6 +46,14 @@ impl Parser {
 
     pub fn expr(&mut self, kind: ExprKind, span: Span) -> Expr {
         Expr {
+            id: self.next_id(),
+            kind,
+            span,
+        }
+    }
+
+    pub fn type_(&mut self, kind: TypeKind, span: Span) -> Type {
+        Type {
             id: self.next_id(),
             kind,
             span,

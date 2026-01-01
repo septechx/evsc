@@ -1,5 +1,7 @@
 use std::fmt::{Display, Formatter};
 
+use crate::elogln;
+
 pub mod sourcemaps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -20,9 +22,7 @@ pub struct Span {
 impl Span {
     pub fn new(mut low: u32, mut high: u32) -> Self {
         if low > high {
-            if crate::ENABLE_PRINTING.with(|e| *e.borrow()) {
-                eprintln!("Warning: Span created with low > high: {low} > {high}");
-            }
+            elogln!("Warning: Span created with low > high: {low} > {high}");
             std::mem::swap(&mut low, &mut high);
         }
 

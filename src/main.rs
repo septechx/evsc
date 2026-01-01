@@ -66,22 +66,18 @@ pub fn main() -> Result<()> {
         build_file::<LdLinker>(file_path, &cli)?;
     }
 
-    if ENABLE_PRINTING.with(|e| *e.borrow()) {
-        ERRORS.with(|e| {
-            e.borrow().print_all();
-        });
-    }
+    ERRORS.with(|e| {
+        e.borrow().print_all();
+    });
 
     Ok(())
 }
 
 fn check_for_errors() {
     if ERRORS.with(|e| e.borrow().has_errors()) {
-        if ENABLE_PRINTING.with(|e| *e.borrow()) {
-            ERRORS.with(|e| {
-                e.borrow().print_all();
-            });
-        }
+        ERRORS.with(|e| {
+            e.borrow().print_all();
+        });
         std::process::exit(1);
     }
 }
@@ -108,7 +104,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     check_for_errors();
 
     if cli.print_ast {
-        println!("{:#?}", ast);
+        logln!("{:#?}", ast);
         return Ok(());
     }
 

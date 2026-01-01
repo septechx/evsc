@@ -4,6 +4,25 @@ use common::it;
 use evscc::errors::ErrorLevel;
 
 #[test]
+fn can_compile_program_with_shebang() {
+    it(
+        "should compile an empty program with shebang successfully",
+        |ctx| {
+            ctx.add_source(
+                r#"
+                #!/usr/bin/env evscc
+                pub fn main() void {}
+                "#,
+            )
+            .compiles(true)
+            .execute(|res| {
+                res.exit_code(0);
+            });
+        },
+    )
+}
+
+#[test]
 fn can_compile_empty_program() {
     it("should compile an empty program successfully", |ctx| {
         ctx.add_source("").compiles(true);

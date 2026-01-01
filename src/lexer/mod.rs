@@ -47,6 +47,14 @@ impl Lexer {
     pub fn tokenize(&mut self, module_id: ModuleId) -> Result<TokenStream> {
         let mut tokens: Vec<Token> = vec![];
 
+        if self.file_content.starts_with("#!") {
+            self.advance(
+                self.remaining_input()
+                    .find('\n')
+                    .unwrap_or(self.file_content.len()),
+            );
+        }
+
         while !self.at_eof() {
             let remaining = self.remaining_input();
             let mut matched = false;

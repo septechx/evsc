@@ -8,6 +8,7 @@ pub mod lexer;
 pub mod macros;
 pub mod parser;
 pub mod span;
+pub mod utils;
 
 use std::{
     cell::RefCell,
@@ -36,6 +37,8 @@ use crate::{
     parser::parse,
     span::sourcemaps::SourceMapManager,
 };
+
+pub static DEFAULT_ROOT: &str = "..";
 
 thread_local! {
     pub static ERRORS: RefCell<ErrorCollector> = RefCell::new(ErrorCollector::new());

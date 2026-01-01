@@ -4,13 +4,13 @@ build: bindings
     cargo build --release
 
 run *ARGS: bindings
-    env EVSC_LIB_PATH="$(pwd)/lib" cargo run -- {{ARGS}}
+    env EVSC_ROOT="$(pwd)" cargo run -- {{ARGS}}
 
 test-debug: bindings
-    env EVSC_DEBUG_TESTS=1 EVSC_LIB_PATH="$(pwd)/lib" cargo test
+    env EVSC_DEBUG_TESTS=1 EVSC_ROOT="$(pwd)" cargo test
 
 test: bindings
-    env EVSC_LIB_PATH="$(pwd)/lib" cargo test
+    env EVSC_ROOT="$(pwd)" cargo test
 
 check: bindings
     cargo check

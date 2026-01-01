@@ -109,8 +109,9 @@ pub fn parse_binary_expr(parser: &mut Parser, left: Expr, bp: BindingPower) -> R
 }
 
 pub fn parse_postfix_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) -> Result<Expr> {
-    if parser.current_token().kind == TokenKind::Star && parser.peek().kind != TokenKind::Semicolon
-    {
+    let nud_lu = NUD_LU.get().expect("Lookups not initialized");
+
+    if parser.current_token().kind == TokenKind::Star && nud_lu.contains_key(&parser.peek().kind) {
         return parse_binary_expr(parser, left, BindingPower::Multiplicative);
     }
 

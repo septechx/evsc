@@ -5,6 +5,7 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
+use crate::{elog, elogln};
 use colored::Colorize;
 
 use crate::errors::widgets::Widget;
@@ -96,7 +97,7 @@ impl ErrorCollector {
 
     pub fn add(&mut self, error: CompilationError) {
         if error.level == ErrorLevel::Fatal && self.should_panic_on_fatal {
-            eprintln!("{}", error);
+            elogln!("{}", error);
             std::process::exit(1);
         }
 
@@ -107,7 +108,7 @@ impl ErrorCollector {
                 "Too many errors ({}), stopping compilation",
                 self.max_errors
             ));
-            eprintln!("{}", max_error);
+            elogln!("{}", max_error);
             std::process::exit(1);
         }
     }
@@ -137,13 +138,13 @@ impl ErrorCollector {
 
     pub fn print_all(&self) {
         for error in &self.errors {
-            eprint!("{}", error);
+            elog!("{}", error);
         }
     }
 
     pub fn print_errors(&self, min_level: ErrorLevel) {
         for error in self.get_errors(min_level) {
-            eprint!("{}", error);
+            elog!("{}", error);
         }
     }
 

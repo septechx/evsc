@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Stmt, Type};
+use crate::ast::{Expr, ImportTree, Stmt, Type};
 
 #[derive(Debug, Clone)]
 pub struct BlockStmt {
@@ -73,4 +73,9 @@ pub struct FnDeclStmt {
 #[derive(Debug, Clone)]
 pub struct ReturnStmt {
     pub value: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportStmt {
+    pub tree: ImportTree,
 }

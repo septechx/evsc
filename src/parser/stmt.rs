@@ -3,10 +3,10 @@ use anyhow::Result;
 use crate::{
     ERRORS,
     ast::{
-        Attribute, Expr, Stmt, StmtKind, Type, TypeKind,
+        Attribute, Expr, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type, TypeKind,
         statements::{
-            ExpressionStmt, FnArgument, FnDeclStmt, InterfaceDeclStmt, InterfaceMethod, ReturnStmt,
-            StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
+            ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
+            ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
     errors::{
@@ -22,7 +22,7 @@ use crate::{
         lookups::{BindingPower, STMT_LU},
         modifiers::{Modifier, ModifierKind, parse_modifiers},
         types::parse_type,
-        utils::unexpected_token,
+        utils::{parse_path, parse_rename, unexpected_token},
     },
     span::Span,
 };
@@ -489,4 +489,83 @@ pub fn parse_return_stmt(
     let span = Span::new(return_token.span.start(), end_span.end());
 
     Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), span, vec![]))
+}
+
+pub fn parse_import_stmt(
+    parser: &mut Parser,
+    attributes: Vec<Attribute>,
+    modifiers: Vec<Modifier>,
+) -> Result<Stmt> {
+    if !modifiers.is_empty() {
+        crate::ERRORS.with(|e| -> Result<()> {
+            e.borrow_mut().add(
+                builders::error("Modifier not allowed here")
+                    .add_widget(LocationWidget::new(
+                        attributes[0].span,
+                        parser.current_token().module_id,
+                    )?)
+                    .add_widget(CodeWidget::new(
+                        attributes[0].span,
+                        parser.current_token().module_id,
+                    )?),
+            );
+            Ok(())
+        })?;
+    }
+
+    let start_span = parser.expect(TokenKind::Import)?.span;
+    let tree = parse_import_tree(parser)?;
+    let end_span = parser.expect(TokenKind::Semicolon)?.span;
+
+    let span = Span::new(start_span.start(), end_span.end());
+    Ok(parser.stmt(StmtKind::Import(ImportStmt { tree }), span, attributes))
+}
+
+fn parse_import_tree(parser: &mut Parser) -> Result<ImportTree> {
+    let prefix = parse_path(parser)?;
+    let kind = if parser.current_token().kind == TokenKind::ColonColon {
+        parser.advance();
+        if parser.current_token().kind == TokenKind::Star {
+            parser.advance();
+            ImportTreeKind::Glob
+        } else {
+            ImportTreeKind::Nested {
+                items: parse_import_tree_list(parser)?,
+                span: Span::new(prefix.span.start(), parser.current_token().span.end()),
+            }
+        }
+    } else {
+        ImportTreeKind::Simple(parse_rename(parser)?)
+    };
+
+    let span = Span::new(prefix.span.start(), parser.current_token().span.end() - 1);
+
+    Ok(ImportTree { prefix, kind, span })
+}
+
+fn parse_import_tree_list(parser: &mut Parser) -> Result<Vec<(ImportTree, NodeId)>> {
+    let mut items = vec![];
+
+    parser.expect(TokenKind::OpenCurly)?;
+
+    loop {
+        let tree = parse_import_tree(parser)?;
+        let id = parser.next_id();
+
+        items.push((tree, id));
+
+        if parser.peek().kind != TokenKind::CloseCurly
+            && parser.current_token().kind == TokenKind::Comma
+        {
+            parser.expect(TokenKind::Comma)?;
+        }
+
+        if parser.current_token().kind == TokenKind::CloseCurly {
+            break;
+        }
+    }
+
+    parser.expect(TokenKind::CloseCurly)?;
+
+    Ok(items)
 }

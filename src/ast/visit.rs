@@ -1,7 +1,4 @@
-use crate::ast::{
-    Ast, Expr, Stmt, StmtKind, Type,
-    statements::{BlockStmt, FnDeclStmt},
-};
+use crate::ast::{Ast, Expr, Stmt, Type, statements::BlockStmt};
 
 pub trait Visitor {
     fn visit_stmt(&mut self, stmt: &mut Stmt);
@@ -25,50 +22,8 @@ impl Visitable for Ast {
     }
 }
 
-fn visit_stmts(stmts: &mut [Stmt], visitor: &mut impl Visitor) {
-    for stmt in stmts.iter_mut() {
-        match &mut stmt.kind {
-            StmtKind::Block(block) => {
-                block.visit(visitor);
-            }
-            StmtKind::Expression(expr) => {
-                visitor.visit_expr(&mut expr.expression);
-            }
-            StmtKind::VarDecl(var_decl) => {
-                if let Some(assigned_value) = &mut var_decl.assigned_value {
-                    visitor.visit_expr(assigned_value);
-                }
-                visitor.visit_type(&mut var_decl.type_);
-            }
-            StmtKind::StructDecl(struct_decl) => {
-                for property in &mut struct_decl.properties {
-                    visitor.visit_type(&mut property.type_);
-                }
-                for method in &mut struct_decl.methods {
-                    visit_fn_decl(&mut method.fn_decl, visitor);
-                }
-            }
-            StmtKind::InterfaceDecl(interface_decl) => {
-                for method in &mut interface_decl.methods {
-                    visit_fn_decl(&mut method.fn_decl, visitor);
-                }
-            }
-            StmtKind::FnDecl(fn_decl) => {
-                visit_fn_decl(fn_decl, visitor);
-            }
-            StmtKind::Return(ret) => {
-                if let Some(value) = &mut ret.value {
-                    visitor.visit_expr(value);
-                }
-            }
-        }
+fn visit_stmts(stmts: &mut [Stmt], _visitor: &mut impl Visitor) {
+    for _stmt in stmts.iter_mut() {
+        todo!("Call .visit + implement Visitable")
     }
-}
-
-fn visit_fn_decl(fn_decl: &mut FnDeclStmt, visitor: &mut impl Visitor) {
-    for arg in &mut fn_decl.arguments {
-        visitor.visit_type(&mut arg.type_);
-    }
-    visitor.visit_type(&mut fn_decl.return_type);
-    visit_stmts(&mut fn_decl.body, visitor);
 }

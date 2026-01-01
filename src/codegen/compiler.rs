@@ -195,6 +195,7 @@ pub fn compile_stmts<'a, 'ctx>(
             }
             StmtKind::StructDecl(_) => (), // Structs are compiled during the first pass
             StmtKind::InterfaceDecl(_) => todo!(),
+            StmtKind::Import(_) => todo!(),
         }
     }
 

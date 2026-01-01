@@ -190,6 +190,7 @@ fn initialize_regexes() {
             // Multi-char
             regex_handler!(r"^->", def T::Arrow),
             regex_handler!(r"^&&", def T::And),
+            regex_handler!(r"^\|\>", def T::Pipe),
             regex_handler!(r"^\|\|", def T::Or),
             regex_handler!(r"^\.\.", def T::DotDot),
             regex_handler!(r"^<=", def T::LessEquals),
@@ -213,7 +214,8 @@ fn initialize_regexes() {
             regex_handler!(r"^\*", def T::Star),
             regex_handler!(r"^/", def T::Slash),
             regex_handler!(r"^%", def T::Percent),
-            regex_handler!(r"^\|", def T::Pipe),
+            regex_handler!(r"^\|", def T::Bar),
+            regex_handler!(r"^\?", def T::Question),
             regex_handler!(r"^:", def T::Colon),
             regex_handler!(r"^\{", def T::OpenCurly),
             regex_handler!(r"^\}", def T::CloseCurly),

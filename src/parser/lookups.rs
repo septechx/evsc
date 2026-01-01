@@ -114,14 +114,14 @@ pub fn create_token_lookups() {
 
         // Logical
         led(
-            T::And,
+            T::Reference,
             BP::Logical,
             parse_binary_expr,
             &mut bp_lu,
             &mut led_lu,
         );
         led(
-            T::Or,
+            T::Bar,
             BP::Logical,
             parse_binary_expr,
             &mut bp_lu,

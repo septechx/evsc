@@ -145,10 +145,10 @@ pub fn compile_stmts<'a, 'ctx>(
                     compilation_context,
                 )?;
 
-                let function = module.add_function(&fn_decl.name, fn_type, None);
+                let function = module.add_function(&fn_decl.name.value, fn_type, None);
                 compilation_context
                     .function_table
-                    .insert(fn_decl.name.clone(), function.into());
+                    .insert(fn_decl.name.value.clone(), function.into());
             }
             StmtKind::StructDecl(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
@@ -163,7 +163,7 @@ pub fn compile_stmts<'a, 'ctx>(
             StmtKind::FnDecl(fn_decl) => {
                 if let Some(function) = compilation_context
                     .function_table
-                    .get(fn_decl.name.as_ref())
+                    .get(fn_decl.name.value.as_ref())
                 {
                     compile_function(
                         context,
@@ -210,7 +210,7 @@ fn compile_function<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     compilation_context.symbol_table.insert(
-        fn_decl.name.clone(),
+        fn_decl.name.value.clone(),
         SymbolTableEntry::from_value(
             function.as_global_value().as_basic_value_enum(),
             function
@@ -233,13 +233,13 @@ fn compile_function<'ctx>(
 
     for (i, arg_decl) in fn_decl.arguments.iter().enumerate() {
         if let Some(param) = function.get_nth_param(i as u32) {
-            param.set_name(&arg_decl.name);
+            param.set_name(&arg_decl.name.value);
 
-            let alloca = builder.build_alloca(param.get_type(), &arg_decl.name)?;
+            let alloca = builder.build_alloca(param.get_type(), &arg_decl.name.value)?;
             builder.build_store(alloca, param)?;
 
             symbol_table.insert(
-                arg_decl.name.clone(),
+                arg_decl.name.value.clone(),
                 SymbolTableEntry::from_pointer(
                     context,
                     alloca.as_basic_value_enum(),
@@ -274,7 +274,7 @@ fn compile_function<'ctx>(
     }
 
     compilation_context.symbol_table.insert(
-        fn_decl.name.clone(),
+        fn_decl.name.value.clone(),
         SymbolTableEntry::from_value(
             function.as_global_value().as_basic_value_enum(),
             function
@@ -349,11 +349,16 @@ fn compile_var_decl<'a, 'ctx>(
     let value = value.unwrap(builder)?;
 
     if var_decl.is_static {
-        let gv = add_global_constant(module, value.get_type(), &var_decl.variable_name, value)?;
+        let gv = add_global_constant(
+            module,
+            value.get_type(),
+            &var_decl.variable_name.value,
+            value,
+        )?;
         gv.set_linkage(Linkage::Private);
 
         compilation_context.symbol_table.insert(
-            var_decl.variable_name.clone(),
+            var_decl.variable_name.value.clone(),
             SymbolTableEntry::from_pointer(
                 context,
                 gv.as_pointer_value().as_basic_value_enum(),
@@ -364,11 +369,11 @@ fn compile_var_decl<'a, 'ctx>(
         return Ok(());
     }
 
-    let alloca = builder.build_alloca(value.get_type(), &var_decl.variable_name)?;
+    let alloca = builder.build_alloca(value.get_type(), &var_decl.variable_name.value)?;
     builder.build_store(alloca, value)?;
 
     compilation_context.symbol_table.insert(
-        var_decl.variable_name.clone(),
+        var_decl.variable_name.value.clone(),
         SymbolTableEntry::from_pointer(context, alloca.as_basic_value_enum(), value.get_type()),
     );
 
@@ -387,12 +392,12 @@ fn compile_struct_decl<'ctx>(
     for (index, property) in struct_decl.properties.iter().enumerate() {
         let field_ty = compile_type(context, &property.type_, compilation_context)?;
         field_types.push(field_ty);
-        field_indices.insert(property.name.clone(), index as u32);
+        field_indices.insert(property.name.value.clone(), index as u32);
     }
 
     for method in &struct_decl.methods {
         let mut method = method.fn_decl.clone();
-        method.name = format!("{}_{}", struct_decl.name, method.name).into();
+        method.name.value = format!("{}_{}", struct_decl.name.value, method.name.value).into();
 
         let param_types: Vec<Type> = method
             .arguments
@@ -406,18 +411,18 @@ fn compile_struct_decl<'ctx>(
             compilation_context,
         )?;
 
-        let function = module.add_function(&method.name, fn_type, None);
+        let function = module.add_function(&method.name.value, fn_type, None);
         compilation_context
             .function_table
-            .insert(method.name.clone(), function.into());
+            .insert(method.name.value.clone(), function.into());
 
         compile_function(context, module, function, &method, compilation_context)?;
     }
 
-    let struct_ty = create_named_struct(context, &field_types, &struct_decl.name, false)?;
+    let struct_ty = create_named_struct(context, &field_types, &struct_decl.name.value, false)?;
 
     compilation_context.type_context.struct_defs.insert(
-        struct_decl.name.clone(),
+        struct_decl.name.value.clone(),
         StructDef {
             llvm_type: struct_ty,
             is_builtin: false,

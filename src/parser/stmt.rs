@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::{
     ERRORS,
     ast::{
-        Attribute, Expr, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type, TypeKind,
+        Attribute, Expr, Ident, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type, TypeKind,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
             ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
@@ -133,14 +133,16 @@ pub fn parse_var_decl_statement(
         parser.advance();
     }
 
-    let variable_name = parser
-        .expect_error(
-            TokenKind::Identifier,
-            Some(String::from(
-                "Expected variable name inside variable declaration",
-            )),
-        )?
-        .value;
+    let variable_name = parser.expect_error(
+        TokenKind::Identifier,
+        Some(String::from(
+            "Expected variable name inside variable declaration",
+        )),
+    )?;
+    let variable_name = Ident {
+        value: variable_name.value,
+        span: variable_name.span,
+    };
 
     if parser.current_token().kind == TokenKind::Colon {
         parser.advance();
@@ -216,7 +218,11 @@ pub fn parse_struct_decl_stmt(
     let struct_token = parser.expect(TokenKind::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
     let mut methods: Vec<StructMethod> = Vec::new();
-    let name = parser.expect(TokenKind::Identifier)?.value;
+    let name = parser.expect(TokenKind::Identifier)?;
+    let name = Ident {
+        value: name.value,
+        span: name.span,
+    };
 
     parser.expect(TokenKind::OpenCurly)?;
 
@@ -266,7 +272,10 @@ pub fn parse_struct_decl_stmt(
 
         if parser.current_token().kind == TokenKind::Identifier {
             let property = parser.expect(TokenKind::Identifier)?;
-            let property_name = property.value;
+            let property_name = Ident {
+                value: property.value,
+                span: property.span,
+            };
             parser.expect_error(
                 TokenKind::Colon,
                 Some(String::from(
@@ -281,14 +290,15 @@ pub fn parse_struct_decl_stmt(
 
             if !properties
                 .iter()
-                .filter(|arg| arg.name == property_name)
+                .filter(|arg| arg.name.value == property_name.value)
                 .collect::<Vec<_>>()
                 .is_empty()
             {
                 crate::ERRORS.with(|e| -> Result<()> {
                     e.borrow_mut().add(
                         builders::error(format!(
-                            "Property {property_name} has already been defined in struct"
+                            "Property {} has already been defined in struct",
+                            property_name.value
                         ))
                         .add_widget(LocationWidget::new(
                             property.span,
@@ -349,7 +359,11 @@ pub fn parse_interface_decl_stmt(
 ) -> Result<Stmt> {
     let interface_token = parser.expect(TokenKind::Interface)?;
     let mut methods: Vec<InterfaceMethod> = Vec::new();
-    let name = parser.expect(TokenKind::Identifier)?.value;
+    let name = parser.expect(TokenKind::Identifier)?;
+    let name = Ident {
+        value: name.value,
+        span: name.span,
+    };
 
     parser.expect(TokenKind::OpenCurly)?;
 
@@ -402,7 +416,11 @@ pub fn parse_fn_decl_stmt(
     let (pub_mod, extern_mod) = get_modifiers!(&parser, modifiers, [Pub, Extern]);
 
     let fn_token = parser.expect(TokenKind::Fn)?;
-    let name = parser.expect(TokenKind::Identifier)?.value;
+    let name = parser.expect(TokenKind::Identifier)?;
+    let name = Ident {
+        value: name.value,
+        span: name.span,
+    };
 
     parser.expect(TokenKind::OpenParen)?;
     let mut arguments: Vec<FnArgument> = vec![];
@@ -412,7 +430,11 @@ pub fn parse_fn_decl_stmt(
             break;
         }
 
-        let arg_name = parser.expect(TokenKind::Identifier)?.value;
+        let arg_name = parser.expect(TokenKind::Identifier)?;
+        let arg_name = Ident {
+            value: arg_name.value,
+            span: arg_name.span,
+        };
 
         parser.expect(TokenKind::Colon)?;
         let type_ = parse_type(parser, BindingPower::DefaultBp)?;

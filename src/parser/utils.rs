@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    ast::{Ident, Path, expressions::SymbolExpr},
+    ast::{Ident, Path},
     errors::{
         builders,
         widgets::{CodeWidget, LocationWidget},
@@ -35,9 +35,7 @@ pub fn parse_path(parser: &mut Parser) -> Result<Path> {
 
     let segment = parser.expect(TokenKind::Identifier)?;
     segments.push(Ident {
-        value: SymbolExpr {
-            value: segment.value,
-        },
+        value: segment.value,
         span: segment.span,
     });
 
@@ -49,9 +47,7 @@ pub fn parse_path(parser: &mut Parser) -> Result<Path> {
         parser.advance();
         let segment = parser.expect(TokenKind::Identifier)?;
         segments.push(Ident {
-            value: SymbolExpr {
-                value: segment.value,
-            },
+            value: segment.value,
             span: segment.span,
         });
 
@@ -69,9 +65,7 @@ pub fn parse_rename(parser: &mut Parser) -> Result<Option<Ident>> {
         parser.advance();
         let rename = parser.expect(TokenKind::Identifier)?;
         Ok(Some(Ident {
-            value: SymbolExpr {
-                value: rename.value,
-            },
+            value: rename.value,
             span: rename.span,
         }))
     } else {

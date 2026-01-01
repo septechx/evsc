@@ -60,11 +60,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         ExprKind::Symbol(sym) => {
             let entry = compilation_context
                 .symbol_table
-                .get(sym.value.as_ref())
+                .get(sym.value.value.as_ref())
                 .cloned()
-                .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?;
+                .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value.value))?;
 
-            if let Some(fn_entry) = compilation_context.function_table.get(sym.value.as_ref()) {
+            if let Some(fn_entry) = compilation_context
+                .function_table
+                .get(sym.value.value.as_ref())
+            {
                 entry.value.with_fn_type(fn_entry.function.get_type())
             } else {
                 entry.value
@@ -144,7 +147,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         }
         ExprKind::FunctionCall(fn_expr) => {
             if let ExprKind::Symbol(sym) = &fn_expr.callee.kind
-                && let Some(builtin) = sym.value.strip_prefix("@")
+                && let Some(builtin) = sym.value.value.strip_prefix("@")
                 && let Some(builtin) = Builtin::from_str(builtin)
             {
                 return builtin.handle_call(context, module, builder, expr, compilation_context);
@@ -274,26 +277,30 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let struct_def = compilation_context
                 .type_context
                 .struct_defs
-                .get(expr.name.as_ref())
+                .get(expr.name.value.as_ref())
                 .cloned()
-                .ok_or_else(|| anyhow!("Unknown struct: {}", expr.name))?;
+                .ok_or_else(|| anyhow!("Unknown struct: {}", expr.name.value))?;
 
             let struct_ty = struct_def.llvm_type;
 
             // Field in instantiation but not in struct
             for field_name in expr.properties.keys() {
                 if !struct_def.field_indices.contains_key(field_name.as_ref()) {
-                    bail!("No such field {} in struct: {}", field_name, expr.name);
+                    bail!(
+                        "No such field {} in struct: {}",
+                        field_name,
+                        expr.name.value
+                    );
                 }
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
                 if !expr.properties.contains_key(field_name.as_ref()) {
-                    bail!("Missing field {} in struct {}", field_name, expr.name);
+                    bail!("Missing field {} in struct {}", field_name, expr.name.value);
                 }
             }
 
-            let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name))?;
+            let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name.value))?;
 
             for (field_name, field_index) in &struct_def.field_indices {
                 let expr_val = expr.properties.get(field_name.as_ref()).unwrap();

@@ -157,7 +157,12 @@ fn parse_type(ty: &str, id: NodeId, span: Span) -> Type {
     let ty = map_c_type(ty);
 
     Type {
-        kind: TypeKind::Symbol(SymbolType { name: ty.into() }),
+        kind: TypeKind::Symbol(SymbolType {
+            name: Ident {
+                value: ty.into(),
+                span,
+            },
+        }),
         id,
         span,
     }

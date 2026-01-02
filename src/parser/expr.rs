@@ -1,7 +1,7 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use anyhow::{Result, bail};
-use colored::Colorize;
 
 use crate::{
     ast::{
@@ -83,18 +83,11 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
         )),
         TokenKind::Identifier => Ok(parser.expr(
             ExprKind::Symbol(SymbolExpr {
-                value: Ident { value, span },
+                value: TryInto::<Ident>::try_into(token)?,
             }),
             span,
         )),
-        _ => bail!(
-            format!(
-                "Cannot create primary expression from {:?}",
-                parser.current_token()
-            )
-            .red()
-            .bold()
-        ),
+        _ => unreachable!(),
     }
 }
 
@@ -184,18 +177,18 @@ pub fn parse_struct_instantiation_expr(
 
     parser.expect(TokenKind::OpenCurly)?;
 
-    let mut properties: HashMap<Box<str>, Expr> = HashMap::new();
+    let mut properties: HashMap<Ident, Expr> = HashMap::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {
             break;
         }
 
-        let property_name = parser.expect(TokenKind::Identifier)?.value;
+        let property = parser.expect_identifier()?;
         parser.expect(TokenKind::Colon)?;
         let value = parse_expr(parser, BindingPower::Assignment)?;
 
-        properties.insert(property_name, value);
+        properties.insert(property, value);
 
         if parser.current_token().kind != TokenKind::CloseCurly {
             parser.expect(TokenKind::Comma)?;
@@ -215,6 +208,7 @@ pub fn parse_struct_instantiation_expr(
 }
 
 // TODO: This only parses slices, not arrays
+// Maybe fine, as this is just an array literal and can be treated as both and have the correct type inferred
 pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
     let start_token = parser.expect(TokenKind::OpenBracket)?;
     parser.expect(TokenKind::CloseBracket)?;
@@ -289,13 +283,10 @@ pub fn parse_member_access_expr(
 ) -> Result<Expr> {
     parser.expect(TokenKind::Dot)?;
 
-    let member_token = parser.expect(TokenKind::Identifier)?;
-    let member = Ident {
-        value: member_token.value,
-        span: member_token.span,
-    };
+    let member = parser.expect_identifier()?;
+    let member_span = member.span;
 
-    let span = Span::new(left.span.start(), member_token.span.end());
+    let span = Span::new(left.span.start(), member_span.end());
     Ok(parser.expr(
         ExprKind::MemberAccess(MemberAccessExpr {
             base: Box::new(left),

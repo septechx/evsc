@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{Result, anyhow, bail};
 use inkwell::{
     AddressSpace,
@@ -283,19 +285,28 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             let struct_ty = struct_def.llvm_type;
 
+            let properties = expr
+                .properties
+                .iter()
+                .map(|(ident, expr)| (ident.value.clone(), expr))
+                .collect::<HashMap<_, _>>();
+
             // Field in instantiation but not in struct
             for field_name in expr.properties.keys() {
-                if !struct_def.field_indices.contains_key(field_name.as_ref()) {
+                if !struct_def
+                    .field_indices
+                    .contains_key(field_name.value.as_ref())
+                {
                     bail!(
                         "No such field {} in struct: {}",
-                        field_name,
+                        field_name.value,
                         expr.name.value
                     );
                 }
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
-                if !expr.properties.contains_key(field_name.as_ref()) {
+                if !properties.contains_key(field_name.as_ref()) {
                     bail!("Missing field {} in struct {}", field_name, expr.name.value);
                 }
             }
@@ -303,7 +314,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name.value))?;
 
             for (field_name, field_index) in &struct_def.field_indices {
-                let expr_val = expr.properties.get(field_name.as_ref()).unwrap();
+                let expr_val = properties.get(field_name.as_ref()).unwrap();
                 let val = compile_expression_to_value(
                     context,
                     module,

@@ -8,7 +8,7 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Vec<Attribute>> {
         let hash_token = parser.advance();
         parser.expect(TokenKind::OpenBracket)?;
 
-        let name = parser.expect(TokenKind::Identifier)?.value;
+        let name = parser.expect_identifier()?;
 
         let arguments = if parser.current_token().kind == TokenKind::OpenParen {
             parser.advance();

@@ -3,8 +3,11 @@ pub mod statements;
 pub mod types;
 pub mod visit;
 
+use anyhow::bail;
+
 use crate::{
     ast::{expressions::*, statements::*, types::*},
+    lexer::token::{Token, TokenKind},
     span::Span,
 };
 
@@ -16,7 +19,7 @@ pub struct NodeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
-    pub name: Box<str>,
+    pub name: Ident,
     pub arguments: Option<Vec<Box<str>>>,
     pub span: Span,
 }
@@ -84,10 +87,24 @@ pub enum TypeKind {
     Never,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Ident {
     pub value: Box<str>,
     pub span: Span,
+}
+
+impl TryFrom<Token> for Ident {
+    type Error = anyhow::Error;
+
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        if token.kind != TokenKind::Identifier {
+            bail!("Expected identifier token, but got {} instead", token.kind);
+        }
+        Ok(Self {
+            value: token.value,
+            span: token.span,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]

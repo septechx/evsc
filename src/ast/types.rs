@@ -1,8 +1,8 @@
-use crate::ast::Type;
+use crate::ast::{Ident, Type};
 
 #[derive(Debug, Clone)]
 pub struct SymbolType {
-    pub name: Box<str>,
+    pub name: Ident,
 }
 
 #[derive(Debug, Clone)]

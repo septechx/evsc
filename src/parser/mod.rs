@@ -8,7 +8,7 @@ mod types;
 mod utils;
 
 use crate::{
-    ast::{Ast, Attribute, Expr, ExprKind, NodeId, Stmt, StmtKind, Type, TypeKind},
+    ast::{Ast, Attribute, Expr, ExprKind, Ident, NodeId, Stmt, StmtKind, Type, TypeKind},
     errors::{
         builders,
         widgets::{CodeWidget, LocationWidget},
@@ -19,6 +19,7 @@ use crate::{
 };
 
 use anyhow::Result;
+use std::convert::TryInto;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -130,6 +131,11 @@ impl Parser {
 
     pub fn expect(&mut self, expected_kind: TokenKind) -> Result<Token> {
         self.expect_error(expected_kind, None)
+    }
+
+    pub fn expect_identifier(&mut self) -> Result<Ident> {
+        let token = self.expect(TokenKind::Identifier)?;
+        TryInto::<Ident>::try_into(token)
     }
 }
 

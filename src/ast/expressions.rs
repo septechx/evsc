@@ -49,7 +49,7 @@ pub struct AssignmentExpr {
 #[derive(Debug, Clone)]
 pub struct StructInstantiationExpr {
     pub name: Ident,
-    pub properties: HashMap<Box<str>, Expr>,
+    pub properties: HashMap<Ident, Expr>,
 }
 
 #[derive(Debug, Clone)]

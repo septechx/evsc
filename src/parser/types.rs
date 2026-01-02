@@ -66,12 +66,10 @@ pub fn create_token_type_lookups() {
 }
 
 fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
-    let ident = parser.expect(T::Identifier)?;
+    let ident = parser.expect_identifier()?;
+    let span = ident.span;
 
-    Ok(parser.type_(
-        TypeKind::Symbol(SymbolType { name: ident.value }),
-        ident.span,
-    ))
+    Ok(parser.type_(TypeKind::Symbol(SymbolType { name: ident }), span))
 }
 
 fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {

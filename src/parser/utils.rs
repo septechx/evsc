@@ -33,25 +33,17 @@ pub fn parse_path(parser: &mut Parser) -> Result<Path> {
     let start = parser.current_token().span;
     let mut segments = vec![];
 
-    let segment = parser.expect(TokenKind::Identifier)?;
-    segments.push(Ident {
-        value: segment.value,
-        span: segment.span,
-    });
-
+    let segment = parser.expect_identifier()?;
     let mut last = segment.span.end();
+    segments.push(segment);
 
     while parser.current_token().kind == TokenKind::ColonColon
         && parser.peek().kind == TokenKind::Identifier
     {
         parser.advance();
-        let segment = parser.expect(TokenKind::Identifier)?;
-        segments.push(Ident {
-            value: segment.value,
-            span: segment.span,
-        });
-
+        let segment = parser.expect_identifier()?;
         last = segment.span.end();
+        segments.push(segment);
     }
 
     Ok(Path {
@@ -63,11 +55,7 @@ pub fn parse_path(parser: &mut Parser) -> Result<Path> {
 pub fn parse_rename(parser: &mut Parser) -> Result<Option<Ident>> {
     if parser.current_token().kind == TokenKind::As {
         parser.advance();
-        let rename = parser.expect(TokenKind::Identifier)?;
-        Ok(Some(Ident {
-            value: rename.value,
-            span: rename.span,
-        }))
+        Ok(Some(parser.expect_identifier()?))
     } else {
         Ok(None)
     }

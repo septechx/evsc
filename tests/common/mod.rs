@@ -12,7 +12,10 @@ use std::{
     marker::PhantomData,
     path::{Path, PathBuf},
     process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
 };
+
+static TEST_RUN_ID: AtomicUsize = AtomicUsize::new(0);
 
 pub struct Test {
     files: Vec<(String, String)>,
@@ -95,7 +98,9 @@ impl Drop for Test {
         let mut hasher = DefaultHasher::new();
         self.files.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
-        let test_dir = temp_dir.join(&hash);
+        let cache_dir = temp_dir.join(&hash);
+        let run_id = TEST_RUN_ID.fetch_add(1, Ordering::Relaxed);
+        let test_dir = temp_dir.join(format!("{hash}-{run_id}"));
 
         if debug_tests {
             eprintln!("Test files kept at: {}", test_dir.display(),);
@@ -157,7 +162,7 @@ impl Drop for Test {
             pie: true,
             static_linking: false,
             linker_kind: PhantomData::<LdLinker>,
-            cache_dir: Some(&test_dir),
+            cache_dir: Some(&cache_dir),
         };
 
         match codegen::compile(ast.clone(), &opts) {
@@ -229,7 +234,7 @@ impl Drop for Test {
                 pie: true,
                 static_linking: false,
                 linker_kind: PhantomData::<LdLinker>,
-                cache_dir: Some(&test_dir),
+                cache_dir: Some(&cache_dir),
             };
 
             if let Err(e) = codegen::compile(ast, &exe_opts) {

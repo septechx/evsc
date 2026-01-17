@@ -4,13 +4,13 @@ build: bindings
     cargo build --release
 
 run *ARGS: bindings
-    env EVSC_ROOT="$(pwd)" cargo run -- {{ARGS}}
+    env OXI_ROOT="$(pwd)" cargo run -- {{ARGS}}
 
 test-debug: bindings
-    env EVSC_DEBUG_TESTS=1 EVSC_ROOT="$(pwd)" cargo test
+    env OXI_DEBUG_TESTS=1 OXI_ROOT="$(pwd)" cargo test
 
 test: bindings
-    env EVSC_ROOT="$(pwd)" cargo test
+    env OXI_ROOT="$(pwd)" cargo test
 
 check: bindings
     cargo check
@@ -20,8 +20,8 @@ clean:
     cargo clean
 
 install: build
-    sudo install -D -m755 target/release/evscc /usr/bin/evscc
-    sudo rsync -a --delete lib/evsc/ /usr/lib/evsc
+    sudo install -D -m755 target/release/oxic /usr/bin/oxic
+    sudo rsync -a --delete lib/oxi/ /usr/lib/oxi
 
 lint:
     cargo clippy --all-targets --all-features -- -Dwarnings

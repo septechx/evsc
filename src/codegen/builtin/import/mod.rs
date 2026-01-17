@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, iter::Extend};
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -14,8 +14,8 @@ use crate::{
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::{
-            BuiltinFunction,
             import::{header::compile_header, resolve_lib::resolve_std_lib},
+            BuiltinFunction,
         },
         compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,
@@ -55,7 +55,7 @@ impl BuiltinFunction for ImportBuiltin {
         };
 
         match ModuleType::from(&module_name) {
-            ModuleType::Library | ModuleType::Evsc => compile_evsc_module(
+            ModuleType::Library | ModuleType::Oxi => compile_oxi_module(
                 context,
                 module,
                 builder,
@@ -75,7 +75,7 @@ impl BuiltinFunction for ImportBuiltin {
     }
 }
 
-fn compile_evsc_module<'ctx>(
+fn compile_oxi_module<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
@@ -165,7 +165,7 @@ where
 
     let module_name = format!(
         "Module_{}",
-        module_name.strip_suffix(".evsc").unwrap_or(&module_name)
+        module_name.strip_suffix(".oxi").unwrap_or(&module_name)
     );
 
     let values: Vec<BasicTypeEnum> = entries.iter().map(|(_, ty)| *ty).collect();
@@ -203,14 +203,14 @@ where
 
 enum ModuleType {
     Library,
-    Evsc,
+    Oxi,
     Header,
 }
 
 impl From<&Box<str>> for ModuleType {
     fn from(path: &Box<str>) -> Self {
-        if path.ends_with(".evsc") {
-            ModuleType::Evsc
+        if path.ends_with(".oxi") {
+            ModuleType::Oxi
         } else if path.ends_with(".h") {
             ModuleType::Header
         } else {

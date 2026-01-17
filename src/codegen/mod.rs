@@ -119,7 +119,7 @@ fn get_tmp_dir(custom_path: Option<&Path>) -> Result<PathBuf> {
     let dir = if let Some(p) = custom_path {
         p.to_path_buf()
     } else {
-        PathBuf::from(std::env::var("EVSC_CACHE_DIR").unwrap_or_else(|_| String::from(".evsc")))
+        PathBuf::from(std::env::var("OXI_CACHE_DIR").unwrap_or_else(|_| String::from(".oxi")))
     };
 
     let status = fs::create_dir_all(&dir).map_err(|e| match e.kind() {

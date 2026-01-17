@@ -165,20 +165,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "evscc"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "clang",
- "clap",
- "colored",
- "inkwell",
- "parking_lot",
- "regex",
- "similar",
-]
-
-[[package]]
 name = "glob"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -282,6 +268,20 @@ name = "once_cell_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
+
+[[package]]
+name = "oxic"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clang",
+ "clap",
+ "colored",
+ "inkwell",
+ "parking_lot",
+ "regex",
+ "similar",
+]
 
 [[package]]
 name = "parking_lot"

@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_line_column_simple() {
         let content = "hello\nworld\n";
-        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.evsc"));
+        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.oxi"));
 
         assert_eq!(sm.line_column(0), (1, 1));
         assert_eq!(sm.line_column(5), (1, 6));
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_line_column_multiline() {
         let content = "first line\nsecond line\nthird line";
-        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.evsc"));
+        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.oxi"));
 
         assert_eq!(sm.line_column(0), (1, 1));
         assert_eq!(sm.line_column(11), (2, 1));
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn test_get_line() {
         let content = "line1\nline2\nline3";
-        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.evsc"));
+        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.oxi"));
 
         assert_eq!(sm.get_line(1), Some("line1"));
         assert_eq!(sm.get_line(2), Some("line2"));
@@ -142,11 +142,11 @@ mod tests {
     #[test]
     fn test_span_to_source_location() {
         let content = "hello world\n";
-        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.evsc"));
+        let sm = SourceMap::new(content.to_string(), PathBuf::from("test.oxi"));
         let span = Span::new(0, 5);
 
         let (path, line, column, length) = sm.span_to_source_location(&span);
-        assert_eq!(path.as_os_str(), "test.evsc");
+        assert_eq!(path.as_os_str(), "test.oxi");
         assert_eq!(line, 1);
         assert_eq!(column, 1);
         assert_eq!(length, 5);

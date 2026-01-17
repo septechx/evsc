@@ -1,8 +1,8 @@
-# evscc
+# oxic
 
-![](https://github.com/septechx/evsc/actions/workflows/test.yml/badge.svg)
+![](https://github.com/septechx/oxi/actions/workflows/test.yml/badge.svg)
 
-Evscc is a compiler for the Evsc programming language.
+Oxic is a compiler for the Oxi programming language.
 
 ```zig
 static std = @import("std");
@@ -27,15 +27,15 @@ pub fn main() isize {
 
 - LLVM 21.1
 - libclang >=10.0
-- Mold, lld, gold or ld
+- Mold/lld/gold/ld
 
-## Building
+## Installation
 
 ```sh
-just build
+just install
 ```
 
-## Testing
+## Running tests
 
 ```sh
 just test
@@ -43,21 +43,20 @@ just test
 
 ## Usage
 
-Run `evscc --help` for more information.
+Run `oxic --help` for more information.
 
 ### Compiling
 
 ```sh
-evscc file.evsc
+oxic file.oxi
 ```
 
 ### Standard library
 
-The compiler expects the standard library to be in `/usr/share/evsc/lib/` or `/opt/evsc/lib/`. The `EVSC_LIB_PATH` environment variable can be used to override this.
+The compiler expects the standard library to be in `/usr/share/oxi/lib/` or `/opt/oxi/lib/`. The `OXI_LIB_PATH` environment variable can be used to override this.
 
 The standard library is only needed to be available at compile time, the compiler will include the needed functions in the final binary.
 
 ## Notes
 
 - The compiler is still in development, expect bugs and missing features.
-- The name is temporary, and will be changed to something better.

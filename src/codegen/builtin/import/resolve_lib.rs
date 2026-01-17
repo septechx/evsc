@@ -15,13 +15,13 @@ use crate::{
 };
 
 pub fn resolve_std_lib(requester_span: Span, requeter_mod_id: ModuleId) -> Result<PathBuf> {
-    let env_var = env::var("EVSC_LIB_PATH");
+    let env_var = env::var("OXI_LIB_PATH");
     if let Ok(env_var) = env_var {
-        return Ok(Path::new(&env_var).join("std/lib.evsc"));
+        return Ok(Path::new(&env_var).join("std/lib.oxi"));
     }
 
     let root = get_root();
-    let path = root.join("lib/evsc/std/lib.evsc");
+    let path = root.join("lib/oxi/std/lib.oxi");
     if fs::exists(&path).unwrap_or(false) {
         return Ok(path);
     }
@@ -32,7 +32,7 @@ pub fn resolve_std_lib(requester_span: Span, requeter_mod_id: ModuleId) -> Resul
                 .add_widget(LocationWidget::new(requester_span, requeter_mod_id)?)
                 .add_widget(CodeWidget::new(requester_span, requeter_mod_id)?)
                 .add_widget(InfoWidget::new(requester_span, requeter_mod_id,
-                format!("Add EVSC_LIB_PATH environment variable to point to the standard library, or place it in {}/lib/evsc/", root.display()),
+                format!("Add OXI_LIB_PATH environment variable to point to the standard library, or place it in {}/lib/oxi/", root.display()),
             )?),
         );
         Ok(())

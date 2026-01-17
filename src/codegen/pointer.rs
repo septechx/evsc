@@ -1,5 +1,9 @@
 use anyhow::Result;
-use inkwell::{builder::Builder, types::{BasicTypeEnum, FunctionType}, values::BasicValueEnum};
+use inkwell::{
+    builder::Builder,
+    types::{BasicTypeEnum, FunctionType},
+    values::BasicValueEnum,
+};
 
 #[derive(Clone, Debug)]
 pub struct SmartValue<'ctx> {

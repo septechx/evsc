@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, bail, anyhow};
+use anyhow::{Result, anyhow, bail};
 use inkwell::{
     AddressSpace,
     builder::Builder,
@@ -83,7 +83,9 @@ pub fn compile<T: Linker>(ast: Ast, opts: &CompileOptions<T>) -> Result<()> {
         generate_c_runtime_integration(&context, &module, &builder)?;
     }
 
-    module.verify().map_err(|e| anyhow!("Module verification failed: {}", e))?;
+    module
+        .verify()
+        .map_err(|e| anyhow!("Module verification failed: {}", e))?;
 
     match opts.emit {
         EmitType::Llvm => emit_to_file(opts.output_file, &module)?,

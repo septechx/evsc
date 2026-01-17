@@ -1,6 +1,6 @@
 # oxic
 
-![](https://github.com/septechx/oxi/actions/workflows/test.yml/badge.svg)
+![CI status](https://github.com/septechx/oxi/actions/workflows/test.yml/badge.svg)
 
 Oxic is a compiler for the Oxi programming language.
 

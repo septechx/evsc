@@ -53,8 +53,7 @@ oxic file.oxi
 
 ### Standard library
 
-The compiler expects the standard library to be in `/usr/share/oxi/lib/` or `/opt/oxi/lib/`. The `OXI_LIB_PATH` environment variable can be used to override this.
-
+The compiler expects the standard library under `<root>/lib/oxi/` (e.g. `/usr/lib/oxi/` when installed to `/usr/bin/oxic`). The `OXI_LIB_PATH` environment variable can be used to override this.
 The standard library is only needed to be available at compile time, the compiler will include the needed functions in the final binary.
 
 ## Notes

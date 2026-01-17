@@ -26,7 +26,7 @@ use crate::{
     backend::{
         BackendOptions,
         linker::{
-            Linker, link_object_files,
+            Linker,
             linkers::{GccLinker, LdLinker},
         },
     },
@@ -53,20 +53,12 @@ pub fn main() -> Result<()> {
         ENABLE_PRINTING.with(|e| *e.borrow_mut() = false);
     }
 
-    let file_path = cli.input.iter().find(|file| {
-        if let Some(ext) = file.extension() {
-            ext == "oxi"
-        } else {
-            false
-        }
-    }); // $1/$2.oxi
-
-    if file_path.is_none() {
-        eprintln!("{}", "No files specified".red().bold());
+    if cli.input.len() > 1 {
+        eprintln!("{}", "Multiple input files specified".red().bold());
         std::process::exit(1);
     }
 
-    let file_path = file_path.unwrap().clone();
+    let file_path = cli.input.first().unwrap().clone();
 
     if cli.use_gcc {
         build_file::<GccLinker>(file_path, &cli)?;
@@ -125,26 +117,20 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
         .and_then(|s| s.to_str())
         .expect("file name must be valid UTF-8"); // $2
 
-    let (extension, emit) = if cli.no_link {
-        match (cli.emit_llvm, cli.emit_asm) {
-            (true, _) => ("ll", EmitType::Llvm),
-            (false, true) => ("s", EmitType::Assembly),
-            _ => ("o", EmitType::Object),
+    let (extension, emit) = 'block: {
+        if cli.emit_llvm {
+            break 'block ("ll", EmitType::Llvm);
         }
-    } else {
-        match (cli.emit_llvm, cli.emit_asm) {
-            (true, _) => ("ll", EmitType::Llvm),
-            (false, true) => ("s", EmitType::Assembly),
-            _ => {
-                if cli.shared {
-                    ("so", EmitType::Object)
-                } else if cli.input.len() > 1 {
-                    ("o", EmitType::Object)
-                } else {
-                    ("", EmitType::Executable)
-                }
-            }
+        if cli.emit_asm {
+            break 'block ("s", EmitType::Assembly);
         }
+        if cli.shared {
+            break 'block ("so", EmitType::Object);
+        }
+        if cli.no_link {
+            break 'block ("o", EmitType::Object);
+        }
+        break 'block ("", EmitType::Executable);
     };
 
     let output = cli.output.clone().unwrap_or_else(|| {
@@ -197,27 +183,6 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
 
     codegen::compile(ast, &opts)?;
     check_for_errors();
-
-    if cli.input.len() > 1 {
-        let additional_objects: Vec<&Path> = cli.input[1..]
-            .iter()
-            .filter(|f| f.extension().is_some_and(|ext| ext == "o"))
-            .map(|f| f.as_path())
-            .collect();
-
-        if !additional_objects.is_empty() {
-            let temp_obj_path = output.with_extension("o");
-            let mut all_objects = vec![temp_obj_path.as_path()];
-            all_objects.extend(additional_objects);
-            link_object_files::<T>(
-                &all_objects,
-                &output.with_extension(""),
-                cli.shared,
-                !cli.no_pie && !cli.static_ && !cli.no_pic,
-                cli.static_,
-            )?;
-        }
-    }
 
     Ok(())
 }

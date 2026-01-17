@@ -115,6 +115,27 @@ pub fn compile<T: Linker>(ast: Ast, opts: &CompileOptions<T>) -> Result<()> {
     Ok(())
 }
 
+/// Determine and prepare the temporary cache directory to use for object files.
+///
+/// If `custom_path` is provided, that path is used. Otherwise the function uses the
+/// `OXI_CACHE_DIR` environment variable if set, or the default ".oxi" directory in the
+/// current working directory. The function ensures the chosen directory and its "o"
+/// subdirectory exist, creating them if necessary. Returns the chosen base directory
+/// path on success and an error if either directory cannot be created.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use std::env;
+/// // create a unique path under the OS temp dir for the example
+/// let tmp_base = env::temp_dir().join(format!("oxi_test_{}", std::process::id()));
+/// let returned = get_tmp_dir(Some(&tmp_base)).expect("failed to create tmp dir");
+/// assert_eq!(returned, tmp_base);
+/// assert!(returned.join("o").exists());
+/// // cleanup (best-effort)
+/// let _ = std::fs::remove_dir_all(returned);
+/// ```
 fn get_tmp_dir(custom_path: Option<&Path>) -> Result<PathBuf> {
     let dir = if let Some(p) = custom_path {
         p.to_path_buf()

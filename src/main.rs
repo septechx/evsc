@@ -46,6 +46,28 @@ thread_local! {
     pub static ENABLE_PRINTING: RefCell<bool> = const { RefCell::new(true) };
 }
 
+/// Program entry point for the compiler CLI.
+///
+/// Parses command-line arguments, selects the first input file with an `.oxi` extension,
+/// configures printing according to the `quiet` flag, invokes the appropriate linker-specific
+/// build flow, and prints any collected errors.
+///
+/// This function will print "No files specified" (in red and bold) and exit the process with
+/// code 1 if no `.oxi` input file is present. If the `quiet` flag is set, it disables
+/// runtime printing before building.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Typical invocation from a test or example harness:
+/// use your_crate::main;
+/// main().unwrap();
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` on successful completion of parsing, building, and error reporting; an `Err`
+/// if a failure occurs during build setup or compilation.
 pub fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -90,6 +112,22 @@ fn check_for_errors() {
     }
 }
 
+/// Compile a single source file according to CLI options, emit the selected artifact, and optionally link additional object files.
+///
+/// This function reads `file_path`, tokenizes and parses its contents, runs code generation with backend options derived from `cli`, and writes the resulting output artifact. If multiple input files are present on the CLI, additional `.o` files are linked into the final output when applicable. If the source file cannot be read, a fatal error is recorded in the global error collector.
+///
+/// # Returns
+///
+/// `Ok(())` on success; otherwise propagates an error produced during tokenization, parsing, code generation, or linking.
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::path::PathBuf;
+/// // Assume `cli` is constructed from program arguments.
+/// // build_file will compile `main.oxi` according to `cli`.
+/// build_file::<LdLinker>(PathBuf::from("main.oxi"), &cli).unwrap();
+/// ```
 fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let source_text = match fs::read_to_string(&file_path) {
         Err(err) => {

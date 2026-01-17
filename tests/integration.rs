@@ -3,6 +3,30 @@ mod common;
 use common::it;
 use oxic::errors::ErrorLevel;
 
+/// Verifies that an empty program beginning with a shebang line compiles and runs with exit code 0.
+///
+/// # Examples
+///
+/// ```no_run
+/// #[test]
+/// fn can_compile_program_with_shebang() {
+///     it(
+///         "should compile an empty program with shebang successfully",
+///         |ctx| {
+///             ctx.add_source(
+///                 r#"
+///                 #!/usr/bin/env oxic
+///                 pub fn main() void {}
+///                 "#,
+///             )
+///             .compiles(true)
+///             .execute(|res| {
+///                 res.exit_code(0);
+///             });
+///         },
+///     )
+/// }
+/// ```
 #[test]
 fn can_compile_program_with_shebang() {
     it(

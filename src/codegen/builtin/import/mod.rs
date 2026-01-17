@@ -32,6 +32,28 @@ mod resolve_lib;
 pub struct ImportBuiltin;
 
 impl BuiltinFunction for ImportBuiltin {
+    /// Imports a module referenced by an `@import` function call and returns an LLVM-visible module value.
+    ///
+    /// This function expects `expr` to be a `FunctionCall` whose single argument is a string literal naming the module to import.
+    /// It determines the module type from the string (header vs. library/oxi) and delegates to the appropriate compilation path
+    /// to produce a `SmartValue` that represents the imported module in the current LLVM/compilation context.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the call expression does not have exactly one argument, if that argument is not a string literal,
+    /// or if the delegated compilation/import operation fails.
+    ///
+    /// # Returns
+    ///
+    /// `SmartValue<'ctx>` representing the imported module's constant LLVM struct value.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Hypothetical usage (types and values are illustrative and omitted for brevity)
+    /// let result = handle_call(context, module, builder, &expr, &mut compilation_context)?;
+    /// // `result` is a SmartValue wrapping the imported module
+    /// ```
     fn handle_call<'ctx>(
         context: &'ctx Context,
         module: &Module<'ctx>,
@@ -75,6 +97,20 @@ impl BuiltinFunction for ImportBuiltin {
     }
 }
 
+/// Import and compile an Oxi (".oxi") or the special "std" module and produce an LLVM-visible module value.
+///
+/// Resolves the module path, parses and compiles the module into its own compilation context, and constructs a constant LLVM struct value representing the imported module for use by the caller.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Illustrative usage (types and setup omitted for brevity):
+/// // let value = compile_oxi_module(&context, &module, &builder, &expr, "foo.oxi".to_string(), &mut compilation_context)?;
+/// ```
+///
+/// # Returns
+///
+/// `SmartValue` wrapping a constant LLVM struct that represents the imported module.
 fn compile_oxi_module<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
@@ -132,6 +168,38 @@ fn compile_oxi_module<'ctx>(
     )
 }
 
+/// Constructs an LLVM-visible module value representing the given compiled module and
+/// registers its struct type and field indices in the caller's compilation context.
+///
+/// This transfers builtin symbols and builtin-like struct definitions from the imported
+/// module into the caller's compilation context, creates a named LLVM struct type
+/// "Module_<module_name>" (stripping a trailing ".oxi" from `module_name` if present),
+/// populates that struct's fields from the imported module's exported symbols, and
+/// returns a constant struct `SmartValue` containing those exports.
+///
+/// # Parameters
+///
+/// - `context`: LLVM `Context` used to create the module struct type and constant.
+/// - `module_name`: The original module name (may include a trailing `.oxi`), used to
+///   derive the LLVM struct name "Module_<module_name-without-.oxi>".
+/// - `compilation_context`: The caller's mutable compilation context; the function will
+///   extend its builtins and register the created module `StructDef` in its type context.
+/// - `mod_compilation_context`: The compilation context of the imported module whose
+///   exported symbols populate the module struct.
+///
+/// # Returns
+///
+/// A `SmartValue` wrapping a constant LLVM struct whose fields correspond to the imported
+/// module's exported symbols.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Assume `ctx`, `caller_ctx`, and `imported_ctx` are prepared compilation contexts:
+/// let sv = create_module(&ctx, "mylib.oxi".to_string(), &mut caller_ctx, imported_ctx)?;
+/// // `sv` is a `SmartValue` representing the imported module's constant struct.
+/// # Ok::<(), anyhow::Error>(())
+/// ```
 pub fn create_module<'ctx, 'mctx>(
     context: &'ctx Context,
     module_name: String,
@@ -208,6 +276,23 @@ enum ModuleType {
 }
 
 impl From<&Box<str>> for ModuleType {
+    /// Determines the module kind from a file path by its extension.
+    ///
+    /// Recognizes ".oxi" as an Oxi module, ".h" as a Header, and treats all other paths as a Library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use crate::ModuleType;
+    /// let t = ModuleType::from(&Box::from("core.oxi"));
+    /// assert_eq!(t, ModuleType::Oxi);
+    ///
+    /// let h = ModuleType::from(&Box::from("bindings.h"));
+    /// assert_eq!(h, ModuleType::Header);
+    ///
+    /// let lib = ModuleType::from(&Box::from("utils"));
+    /// assert_eq!(lib, ModuleType::Library);
+    /// ```
     fn from(path: &Box<str>) -> Self {
         if path.ends_with(".oxi") {
             ModuleType::Oxi

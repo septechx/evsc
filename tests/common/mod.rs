@@ -35,6 +35,23 @@ impl Test {
         }
     }
 
+    /// Appends a `main.oxi` source file with trimmed contents to the test.
+    ///
+    /// This stores the provided source as the primary test file named `main.oxi`,
+    /// with leading and trailing whitespace removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut t = Test::new("example");
+    /// t.add_source("  fn main() { println!(\"hi\"); }  ");
+    /// assert_eq!(t.files[0].0, "main.oxi");
+    /// assert_eq!(t.files[0].1, "fn main() { println!(\"hi\"); }");
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// The same `Test` instance, allowing method chaining.
     pub fn add_source(&mut self, source: &str) -> &mut Self {
         self.files
             .push(("main.oxi".to_string(), source.trim().to_string()));
@@ -91,6 +108,32 @@ impl ExecutionResult {
 }
 
 impl Drop for Test {
+    /// Executes the test when the Test value is dropped.
+    ///
+    /// The drop handler performs the full test lifecycle: it creates a temporary
+    /// test directory under .oxi/tests (named by a hash of the test name), writes
+    /// the test source files, invokes tokenization, parsing, and code generation,
+    /// optionally compares generated IR against an expected file, optionally
+    /// compiles and runs an executable and calls the test's execution callback,
+    /// and removes the temporary directory unless the OXI_DEBUG_TESTS environment
+    /// variable is set (in which case files are preserved and diagnostic paths are
+    /// printed).
+    ///
+    /// Panics for unrecoverable errors such as failing to create/write files,
+    /// unexpected tokenization/parse/compile results (unless the test explicitly
+    /// expects compilation to fail via `should_compile = Some(false)`), or IR
+    /// mismatches (unless debugging is enabled). When OXI_DEBUG_TESTS is set, the
+    /// temporary directory is preserved and printed instead of panicking on IR
+    /// mismatches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// {
+    ///     let mut t = Test::new("example");
+    ///     t.add_source("fn main() { }");
+    /// } // Dropping `t` runs the test lifecycle described above.
+    /// ```
     fn drop(&mut self) {
         let temp_dir = PathBuf::from(".oxi/tests");
         let mut hasher = DefaultHasher::new();

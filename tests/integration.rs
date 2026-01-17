@@ -5,46 +5,40 @@ use oxic::errors::ErrorLevel;
 
 #[test]
 fn can_compile_program_with_shebang() {
-    it(
-        "should compile an empty program with shebang successfully",
-        |ctx| {
-            ctx.add_source(
-                r#"
-                #!/usr/bin/env oxic
-                pub fn main() void {}
-                "#,
-            )
-            .compiles(true)
-            .execute(|res| {
-                res.exit_code(0);
-            });
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            #!/usr/bin/env oxic
+            pub fn main() void {}
+            "#,
+        )
+        .compiles(true)
+        .execute(|res| {
+            res.exit_code(0);
+        });
+    })
 }
 
 #[test]
 fn can_compile_empty_program() {
-    it("should compile an empty program successfully", |ctx| {
+    it(|ctx| {
         ctx.add_source("").compiles(true);
     })
 }
 
 #[test]
 fn compiling_empty_program_emits_warning() {
-    it(
-        "should emit warning when compiling an empty program",
-        |ctx| {
-            ctx.add_source("")
-                .compiles(true)
-                .fail_on_level(ErrorLevel::Warning);
-        },
-    )
+    it(|ctx| {
+        ctx.add_source("")
+            .compiles(true)
+            .fail_on_level(ErrorLevel::Warning);
+    })
 }
 
 #[ignore]
 #[test]
 fn invalid_return_type_fails() {
-    it("should error when main returns invalid type", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
                 pub fn main() []u8 {
@@ -58,7 +52,7 @@ fn invalid_return_type_fails() {
 
 #[test]
 fn slice_literals() {
-    it("should handle slice literals", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
             pub fn main() void {
@@ -73,44 +67,38 @@ fn slice_literals() {
 #[ignore]
 #[test]
 fn internal_attribute_fails_in_user_code() {
-    it(
-        "should error when #[internal] is used in user code",
-        |ctx| {
-            ctx.add_source(
-                r#"
-                #[internal]
-                pub fn internal_fn() isize {
-                    return 0;
-                }
-                "#,
-            )
-            .compiles(false);
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            #[internal]
+            pub fn internal_fn() isize {
+                return 0;
+            }
+            "#,
+        )
+        .compiles(false);
+    })
 }
 
 #[ignore]
 #[test]
 fn internal_attribute_on_struct_fails() {
-    it(
-        "should error when #[internal] is used on struct in user code",
-        |ctx| {
-            ctx.add_source(
-                r#"
-                #[internal]
-                pub struct InternalStruct {
-                    value: i32,
-                }
-                "#,
-            )
-            .compiles(false);
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            #[internal]
+            pub struct InternalStruct {
+                value: i32,
+            }
+            "#,
+        )
+        .compiles(false);
+    })
 }
 
 #[test]
 fn test_attribute_works() {
-    it("should parse attribute successfully", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
                 #[test]
@@ -129,7 +117,7 @@ fn test_attribute_works() {
 
 #[test]
 fn attribute_with_arguments() {
-    it("should parse attributes with arguments", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
                 #[foo(bar, baz)]
@@ -148,7 +136,7 @@ fn attribute_with_arguments() {
 
 #[test]
 fn multiple_attributes() {
-    it("should parse multiple attributes on function", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
                 #[test]
@@ -168,127 +156,112 @@ fn multiple_attributes() {
 
 #[test]
 fn main_fn_declaration() {
-    it(
-        "should compile a main function declaration correctly",
-        |ctx| {
-            ctx.add_source(
-                r#"
-            pub fn main() isize {
-                return 0;
-            }
-        "#,
-            )
-            .compiles(true)
-            .ir_eq("01.ll")
-            .execute(|res| {
-                res.exit_code(0);
-            });
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+        pub fn main() isize {
+            return 0;
+        }
+    "#,
+        )
+        .compiles(true)
+        .ir_eq("01.ll")
+        .execute(|res| {
+            res.exit_code(0);
+        });
+    })
 }
 
 #[test]
 fn variable_declaration() {
-    it(
-        "should handle variable declarations in main function",
-        |ctx| {
-            ctx.add_source(
-                r#"
-            pub fn main() isize {
-                let a = 2;
-                return a;
-            }
-        "#,
-            )
-            .compiles(true)
-            .ir_eq("02.ll")
-            .execute(|res| {
-                res.exit_code(2);
-            });
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+        pub fn main() isize {
+            let a = 2;
+            return a;
+        }
+    "#,
+        )
+        .compiles(true)
+        .ir_eq("02.ll")
+        .execute(|res| {
+            res.exit_code(2);
+        });
+    })
 }
 
 #[test]
 fn multiple_variables_and_addition() {
-    it(
-        "should handle multiple variables and addition operations",
-        |ctx| {
-            ctx.add_source(
-                r#"
-            pub fn main() isize {
-                let a = 1;
-                let b = 2;
-                let c = a + b;
-                return c;
-            }
-        "#,
-            )
-            .compiles(true)
-            .ir_eq("03.ll")
-            .execute(|res| {
-                res.exit_code(3);
-            });
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+        pub fn main() isize {
+            let a = 1;
+            let b = 2;
+            let c = a + b;
+            return c;
+        }
+    "#,
+        )
+        .compiles(true)
+        .ir_eq("03.ll")
+        .execute(|res| {
+            res.exit_code(3);
+        });
+    })
 }
 
 #[test]
 fn struct_declaration_and_initialization() {
-    it(
-        "should handle struct declaration and initialization",
-        |ctx| {
-            ctx.add_source(
-                r#"
-            struct Foo {
-                a: i32,
-            }
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+        struct Foo {
+            a: i32,
+        }
 
-            pub fn main() isize {
-                let foo = Foo {
-                    a: 1,
-                };
+        pub fn main() isize {
+            let foo = Foo {
+                a: 1,
+            };
 
-                return foo.a;
-            }
-        "#,
-            )
-            .compiles(true)
-            .ir_eq("05.ll")
-            .execute(|res| {
-                res.exit_code(1);
-            });
-        },
-    )
+            return foo.a;
+        }
+    "#,
+        )
+        .compiles(true)
+        .ir_eq("05.ll")
+        .execute(|res| {
+            res.exit_code(1);
+        });
+    })
 }
 
 #[test]
 fn string_literals_and_slice_operations() {
-    it(
-        "should handle string literals and slice operations",
-        |ctx| {
-            ctx.add_source(
-                r#"
-            pub fn main() i64 {
-                let s = "Hello world!";
-                let ptr = s.ptr;
-                let len = s.len;
-                return len;
-            }
-        "#,
-            )
-            .compiles(true)
-            .ir_eq("06.ll")
-            .execute(|res| {
-                res.exit_code(12);
-            });
-        },
-    )
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+        pub fn main() i64 {
+            let s = "Hello world!";
+            let ptr = s.ptr;
+            let len = s.len;
+            return len;
+        }
+    "#,
+        )
+        .compiles(true)
+        .ir_eq("06.ll")
+        .execute(|res| {
+            res.exit_code(12);
+        });
+    })
 }
 
 #[test]
 fn import_and_print_function() {
-    it("should handle import and std print function", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
             static std = @import("std");
@@ -310,7 +283,7 @@ fn import_and_print_function() {
 
 #[test]
 fn struct_with_methods() {
-    it("should handle struct declaration with methods", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
             struct Foo {
@@ -340,7 +313,7 @@ fn struct_with_methods() {
 
 #[test]
 fn sizeof_builtin() {
-    it("should handle @sizeof builtin operator", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
             pub fn main() isize {
@@ -358,7 +331,7 @@ fn sizeof_builtin() {
 
 #[test]
 fn main_function_return_void() {
-    it("should exit with code 0 successfully", |ctx| {
+    it(|ctx| {
         ctx.add_source(
             r#"
             pub fn main() void {}

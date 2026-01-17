@@ -15,7 +15,6 @@ use std::{
 };
 
 pub struct Test {
-    name: String,
     files: Vec<(String, String)>,
     should_compile: Option<bool>,
     expected_ir: Option<String>,
@@ -24,9 +23,8 @@ pub struct Test {
 }
 
 impl Test {
-    pub fn new(name: &str) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
             files: vec![],
             should_compile: None,
             expected_ir: None,
@@ -95,16 +93,12 @@ impl Drop for Test {
         let debug_tests = env::var("OXI_DEBUG_TESTS").is_ok();
         let temp_dir = PathBuf::from(".oxi/tests");
         let mut hasher = DefaultHasher::new();
-        self.name.hash(&mut hasher);
+        self.files.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
         let test_dir = temp_dir.join(&hash);
 
         if debug_tests {
-            eprintln!(
-                "Test files kept at: {} (test: '{}')",
-                test_dir.display(),
-                self.name
-            );
+            eprintln!("Test files kept at: {}", test_dir.display(),);
         }
 
         if let Err(e) = fs::create_dir_all(&test_dir) {
@@ -198,7 +192,7 @@ impl Drop for Test {
             };
 
             if expected_content != actual_content {
-                println!("IR mismatch for test '{}'", self.name);
+                println!("IR mismatch");
                 println!("Expected: {}", expected_path.display());
                 println!("Actual: {}", output_path.display());
 
@@ -214,15 +208,7 @@ impl Drop for Test {
                 }
 
                 if debug_tests {
-                    let mut hasher = DefaultHasher::new();
-                    self.name.hash(&mut hasher);
-                    let hash = format!("{:016x}", hasher.finish());
-                    let test_dir_path = temp_dir.join(&hash);
-                    println!(
-                        "\nTest files kept at: {} (test: '{}')",
-                        test_dir_path.display(),
-                        self.name
-                    );
+                    println!("\nTest files kept at: {}", test_dir.display());
                     return;
                 }
 
@@ -285,7 +271,7 @@ fn check_for_errors(test: &Test) {
     }
 }
 
-pub fn it(name: &str, f: impl FnOnce(&mut Test)) {
-    let mut test = Test::new(name);
+pub fn it(f: impl FnOnce(&mut Test)) {
+    let mut test = Test::new();
     f(&mut test);
 }

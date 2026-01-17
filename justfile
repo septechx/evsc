@@ -6,9 +6,6 @@ build: bindings
 run *ARGS: bindings
     env OXI_ROOT="$(pwd)" cargo run -- {{ARGS}}
 
-test-debug: bindings
-    env OXI_DEBUG_TESTS=1 OXI_ROOT="$(pwd)" cargo test
-
 test: bindings
     env OXI_ROOT="$(pwd)" cargo test
 

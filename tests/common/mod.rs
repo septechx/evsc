@@ -7,15 +7,17 @@ use oxic::{
     parser::parse,
 };
 use std::{
-    env, fs,
+    fs,
     hash::{DefaultHasher, Hash, Hasher},
     marker::PhantomData,
     path::{Path, PathBuf},
     process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
+static TEST_RUN_ID: AtomicUsize = AtomicUsize::new(0);
+
 pub struct Test {
-    name: String,
     files: Vec<(String, String)>,
     should_compile: Option<bool>,
     expected_ir: Option<String>,
@@ -24,9 +26,8 @@ pub struct Test {
 }
 
 impl Test {
-    pub fn new(name: &str) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
             files: vec![],
             should_compile: None,
             expected_ir: None,
@@ -92,20 +93,13 @@ impl ExecutionResult {
 
 impl Drop for Test {
     fn drop(&mut self) {
-        let debug_tests = env::var("OXI_DEBUG_TESTS").is_ok();
         let temp_dir = PathBuf::from(".oxi/tests");
         let mut hasher = DefaultHasher::new();
-        self.name.hash(&mut hasher);
+        self.files.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
-        let test_dir = temp_dir.join(&hash);
-
-        if debug_tests {
-            eprintln!(
-                "Test files kept at: {} (test: '{}')",
-                test_dir.display(),
-                self.name
-            );
-        }
+        let run_id = TEST_RUN_ID.fetch_add(1, Ordering::Relaxed);
+        let test_dir = temp_dir.join(format!("{hash}-{run_id}"));
+        let cache_dir = test_dir.join("cache");
 
         if let Err(e) = fs::create_dir_all(&test_dir) {
             panic!("Failed to create test directory: {}", e);
@@ -118,7 +112,10 @@ impl Drop for Test {
             }
         }
 
-        let main_file = self.files.first().unwrap();
+        let main_file = self
+            .files
+            .first()
+            .expect("Test must have at least one source file");
         let main_path = test_dir.join(&main_file.0);
         let output_path = test_dir.join("output.ll");
 
@@ -163,7 +160,7 @@ impl Drop for Test {
             pie: true,
             static_linking: false,
             linker_kind: PhantomData::<LdLinker>,
-            cache_dir: Some(&test_dir),
+            cache_dir: Some(&cache_dir),
         };
 
         match codegen::compile(ast.clone(), &opts) {
@@ -198,7 +195,7 @@ impl Drop for Test {
             };
 
             if expected_content != actual_content {
-                println!("IR mismatch for test '{}'", self.name);
+                println!("IR mismatch");
                 println!("Expected: {}", expected_path.display());
                 println!("Actual: {}", output_path.display());
 
@@ -211,19 +208,6 @@ impl Drop for Test {
                         similar::ChangeTag::Equal => " ",
                     };
                     print!("{}{}", sign, change);
-                }
-
-                if debug_tests {
-                    let mut hasher = DefaultHasher::new();
-                    self.name.hash(&mut hasher);
-                    let hash = format!("{:016x}", hasher.finish());
-                    let test_dir_path = temp_dir.join(&hash);
-                    println!(
-                        "\nTest files kept at: {} (test: '{}')",
-                        test_dir_path.display(),
-                        self.name
-                    );
-                    return;
                 }
 
                 panic!("IR output does not match expected");
@@ -243,7 +227,7 @@ impl Drop for Test {
                 pie: true,
                 static_linking: false,
                 linker_kind: PhantomData::<LdLinker>,
-                cache_dir: Some(&test_dir),
+                cache_dir: Some(&cache_dir),
             };
 
             if let Err(e) = codegen::compile(ast, &exe_opts) {
@@ -269,9 +253,7 @@ impl Drop for Test {
             execute_fn(result);
         }
 
-        if !debug_tests {
-            let _ = fs::remove_dir_all(&test_dir);
-        }
+        let _ = fs::remove_dir_all(&test_dir);
     }
 }
 
@@ -285,7 +267,7 @@ fn check_for_errors(test: &Test) {
     }
 }
 
-pub fn it(name: &str, f: impl FnOnce(&mut Test)) {
-    let mut test = Test::new(name);
+pub fn it(f: impl FnOnce(&mut Test)) {
+    let mut test = Test::new();
     f(&mut test);
 }

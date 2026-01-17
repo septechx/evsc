@@ -53,14 +53,22 @@ pub fn main() -> Result<()> {
         ENABLE_PRINTING.with(|e| *e.borrow_mut() = false);
     }
 
-    let file_path = cli
-        .files
-        .iter()
-        .find(|file| file.extension().unwrap() == "evsc")
-        .ok_or(anyhow::anyhow!("No evsc files specified".red().bold()))?
-        .clone(); // $1/$2.evsc
+    let file_path = cli.input.iter().find(|file| {
+        if let Some(ext) = file.extension() {
+            ext == "oxi"
+        } else {
+            false
+        }
+    }); // $1/$2.oxi
 
-    if cli.use_gcc_linker {
+    if file_path.is_none() {
+        eprintln!("{}", "No files specified".red().bold());
+        std::process::exit(1);
+    }
+
+    let file_path = file_path.unwrap().clone();
+
+    if cli.use_gcc {
         build_file::<GccLinker>(file_path, &cli)?;
     } else {
         build_file::<LdLinker>(file_path, &cli)?;
@@ -130,7 +138,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
             _ => {
                 if cli.shared {
                     ("so", EmitType::Object)
-                } else if cli.files.len() > 1 {
+                } else if cli.input.len() > 1 {
                     ("o", EmitType::Object)
                 } else {
                     ("", EmitType::Executable)
@@ -190,8 +198,8 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     codegen::compile(ast, &opts)?;
     check_for_errors();
 
-    if cli.files.len() > 1 {
-        let additional_objects: Vec<&Path> = cli.files[1..]
+    if cli.input.len() > 1 {
+        let additional_objects: Vec<&Path> = cli.input[1..]
             .iter()
             .filter(|f| f.extension().is_some_and(|ext| ext == "o"))
             .map(|f| f.as_path())

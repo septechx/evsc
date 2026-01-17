@@ -1,10 +1,10 @@
-use evscc::{
-    ERRORS,
-    backend::{BackendOptions, linker::linkers::LdLinker},
+use oxic::{
+    backend::{linker::linkers::LdLinker, BackendOptions},
     codegen::{self, CompileOptions, EmitType},
     errors::ErrorLevel,
     lexer::tokenize,
     parser::parse,
+    ERRORS,
 };
 use std::{
     env, fs,
@@ -37,7 +37,7 @@ impl Test {
 
     pub fn add_source(&mut self, source: &str) -> &mut Self {
         self.files
-            .push(("main.evsc".to_string(), source.trim().to_string()));
+            .push(("main.oxi".to_string(), source.trim().to_string()));
         self
     }
 
@@ -92,13 +92,13 @@ impl ExecutionResult {
 
 impl Drop for Test {
     fn drop(&mut self) {
-        let temp_dir = PathBuf::from(".evsc/tests");
+        let temp_dir = PathBuf::from(".oxi/tests");
         let mut hasher = DefaultHasher::new();
         self.name.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
         let test_dir = temp_dir.join(&hash);
 
-        if env::var("EVSC_DEBUG_TESTS").is_ok() {
+        if env::var("OXI_DEBUG_TESTS").is_ok() {
             eprintln!(
                 "Test files kept at: {} (test: '{}')",
                 test_dir.display(),
@@ -212,7 +212,7 @@ impl Drop for Test {
                     print!("{}{}", sign, change);
                 }
 
-                if env::var("EVSC_DEBUG_TESTS").is_ok() {
+                if env::var("OXI_DEBUG_TESTS").is_ok() {
                     let mut hasher = DefaultHasher::new();
                     self.name.hash(&mut hasher);
                     let hash = format!("{:016x}", hasher.finish());
@@ -268,7 +268,7 @@ impl Drop for Test {
             execute_fn(result);
         }
 
-        if env::var("EVSC_DEBUG_TESTS").is_err() {
+        if env::var("OXI_DEBUG_TESTS").is_err() {
             let _ = fs::remove_dir_all(&test_dir);
         }
     }

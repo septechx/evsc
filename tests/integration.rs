@@ -1,7 +1,7 @@
 mod common;
 
 use common::it;
-use evscc::errors::ErrorLevel;
+use oxic::errors::ErrorLevel;
 
 #[test]
 fn can_compile_program_with_shebang() {
@@ -10,7 +10,7 @@ fn can_compile_program_with_shebang() {
         |ctx| {
             ctx.add_source(
                 r#"
-                #!/usr/bin/env evscc
+                #!/usr/bin/env oxic
                 pub fn main() void {}
                 "#,
             )

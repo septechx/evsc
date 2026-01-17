@@ -1,9 +1,9 @@
 [package]
-name = "evscc"
+name = "oxic"
 version = "1.0.0"
 edition = "2024"
 license = "MIT"
-description = "Evsc compiler"
+description = "Oxi compiler"
 
 [dependencies]
 anyhow = "1.0.100"
@@ -18,6 +18,6 @@ clang = { version = "2.0.0", features = ["clang_10_0", "runtime"] }
 similar = "2.7.0"
 
 [lib]
-name = "evscc"
+name = "oxic"
 path = "src/main.rs"
 

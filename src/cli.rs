@@ -40,7 +40,7 @@ impl From<OptLevel> for OptimizationLevel {
 #[clap(version, about, long_about = None, arg_required_else_help(true))]
 pub struct Cli {
     #[clap(required = true)]
-    pub files: Vec<PathBuf>,
+    pub input: Vec<PathBuf>,
 
     #[clap(short, long)]
     pub output: Option<PathBuf>,
@@ -90,9 +90,6 @@ pub struct Cli {
     #[clap(long = "strip", help = "Strip symbols from executable")]
     pub strip: bool,
 
-    #[clap(
-        long = "gcc",
-        help = "Use gcc as a linker instead of mold, lld, gold or ld"
-    )]
-    pub use_gcc_linker: bool,
+    #[clap(long = "gcc", help = "Use gcc as a linker instead of mold/lld/gold/ld")]
+    pub use_gcc: bool,
 }

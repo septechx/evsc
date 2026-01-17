@@ -274,6 +274,7 @@ name = "oxic"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "cc",
  "clang",
  "clap",
  "colored",

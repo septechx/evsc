@@ -1,19 +1,18 @@
 LLVM_SYS_211_PREFIX := "$(llvm-config --bindir)"
 
-build: bindings
+build:
     cargo build --release
 
-run *ARGS: bindings
+run *ARGS:
     env OXI_ROOT="$(pwd)" cargo run -- {{ARGS}}
 
-test: bindings
+test:
     env OXI_ROOT="$(pwd)" cargo test
 
-check: bindings
+check:
     cargo check
 
 clean:
-    rm -rf include/*.a include/*.o tests/*-test.ll
     cargo clean
 
 install: build
@@ -22,7 +21,3 @@ install: build
 
 lint:
     cargo clippy --all-targets --all-features -- -Dwarnings
-
-bindings:
-    clang++ -c -fPIC include/llvm_bindings.cpp -o include/llvm_bindings.o $(llvm-config --cxxflags)
-    ar rcs include/libllvm_bindings.a include/llvm_bindings.o

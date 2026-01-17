@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Result};
-use clang::{source::SourceLocation, Clang, EntityKind, Index};
+use anyhow::{Result, anyhow};
+use clang::{Clang, EntityKind, Index, source::SourceLocation};
 use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
+        Ast, Ident, NodeId, Stmt, StmtKind, Type, TypeKind,
         statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
-        Ast, Ident, NodeId, Stmt, StmtKind, Type, TypeKind,
     },
     codegen::{
         builtin::import::create_module,

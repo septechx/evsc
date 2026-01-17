@@ -158,44 +158,19 @@ impl Visitable for Expr {
         visitor.visit_expr(self);
 
         match &mut self.kind {
-            ExprKind::Number(_) => {}
-            ExprKind::String(_) => {}
-            ExprKind::Symbol(_) => {}
-            ExprKind::Binary(bin) => {
-                bin.left.visit(visitor);
-                bin.right.visit(visitor);
-            }
-            ExprKind::Postfix(p) => {
-                p.left.visit(visitor);
-            }
-            ExprKind::Prefix(p) => {
-                p.right.visit(visitor);
-            }
-            ExprKind::Assignment(a) => {
-                a.assigne.visit(visitor);
-                a.value.visit(visitor);
-            }
-            ExprKind::StructInstantiation(si) => {
-                si.properties.visit(visitor);
-            }
-            ExprKind::ArrayLiteral(arr) => {
-                arr.underlying.visit(visitor);
-                arr.contents.visit(visitor);
-            }
-            ExprKind::FunctionCall(fc) => {
-                fc.callee.visit(visitor);
-                fc.arguments.visit(visitor);
-            }
-            ExprKind::MemberAccess(ma) => {
-                ma.base.visit(visitor);
-            }
-            ExprKind::Type(t) => {
-                t.underlying.visit(visitor);
-            }
-            ExprKind::As(asexpr) => {
-                asexpr.expr.visit(visitor);
-                asexpr.ty.visit(visitor);
-            }
+            ExprKind::Number(n) => n.visit(visitor),
+            ExprKind::String(s) => s.visit(visitor),
+            ExprKind::Symbol(s) => s.visit(visitor),
+            ExprKind::Binary(b) => b.visit(visitor),
+            ExprKind::Postfix(p) => p.visit(visitor),
+            ExprKind::Prefix(p) => p.visit(visitor),
+            ExprKind::Assignment(a) => a.visit(visitor),
+            ExprKind::StructInstantiation(s) => s.visit(visitor),
+            ExprKind::ArrayLiteral(a) => a.visit(visitor),
+            ExprKind::FunctionCall(f) => f.visit(visitor),
+            ExprKind::MemberAccess(m) => m.visit(visitor),
+            ExprKind::Type(t) => t.visit(visitor),
+            ExprKind::As(a) => a.visit(visitor),
         }
     }
 }

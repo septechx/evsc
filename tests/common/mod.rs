@@ -1,10 +1,10 @@
 use oxic::{
-    backend::{linker::linkers::LdLinker, BackendOptions},
+    ERRORS,
+    backend::{BackendOptions, linker::linkers::LdLinker},
     codegen::{self, CompileOptions, EmitType},
     errors::ErrorLevel,
     lexer::tokenize,
     parser::parse,
-    ERRORS,
 };
 use std::{
     env, fs,
@@ -92,13 +92,14 @@ impl ExecutionResult {
 
 impl Drop for Test {
     fn drop(&mut self) {
+        let debug_tests = env::var("OXI_DEBUG_TESTS").is_ok();
         let temp_dir = PathBuf::from(".oxi/tests");
         let mut hasher = DefaultHasher::new();
         self.name.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
         let test_dir = temp_dir.join(&hash);
 
-        if env::var("OXI_DEBUG_TESTS").is_ok() {
+        if debug_tests {
             eprintln!(
                 "Test files kept at: {} (test: '{}')",
                 test_dir.display(),
@@ -212,7 +213,7 @@ impl Drop for Test {
                     print!("{}{}", sign, change);
                 }
 
-                if env::var("OXI_DEBUG_TESTS").is_ok() {
+                if debug_tests {
                     let mut hasher = DefaultHasher::new();
                     self.name.hash(&mut hasher);
                     let hash = format!("{:016x}", hasher.finish());
@@ -268,7 +269,7 @@ impl Drop for Test {
             execute_fn(result);
         }
 
-        if env::var("OXI_DEBUG_TESTS").is_err() {
+        if !debug_tests {
             let _ = fs::remove_dir_all(&test_dir);
         }
     }

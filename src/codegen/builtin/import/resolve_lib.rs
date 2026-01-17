@@ -32,7 +32,10 @@ pub fn resolve_std_lib(requester_span: Span, requeter_mod_id: ModuleId) -> Resul
                 .add_widget(LocationWidget::new(requester_span, requeter_mod_id)?)
                 .add_widget(CodeWidget::new(requester_span, requeter_mod_id)?)
                 .add_widget(InfoWidget::new(requester_span, requeter_mod_id,
-                format!("Add OXI_LIB_PATH environment variable to point to the standard library, or place it in {}/lib/oxi/", root.display()),
+                format!(
+                    "Set OXI_LIB_PATH to the stdlib root (containing std/lib.oxi), or place it in {}/lib/oxi/std/lib.oxi",
+                    root.display()
+                ),
             )?),
         );
         Ok(())

@@ -7,7 +7,7 @@ use oxic::{
     parser::parse,
 };
 use std::{
-    env, fs,
+    fs,
     hash::{DefaultHasher, Hash, Hasher},
     marker::PhantomData,
     path::{Path, PathBuf},
@@ -93,18 +93,13 @@ impl ExecutionResult {
 
 impl Drop for Test {
     fn drop(&mut self) {
-        let debug_tests = env::var("OXI_DEBUG_TESTS").is_ok();
         let temp_dir = PathBuf::from(".oxi/tests");
         let mut hasher = DefaultHasher::new();
         self.files.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
-        let cache_dir = temp_dir.join(&hash);
         let run_id = TEST_RUN_ID.fetch_add(1, Ordering::Relaxed);
         let test_dir = temp_dir.join(format!("{hash}-{run_id}"));
-
-        if debug_tests {
-            eprintln!("Test files kept at: {}", test_dir.display(),);
-        }
+        let cache_dir = test_dir.join("cache");
 
         if let Err(e) = fs::create_dir_all(&test_dir) {
             panic!("Failed to create test directory: {}", e);
@@ -117,7 +112,10 @@ impl Drop for Test {
             }
         }
 
-        let main_file = self.files.first().unwrap();
+        let main_file = self
+            .files
+            .first()
+            .expect("Test must have at least one source file");
         let main_path = test_dir.join(&main_file.0);
         let output_path = test_dir.join("output.ll");
 
@@ -212,11 +210,6 @@ impl Drop for Test {
                     print!("{}{}", sign, change);
                 }
 
-                if debug_tests {
-                    println!("\nTest files kept at: {}", test_dir.display());
-                    return;
-                }
-
                 panic!("IR output does not match expected");
             }
         }
@@ -260,9 +253,7 @@ impl Drop for Test {
             execute_fn(result);
         }
 
-        if !debug_tests {
-            let _ = fs::remove_dir_all(&test_dir);
-        }
+        let _ = fs::remove_dir_all(&test_dir);
     }
 }
 

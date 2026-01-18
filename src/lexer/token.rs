@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
-pub struct TokenStream(pub Vec<Token>);
+pub struct TokenStream(pub Box<[Token]>);
 
 #[derive(Debug, Clone, Eq)]
 pub struct Token {

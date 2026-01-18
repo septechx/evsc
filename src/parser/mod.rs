@@ -22,7 +22,7 @@ use anyhow::Result;
 use std::convert::TryInto;
 
 pub struct Parser {
-    tokens: Vec<Token>,
+    tokens: Box<[Token]>,
     pos: usize,
     next_id: NodeId,
 }

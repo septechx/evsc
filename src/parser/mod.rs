@@ -22,7 +22,7 @@ use anyhow::Result;
 use std::convert::TryInto;
 
 pub struct Parser {
-    tokens: Vec<Token>,
+    tokens: Box<[Token]>,
     pos: usize,
     next_id: NodeId,
 }
@@ -30,7 +30,7 @@ pub struct Parser {
 impl Parser {
     pub fn new(tokens: TokenStream) -> Self {
         Parser {
-            tokens: tokens.0,
+            tokens: tokens.into_boxed_slice(),
             pos: 0,
             next_id: NodeId(0),
         }

@@ -96,7 +96,7 @@ impl Lexer {
             self.advance(match_len);
         }
 
-        Ok(TokenStream(tokens))
+        Ok(tokens.into())
     }
 }
 

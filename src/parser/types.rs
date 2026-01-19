@@ -193,18 +193,20 @@ fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
     let start_token = parser.current_token();
 
     let mut types = Vec::new();
+    let mut has_comma = false;
     parser.advance();
 
     while parser.current_token().kind != TokenKind::CloseParen {
         types.push(parse_type(parser, BindingPower::DefaultBp)?);
 
         if parser.current_token().kind == TokenKind::Comma {
+            has_comma = true;
             parser.advance();
         } else if parser.current_token().kind != TokenKind::CloseParen {
             bail!("Expected comma or closing parenthesis in type".red().bold());
         }
     }
-    parser.expect(TokenKind::CloseParen)?;
+    let close_token = parser.expect(TokenKind::CloseParen)?;
 
     if parser.current_token().kind == TokenKind::Arrow {
         parser.expect(TokenKind::Arrow)?;
@@ -218,18 +220,23 @@ fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
             }),
             Span::new(start_token.span.start(), end_span.end()),
         ))
-    } else {
-        let end_span = parser.current_token().span;
-
-        if types.len() == 1 {
-            Ok(types[0].clone())
-        } else {
+    } else if types.len() == 1 {
+        if has_comma {
             Ok(parser.type_(
                 TypeKind::Tuple(TupleType {
                     elements: types.into_boxed_slice(),
                 }),
-                Span::new(start_token.span.start(), end_span.end()),
+                Span::new(start_token.span.start(), close_token.span.end()),
             ))
+        } else {
+            Ok(types[0].clone())
         }
+    } else {
+        Ok(parser.type_(
+            TypeKind::Tuple(TupleType {
+                elements: types.into_boxed_slice(),
+            }),
+            Span::new(start_token.span.start(), close_token.span.end()),
+        ))
     }
 }

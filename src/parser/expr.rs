@@ -344,8 +344,9 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
                             parser.current_token().module_id,
                         )?),
                 );
-                unreachable!();
+                Ok(())
             })?;
+            unreachable!();
         }
     }
     let close_token = parser.expect(TokenKind::CloseParen)?;

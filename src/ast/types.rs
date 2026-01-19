@@ -28,6 +28,11 @@ pub struct MutType {
 
 #[derive(Debug, Clone)]
 pub struct FunctionType {
-    pub parameters: Vec<Type>,
+    pub parameters: Box<[Type]>,
     pub return_type: Box<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TupleType {
+    pub elements: Box<[Type]>,
 }

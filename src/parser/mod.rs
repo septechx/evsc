@@ -36,7 +36,7 @@ impl Parser {
         }
     }
 
-    pub fn stmt(&mut self, kind: StmtKind, span: Span, attributes: Vec<Attribute>) -> Stmt {
+    pub fn stmt(&mut self, kind: StmtKind, span: Span, attributes: Box<[Attribute]>) -> Stmt {
         Stmt {
             id: self.next_id(),
             kind,
@@ -150,5 +150,5 @@ pub fn parse(tokens: TokenStream) -> Result<Ast> {
         body.push(parse_stmt(&mut parser)?);
     }
 
-    Ok(Ast(body))
+    Ok(Ast(body.into_boxed_slice()))
 }

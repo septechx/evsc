@@ -1,7 +1,7 @@
 use crate::{ast::Attribute, lexer::token::TokenKind, parser::Parser, span::Span};
 use anyhow::Result;
 
-pub fn parse_attributes(parser: &mut Parser) -> Result<Vec<Attribute>> {
+pub fn parse_attributes(parser: &mut Parser) -> Result<Box<[Attribute]>> {
     let mut attributes = Vec::new();
 
     while parser.current_token().kind == TokenKind::Hash {
@@ -23,7 +23,7 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Vec<Attribute>> {
             }
 
             parser.expect(TokenKind::CloseParen)?;
-            Some(args)
+            Some(args.into_boxed_slice())
         } else {
             None
         };
@@ -33,11 +33,11 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Vec<Attribute>> {
         let span = Span::new(hash_token.span.start(), close_token.span.end());
 
         attributes.push(Attribute {
-            name,
             arguments,
+            name,
             span,
         });
     }
 
-    Ok(attributes)
+    Ok(attributes.into_boxed_slice())
 }

@@ -55,13 +55,13 @@ pub struct StructInstantiationExpr {
 #[derive(Debug, Clone)]
 pub struct ArrayLiteralExpr {
     pub underlying: Type,
-    pub contents: Vec<Expr>,
+    pub contents: Box<[Expr]>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionCallExpr {
     pub callee: Box<Expr>,
-    pub arguments: Vec<Expr>,
+    pub arguments: Box<[Expr]>,
 }
 
 #[derive(Debug, Clone)]
@@ -79,4 +79,9 @@ pub struct TypeExpr {
 pub struct AsExpr {
     pub expr: Box<Expr>,
     pub ty: Type,
+}
+
+#[derive(Debug, Clone)]
+pub struct TupleLiteralExpr {
+    pub elements: Box<[Expr]>,
 }

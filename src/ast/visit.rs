@@ -36,6 +36,14 @@ impl<T: Visitable> Visitable for Vec<T> {
     }
 }
 
+impl<T: Visitable> Visitable for Box<[T]> {
+    fn visit(&mut self, visitor: &mut impl Visitor) {
+        for inner in self.iter_mut() {
+            inner.visit(visitor);
+        }
+    }
+}
+
 impl<K: Eq + Hash, V: Visitable> Visitable for HashMap<K, V> {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         for (_, value) in self.iter_mut() {
@@ -64,8 +72,14 @@ impl Visitable for Stmt {
             StmtKind::InterfaceDecl(i) => i.visit(visitor),
             StmtKind::FnDecl(f) => f.visit(visitor),
             StmtKind::Return(r) => r.visit(visitor),
-            StmtKind::Import(_) => {}
+            StmtKind::Import(i) => i.visit(visitor),
         }
+    }
+}
+
+impl Visitable for ImportStmt {
+    fn visit(&mut self, _visitor: &mut impl Visitor) {
+        todo!()
     }
 }
 
@@ -171,18 +185,25 @@ impl Visitable for Expr {
             ExprKind::MemberAccess(m) => m.visit(visitor),
             ExprKind::Type(t) => t.visit(visitor),
             ExprKind::As(a) => a.visit(visitor),
+            ExprKind::TupleLiteral(t) => t.visit(visitor),
         }
     }
 }
 
 impl Visitable for NumberExpr {
-    fn visit(&mut self, _visitor: &mut impl Visitor) {}
+    fn visit(&mut self, _visitor: &mut impl Visitor) {
+        // Unit
+    }
 }
 impl Visitable for StringExpr {
-    fn visit(&mut self, _visitor: &mut impl Visitor) {}
+    fn visit(&mut self, _visitor: &mut impl Visitor) {
+        // Unit
+    }
 }
 impl Visitable for SymbolExpr {
-    fn visit(&mut self, _visitor: &mut impl Visitor) {}
+    fn visit(&mut self, _visitor: &mut impl Visitor) {
+        // Unit
+    }
 }
 
 impl Visitable for BinaryExpr {
@@ -241,6 +262,14 @@ impl Visitable for AsExpr {
     }
 }
 
+impl Visitable for TupleLiteralExpr {
+    fn visit(&mut self, visitor: &mut impl Visitor) {
+        for element in &mut self.elements {
+            element.visit(visitor);
+        }
+    }
+}
+
 impl Visitable for Type {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         visitor.visit_type(self);
@@ -256,14 +285,23 @@ impl Visitable for Type {
                 ft.parameters.visit(visitor);
                 ft.return_type.visit(visitor);
             }
-            TypeKind::Infer => {}
-            TypeKind::Never => {}
+            TypeKind::Tuple(t) => {
+                t.elements.visit(visitor);
+            }
+            TypeKind::Infer => {
+                // Unit
+            }
+            TypeKind::Never => {
+                // Unit
+            }
         }
     }
 }
 
 impl Visitable for SymbolType {
-    fn visit(&mut self, _visitor: &mut impl Visitor) {}
+    fn visit(&mut self, _visitor: &mut impl Visitor) {
+        // Unit
+    }
 }
 impl Visitable for PointerType {
     fn visit(&mut self, visitor: &mut impl Visitor) {
@@ -291,5 +329,13 @@ impl Visitable for FunctionType {
             p.visit(visitor);
         }
         self.return_type.visit(visitor);
+    }
+}
+
+impl Visitable for TupleType {
+    fn visit(&mut self, visitor: &mut impl Visitor) {
+        for element in &mut self.elements {
+            element.visit(visitor);
+        }
     }
 }

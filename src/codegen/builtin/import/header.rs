@@ -88,14 +88,14 @@ pub fn compile_header<'ctx>(
                 }),
                 id: NodeId(i),
                 span,
-                attributes: Vec::new(),
+                attributes: Box::new([]),
             };
 
             ast.push(stmt);
         }
     }
 
-    let ast = Ast(ast);
+    let ast = Ast(ast.into_boxed_slice());
 
     let module_id = crate::SOURCE_MAPS.with(|sm| {
         let mut maps = sm.borrow_mut();

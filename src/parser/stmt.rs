@@ -35,7 +35,7 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
     let stmt_fn = stmt_lu.get(&parser.current_token().kind).cloned();
 
     if let Some(stmt_fn) = stmt_fn {
-        stmt_fn(parser, attributes, modifiers)
+        stmt_fn(parser, &attributes, &modifiers)
     } else {
         if !attributes.is_empty() {
             crate::ERRORS.with(|e| -> Result<()> {
@@ -78,15 +78,15 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         Ok(parser.stmt(
             StmtKind::Expression(ExpressionStmt { expression }),
             span,
-            vec![],
+            Box::new([]),
         ))
     }
 }
 
 pub fn parse_var_decl_statement(
     parser: &mut Parser,
-    attributes: Vec<Attribute>,
-    modifiers: Vec<Modifier>,
+    attributes: &[Attribute],
+    modifiers: &[Modifier],
 ) -> Result<Stmt> {
     if !attributes.is_empty() {
         crate::ERRORS.with(|e| -> Result<()> {
@@ -197,14 +197,14 @@ pub fn parse_var_decl_statement(
             assigned_value,
         }),
         span,
-        vec![],
+        Box::new([]),
     ))
 }
 
 pub fn parse_struct_decl_stmt(
     parser: &mut Parser,
-    attributes: Vec<Attribute>,
-    modifiers: Vec<Modifier>,
+    attributes: &[Attribute],
+    modifiers: &[Modifier],
 ) -> Result<Stmt> {
     let struct_token = parser.expect(TokenKind::Struct)?;
     let mut properties: Vec<StructProperty> = Vec::new();
@@ -229,7 +229,7 @@ pub fn parse_struct_decl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![], vec![])?.kind {
+            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind {
                 methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
                         is_extern: false,
@@ -331,14 +331,14 @@ pub fn parse_struct_decl_stmt(
             is_public,
         }),
         span,
-        attributes,
+        attributes.into(),
     ))
 }
 
 pub fn parse_interface_decl_stmt(
     parser: &mut Parser,
-    attributes: Vec<Attribute>,
-    modifiers: Vec<Modifier>,
+    attributes: &[Attribute],
+    modifiers: &[Modifier],
 ) -> Result<Stmt> {
     let interface_token = parser.expect(TokenKind::Interface)?;
     let mut methods: Vec<InterfaceMethod> = Vec::new();
@@ -352,7 +352,7 @@ pub fn parse_interface_decl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, vec![], vec![])?.kind {
+            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind {
                 methods.push(InterfaceMethod { fn_decl });
             }
             continue;
@@ -383,14 +383,14 @@ pub fn parse_interface_decl_stmt(
             is_public,
         }),
         span,
-        attributes,
+        attributes.into(),
     ))
 }
 
 pub fn parse_fn_decl_stmt(
     parser: &mut Parser,
-    attributes: Vec<Attribute>,
-    modifiers: Vec<Modifier>,
+    attributes: &[Attribute],
+    modifiers: &[Modifier],
 ) -> Result<Stmt> {
     let (pub_mod, extern_mod) = get_modifiers!(&parser, modifiers, [Pub, Extern]);
 
@@ -460,14 +460,14 @@ pub fn parse_fn_decl_stmt(
             is_extern: extern_mod.is_some(),
         }),
         span,
-        attributes,
+        attributes.into(),
     ))
 }
 
 pub fn parse_return_stmt(
     parser: &mut Parser,
-    _attributes: Vec<Attribute>,
-    _modifiers: Vec<Modifier>,
+    _attributes: &[Attribute],
+    _modifiers: &[Modifier],
 ) -> Result<Stmt> {
     let return_token = parser.advance();
 
@@ -481,24 +481,24 @@ pub fn parse_return_stmt(
 
     let span = Span::new(return_token.span.start(), end_span.end());
 
-    Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), span, vec![]))
+    Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), span, Box::new([])))
 }
 
 pub fn parse_import_stmt(
     parser: &mut Parser,
-    attributes: Vec<Attribute>,
-    modifiers: Vec<Modifier>,
+    attributes: &[Attribute],
+    modifiers: &[Modifier],
 ) -> Result<Stmt> {
     if !modifiers.is_empty() {
         crate::ERRORS.with(|e| -> Result<()> {
             e.borrow_mut().add(
                 builders::error("Modifier not allowed here")
                     .add_widget(LocationWidget::new(
-                        attributes[0].span,
+                        modifiers[0].span,
                         parser.current_token().module_id,
                     )?)
                     .add_widget(CodeWidget::new(
-                        attributes[0].span,
+                        modifiers[0].span,
                         parser.current_token().module_id,
                     )?),
             );
@@ -511,7 +511,11 @@ pub fn parse_import_stmt(
     let end_span = parser.expect(TokenKind::Semicolon)?.span;
 
     let span = Span::new(start_span.start(), end_span.end());
-    Ok(parser.stmt(StmtKind::Import(ImportStmt { tree }), span, attributes))
+    Ok(parser.stmt(
+        StmtKind::Import(ImportStmt { tree }),
+        span,
+        attributes.into(),
+    ))
 }
 
 fn parse_import_tree(parser: &mut Parser) -> Result<ImportTree> {
@@ -536,7 +540,7 @@ fn parse_import_tree(parser: &mut Parser) -> Result<ImportTree> {
     Ok(ImportTree { prefix, kind, span })
 }
 
-fn parse_import_tree_list(parser: &mut Parser) -> Result<Vec<(ImportTree, NodeId)>> {
+fn parse_import_tree_list(parser: &mut Parser) -> Result<Box<[(ImportTree, NodeId)]>> {
     let mut items = vec![];
 
     parser.expect(TokenKind::OpenCurly)?;
@@ -560,5 +564,5 @@ fn parse_import_tree_list(parser: &mut Parser) -> Result<Vec<(ImportTree, NodeId
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(items)
+    Ok(items.into_boxed_slice())
 }

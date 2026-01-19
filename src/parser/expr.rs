@@ -9,8 +9,12 @@ use crate::{
         expressions::{
             ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr,
             MemberAccessExpr, NumberExpr, PostfixExpr, PrefixExpr, StringExpr,
-            StructInstantiationExpr, SymbolExpr, TypeExpr,
+            StructInstantiationExpr, SymbolExpr, TupleLiteralExpr, TypeExpr,
         },
+    },
+    errors::{
+        builders,
+        widgets::{CodeWidget, LocationWidget},
     },
     lexer::token::TokenKind,
     parser::{
@@ -158,13 +162,6 @@ pub fn parse_assignment_expr(
     ))
 }
 
-pub fn parse_grouping_expr(parser: &mut Parser) -> Result<Expr> {
-    parser.expect(TokenKind::OpenParen)?;
-    let expr = parse_expr(parser, BindingPower::DefaultBp)?;
-    parser.expect(TokenKind::CloseParen)?;
-    Ok(expr)
-}
-
 pub fn parse_struct_instantiation_expr(
     parser: &mut Parser,
     left: Expr,
@@ -237,7 +234,7 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
     Ok(parser.expr(
         ExprKind::ArrayLiteral(ArrayLiteralExpr {
             underlying: type_,
-            contents,
+            contents: contents.into_boxed_slice(),
         }),
         span,
     ))
@@ -270,7 +267,7 @@ pub fn parse_function_call_expr(
     Ok(parser.expr(
         ExprKind::FunctionCall(FunctionCallExpr {
             callee: Box::new(left),
-            arguments,
+            arguments: arguments.into_boxed_slice(),
         }),
         span,
     ))
@@ -320,4 +317,52 @@ pub fn parse_as_cast_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) ->
         }),
         span,
     ))
+}
+
+pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_token = parser.expect(TokenKind::OpenParen)?;
+
+    let mut expressions = Vec::new();
+    let mut has_comma = false;
+
+    while parser.current_token().kind != TokenKind::CloseParen {
+        expressions.push(parse_expr(parser, BindingPower::DefaultBp)?);
+
+        if parser.current_token().kind == TokenKind::Comma {
+            has_comma = true;
+            parser.advance();
+        } else if parser.current_token().kind != TokenKind::CloseParen {
+            crate::ERRORS.with(|e| -> Result<()> {
+                e.borrow_mut().add(
+                    builders::fatal("Expected comma or closing parenthesis in expression")
+                        .add_widget(LocationWidget::new(
+                            parser.current_token().span,
+                            parser.current_token().module_id,
+                        )?)
+                        .add_widget(CodeWidget::new(
+                            parser.current_token().span,
+                            parser.current_token().module_id,
+                        )?),
+                );
+                Ok(())
+            })?;
+            unreachable!();
+        }
+    }
+    let close_token = parser.expect(TokenKind::CloseParen)?;
+    let end_span = close_token.span;
+
+    if expressions.len() == 1 && !has_comma {
+        Ok(parser.expr(
+            expressions[0].kind.clone(),
+            Span::new(start_token.span.start(), end_span.end()),
+        ))
+    } else {
+        Ok(parser.expr(
+            ExprKind::TupleLiteral(TupleLiteralExpr {
+                elements: expressions.into_boxed_slice(),
+            }),
+            Span::new(start_token.span.start(), end_span.end()),
+        ))
+    }
 }

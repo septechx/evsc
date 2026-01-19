@@ -79,7 +79,7 @@ impl Visitable for Stmt {
 
 impl Visitable for ImportStmt {
     fn visit(&mut self, _visitor: &mut impl Visitor) {
-        todo!()
+        // Unit
     }
 }
 
@@ -337,5 +337,1183 @@ impl Visitable for TupleType {
         for element in &mut self.elements {
             element.visit(visitor);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        ast::{Ident, ImportTree, ImportTreeKind, NodeId, Path},
+        span::{ModuleId, Span},
+    };
+    use std::collections::HashMap;
+
+    pub struct NodeCounterVisitor {
+        stmt_counts: HashMap<&'static str, usize>,
+        expr_counts: HashMap<&'static str, usize>,
+        type_counts: HashMap<&'static str, usize>,
+    }
+
+    impl NodeCounterVisitor {
+        pub fn new() -> Self {
+            Self {
+                stmt_counts: HashMap::new(),
+                expr_counts: HashMap::new(),
+                type_counts: HashMap::new(),
+            }
+        }
+
+        pub fn assert_visited(&self, category: &str, name: &str, count: usize) {
+            // Since this is only used for testing, using a string instead of an enum is fine.
+            let counts = match category {
+                "stmt" => &self.stmt_counts,
+                "expr" => &self.expr_counts,
+                "type" => &self.type_counts,
+                _ => panic!("Invalid category: {}", category),
+            };
+
+            let actual = counts.get(name).copied().unwrap_or(0);
+            assert_eq!(
+                actual, count,
+                "Expected {} {} visits, got {}",
+                count, name, actual
+            );
+        }
+
+        pub fn assert_all_visited(&self, expectations: &[(&'static str, &'static str, usize)]) {
+            for &(category, name, count) in expectations {
+                self.assert_visited(category, name, count);
+            }
+        }
+
+        #[allow(dead_code)]
+        pub fn report(&self) {
+            println!("\n=== Node Visit Report ===");
+            println!("\nStatements:");
+            for (name, count) in &self.stmt_counts {
+                println!("  {}: {}", name, count);
+            }
+            println!("\nExpressions:");
+            for (name, count) in &self.expr_counts {
+                println!("  {}: {}", name, count);
+            }
+            println!("\nTypes:");
+            for (name, count) in &self.type_counts {
+                println!("  {}: {}", name, count);
+            }
+            println!("========================\n");
+        }
+    }
+
+    impl Visitor for NodeCounterVisitor {
+        fn visit_stmt(&mut self, stmt: &mut Stmt) {
+            let kind_name = match &stmt.kind {
+                StmtKind::Block(_) => "Stmt",
+                StmtKind::Expression(_) => "Stmt",
+                StmtKind::VarDecl(_) => "Stmt",
+                StmtKind::StructDecl(_) => "Stmt",
+                StmtKind::InterfaceDecl(_) => "Stmt",
+                StmtKind::FnDecl(_) => "Stmt",
+                StmtKind::Return(_) => "Stmt",
+                StmtKind::Import(_) => "Stmt",
+            };
+            *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
+
+            let kind_name = match &stmt.kind {
+                StmtKind::Block(_) => "BlockStmt",
+                StmtKind::Expression(_) => "ExpressionStmt",
+                StmtKind::VarDecl(_) => "VarDeclStmt",
+                StmtKind::StructDecl(_) => "StructDeclStmt",
+                StmtKind::InterfaceDecl(_) => "InterfaceDeclStmt",
+                StmtKind::FnDecl(_) => "FnDeclStmt",
+                StmtKind::Return(_) => "ReturnStmt",
+                StmtKind::Import(_) => "ImportStmt",
+            };
+            *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
+        }
+
+        fn visit_expr(&mut self, expr: &mut Expr) {
+            *self.expr_counts.entry("Expr").or_insert(0) += 1;
+
+            let kind_name = match &expr.kind {
+                ExprKind::Number(_) => "NumberExpr",
+                ExprKind::String(_) => "StringExpr",
+                ExprKind::Symbol(_) => "SymbolExpr",
+                ExprKind::Binary(_) => "BinaryExpr",
+                ExprKind::Postfix(_) => "PostfixExpr",
+                ExprKind::Prefix(_) => "PrefixExpr",
+                ExprKind::Assignment(_) => "AssignmentExpr",
+                ExprKind::StructInstantiation(_) => "StructInstantiationExpr",
+                ExprKind::ArrayLiteral(_) => "ArrayLiteralExpr",
+                ExprKind::FunctionCall(_) => "FunctionCallExpr",
+                ExprKind::MemberAccess(_) => "MemberAccessExpr",
+                ExprKind::Type(_) => "TypeExpr",
+                ExprKind::As(_) => "AsExpr",
+                ExprKind::TupleLiteral(_) => "TupleLiteralExpr",
+            };
+            *self.expr_counts.entry(kind_name).or_insert(0) += 1;
+        }
+
+        fn visit_type(&mut self, ty: &mut Type) {
+            *self.type_counts.entry("Type").or_insert(0) += 1;
+
+            let kind_name = match &ty.kind {
+                TypeKind::Symbol(_) => "SymbolType",
+                TypeKind::Pointer(_) => "PointerType",
+                TypeKind::Slice(_) => "SliceType",
+                TypeKind::FixedArray(_) => "FixedArrayType",
+                TypeKind::Mut(_) => "MutType",
+                TypeKind::Function(_) => "FunctionType",
+                TypeKind::Tuple(_) => "TupleType",
+                TypeKind::Infer => "Infer",
+                TypeKind::Never => "Never",
+            };
+            *self.type_counts.entry(kind_name).or_insert(0) += 1;
+        }
+    }
+
+    fn dummy_span() -> Span {
+        Span::new(0, 0)
+    }
+
+    fn dummy_ident(name: &str) -> Ident {
+        Ident {
+            value: name.to_string().into_boxed_str(),
+            span: dummy_span(),
+        }
+    }
+
+    fn dummy_token(kind: crate::lexer::token::TokenKind) -> crate::lexer::token::Token {
+        crate::lexer::token::Token {
+            kind,
+            value: "".to_string().into_boxed_str(),
+            span: dummy_span(),
+            module_id: ModuleId(0),
+        }
+    }
+
+    fn dummy_type_symbol(name: &str) -> Type {
+        Type {
+            kind: TypeKind::Symbol(SymbolType {
+                name: dummy_ident(name),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        }
+    }
+
+    fn dummy_type_infer() -> Type {
+        Type {
+            kind: TypeKind::Infer,
+            id: NodeId(0),
+            span: dummy_span(),
+        }
+    }
+
+    fn dummy_type_never() -> Type {
+        Type {
+            kind: TypeKind::Never,
+            id: NodeId(0),
+            span: dummy_span(),
+        }
+    }
+
+    fn dummy_expr_number(value: i32) -> Expr {
+        Expr {
+            kind: ExprKind::Number(NumberExpr { value }),
+            id: NodeId(0),
+            span: dummy_span(),
+        }
+    }
+
+    fn dummy_expr_symbol(name: &str) -> Expr {
+        Expr {
+            kind: ExprKind::Symbol(SymbolExpr {
+                value: dummy_ident(name),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        }
+    }
+
+    fn dummy_stmt_block(body: Vec<Stmt>) -> Stmt {
+        Stmt {
+            kind: StmtKind::Block(BlockStmt { body }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        }
+    }
+
+    fn dummy_stmt_expr(expr: Expr) -> Stmt {
+        Stmt {
+            kind: StmtKind::Expression(ExpressionStmt { expression: expr }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        }
+    }
+
+    #[test]
+    fn test_number_expr_visited_once() {
+        let mut expr = dummy_expr_number(42);
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
+    fn test_string_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::String(StringExpr {
+                value: "hello".to_string().into_boxed_str(),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "StringExpr", 1);
+    }
+
+    #[test]
+    fn test_symbol_expr_visited_once() {
+        let mut expr = dummy_expr_symbol("x");
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "SymbolExpr", 1);
+    }
+
+    #[test]
+    fn test_binary_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Binary(BinaryExpr {
+                left: Box::new(dummy_expr_number(1)),
+                operator: dummy_token(crate::lexer::token::TokenKind::Plus),
+                right: Box::new(dummy_expr_number(2)),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 3);
+        visitor.assert_visited("expr", "BinaryExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 2);
+    }
+
+    #[test]
+    fn test_postfix_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Postfix(PostfixExpr {
+                left: Box::new(dummy_expr_symbol("x")),
+                operator: dummy_token(crate::lexer::token::TokenKind::Plus),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "PostfixExpr", 1);
+        visitor.assert_visited("expr", "SymbolExpr", 1);
+    }
+
+    #[test]
+    fn test_prefix_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Prefix(PrefixExpr {
+                operator: dummy_token(crate::lexer::token::TokenKind::NotEquals),
+                right: Box::new(dummy_expr_symbol("x")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "PrefixExpr", 1);
+        visitor.assert_visited("expr", "SymbolExpr", 1);
+    }
+
+    #[test]
+    fn test_assignment_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Assignment(AssignmentExpr {
+                assigne: Box::new(dummy_expr_symbol("x")),
+                operator: dummy_token(crate::lexer::token::TokenKind::Equals),
+                value: Box::new(dummy_expr_number(1)),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 3);
+        visitor.assert_visited("expr", "AssignmentExpr", 1);
+        visitor.assert_visited("expr", "SymbolExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
+    fn test_struct_instantiation_expr_single_prop() {
+        let mut expr = Expr {
+            kind: ExprKind::StructInstantiation(StructInstantiationExpr {
+                name: dummy_ident("Foo"),
+                properties: HashMap::from([(dummy_ident("a"), dummy_expr_number(1))]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "StructInstantiationExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
+    fn test_struct_instantiation_expr_multiple_props() {
+        let mut expr = Expr {
+            kind: ExprKind::StructInstantiation(StructInstantiationExpr {
+                name: dummy_ident("Foo"),
+                properties: HashMap::from([
+                    (dummy_ident("a"), dummy_expr_number(1)),
+                    (dummy_ident("b"), dummy_expr_number(2)),
+                    (dummy_ident("c"), dummy_expr_number(3)),
+                ]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 4);
+        visitor.assert_visited("expr", "StructInstantiationExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 3);
+    }
+
+    #[test]
+    fn test_array_literal_expr() {
+        let mut expr = Expr {
+            kind: ExprKind::ArrayLiteral(ArrayLiteralExpr {
+                underlying: dummy_type_symbol("i32"),
+                contents: Box::new([
+                    dummy_expr_number(1),
+                    dummy_expr_number(2),
+                    dummy_expr_number(3),
+                ]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 4);
+        visitor.assert_visited("expr", "ArrayLiteralExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 3);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_function_call_expr() {
+        let mut expr = Expr {
+            kind: ExprKind::FunctionCall(FunctionCallExpr {
+                callee: Box::new(dummy_expr_symbol("foo")),
+                arguments: Box::new([dummy_expr_number(1), dummy_expr_number(2)]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 4);
+        visitor.assert_visited("expr", "FunctionCallExpr", 1);
+        visitor.assert_visited("expr", "SymbolExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 2);
+    }
+
+    #[test]
+    fn test_member_access_expr() {
+        let mut expr = Expr {
+            kind: ExprKind::MemberAccess(MemberAccessExpr {
+                base: Box::new(dummy_expr_symbol("obj")),
+                member: dummy_ident("field"),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "MemberAccessExpr", 1);
+        visitor.assert_visited("expr", "SymbolExpr", 1);
+    }
+
+    #[test]
+    fn test_type_expr() {
+        let mut expr = Expr {
+            kind: ExprKind::Type(TypeExpr {
+                underlying: dummy_type_symbol("i32"),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "TypeExpr", 1);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_as_expr() {
+        let mut expr = Expr {
+            kind: ExprKind::As(AsExpr {
+                expr: Box::new(dummy_expr_number(1)),
+                ty: dummy_type_symbol("i32"),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "AsExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_tuple_literal_expr() {
+        let mut expr = Expr {
+            kind: ExprKind::TupleLiteral(TupleLiteralExpr {
+                elements: Box::new([
+                    dummy_expr_number(1),
+                    dummy_expr_number(2),
+                    dummy_expr_number(3),
+                ]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 4);
+        visitor.assert_visited("expr", "TupleLiteralExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 3);
+    }
+
+    #[test]
+    fn test_block_stmt_empty() {
+        let mut stmt = dummy_stmt_block(vec![]);
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "BlockStmt", 1);
+    }
+
+    #[test]
+    fn test_block_stmt_with_body() {
+        let mut stmt = dummy_stmt_block(vec![dummy_stmt_expr(dummy_expr_number(1))]);
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 2);
+        visitor.assert_visited("stmt", "BlockStmt", 1);
+        visitor.assert_visited("stmt", "ExpressionStmt", 1);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
+    fn test_expression_stmt() {
+        let mut stmt = dummy_stmt_expr(dummy_expr_number(42));
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "ExpressionStmt", 1);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
+    fn test_var_decl_stmt_with_value() {
+        let mut stmt = Stmt {
+            kind: StmtKind::VarDecl(VarDeclStmt {
+                variable_name: dummy_ident("x"),
+                is_constant: false,
+                is_public: false,
+                assigned_value: Some(dummy_expr_number(1)),
+                type_: dummy_type_symbol("i32"),
+                is_static: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "VarDeclStmt", 1);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_var_decl_stmt_no_value() {
+        let mut stmt = Stmt {
+            kind: StmtKind::VarDecl(VarDeclStmt {
+                variable_name: dummy_ident("x"),
+                is_constant: false,
+                is_public: false,
+                assigned_value: None,
+                type_: dummy_type_symbol("i32"),
+                is_static: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "VarDeclStmt", 1);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_struct_decl_stmt_empty() {
+        let mut stmt = Stmt {
+            kind: StmtKind::StructDecl(StructDeclStmt {
+                name: dummy_ident("Foo"),
+                properties: vec![],
+                methods: vec![],
+                is_public: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "StructDeclStmt", 1);
+    }
+
+    #[test]
+    fn test_struct_decl_stmt_with_props() {
+        let mut stmt = Stmt {
+            kind: StmtKind::StructDecl(StructDeclStmt {
+                name: dummy_ident("Foo"),
+                properties: vec![
+                    StructProperty {
+                        name: dummy_ident("a"),
+                        type_: dummy_type_symbol("i32"),
+                        is_public: false,
+                    },
+                    StructProperty {
+                        name: dummy_ident("b"),
+                        type_: dummy_type_symbol("bool"),
+                        is_public: false,
+                    },
+                ],
+                methods: vec![],
+                is_public: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "StructDeclStmt", 1);
+        visitor.assert_visited("type", "Type", 2);
+        visitor.assert_visited("type", "SymbolType", 2);
+    }
+
+    #[test]
+    fn test_struct_decl_stmt_with_methods() {
+        let mut stmt = Stmt {
+            kind: StmtKind::StructDecl(StructDeclStmt {
+                name: dummy_ident("Foo"),
+                properties: vec![],
+                methods: vec![StructMethod {
+                    is_static: false,
+                    is_public: false,
+                    fn_decl: FnDeclStmt {
+                        name: dummy_ident("bar"),
+                        arguments: vec![],
+                        body: vec![],
+                        return_type: dummy_type_never(),
+                        is_public: false,
+                        is_extern: false,
+                    },
+                }],
+                is_public: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "StructDeclStmt", 1);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "Never", 1);
+    }
+
+    #[test]
+    fn test_interface_decl_stmt() {
+        let mut stmt = Stmt {
+            kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
+                name: dummy_ident("Foo"),
+                methods: vec![InterfaceMethod {
+                    fn_decl: FnDeclStmt {
+                        name: dummy_ident("bar"),
+                        arguments: vec![],
+                        body: vec![],
+                        return_type: dummy_type_never(),
+                        is_public: false,
+                        is_extern: false,
+                    },
+                }],
+                is_public: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "InterfaceDeclStmt", 1);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "Never", 1);
+    }
+
+    #[test]
+    fn test_fn_decl_stmt() {
+        let mut stmt = Stmt {
+            kind: StmtKind::FnDecl(FnDeclStmt {
+                name: dummy_ident("foo"),
+                arguments: vec![
+                    FnArgument {
+                        name: dummy_ident("a"),
+                        type_: dummy_type_symbol("i32"),
+                    },
+                    FnArgument {
+                        name: dummy_ident("b"),
+                        type_: dummy_type_symbol("bool"),
+                    },
+                ],
+                body: vec![dummy_stmt_expr(dummy_expr_number(1))],
+                return_type: dummy_type_symbol("void"),
+                is_public: false,
+                is_extern: false,
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 2);
+        visitor.assert_visited("stmt", "FnDeclStmt", 1);
+        visitor.assert_visited("stmt", "ExpressionStmt", 1);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+        visitor.assert_visited("type", "Type", 3);
+        visitor.assert_visited("type", "SymbolType", 3);
+    }
+
+    #[test]
+    fn test_return_stmt_with_value() {
+        let mut stmt = Stmt {
+            kind: StmtKind::Return(ReturnStmt {
+                value: Some(dummy_expr_number(1)),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "ReturnStmt", 1);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
+    fn test_return_stmt_no_value() {
+        let mut stmt = Stmt {
+            kind: StmtKind::Return(ReturnStmt { value: None }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "ReturnStmt", 1);
+    }
+
+    #[test]
+    fn test_import_stmt() {
+        let mut stmt = Stmt {
+            kind: StmtKind::Import(ImportStmt {
+                tree: ImportTree {
+                    prefix: Path {
+                        span: dummy_span(),
+                        segments: Box::new([dummy_ident("foo")]),
+                    },
+                    kind: ImportTreeKind::Simple(None),
+                    span: dummy_span(),
+                },
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "ImportStmt", 1);
+    }
+
+    #[test]
+    fn test_symbol_type() {
+        let mut ty = dummy_type_symbol("i32");
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_infer_type() {
+        let mut ty = dummy_type_infer();
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "Infer", 1);
+    }
+
+    #[test]
+    fn test_never_type() {
+        let mut ty = dummy_type_never();
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 1);
+        visitor.assert_visited("type", "Never", 1);
+    }
+
+    #[test]
+    fn test_pointer_type() {
+        let mut ty = Type {
+            kind: TypeKind::Pointer(PointerType {
+                underlying: Box::new(dummy_type_symbol("i32")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 2);
+        visitor.assert_visited("type", "PointerType", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_slice_type() {
+        let mut ty = Type {
+            kind: TypeKind::Slice(SliceType {
+                underlying: Box::new(dummy_type_symbol("i32")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 2);
+        visitor.assert_visited("type", "SliceType", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_fixed_array_type() {
+        let mut ty = Type {
+            kind: TypeKind::FixedArray(FixedArrayType {
+                length: 10,
+                underlying: Box::new(dummy_type_symbol("i32")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 2);
+        visitor.assert_visited("type", "FixedArrayType", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_mut_type() {
+        let mut ty = Type {
+            kind: TypeKind::Mut(MutType {
+                underlying: Box::new(dummy_type_symbol("i32")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 2);
+        visitor.assert_visited("type", "MutType", 1);
+        visitor.assert_visited("type", "SymbolType", 1);
+    }
+
+    #[test]
+    fn test_function_type() {
+        let mut ty = Type {
+            kind: TypeKind::Function(FunctionType {
+                parameters: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
+                return_type: Box::new(dummy_type_symbol("void")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 4);
+        visitor.assert_visited("type", "FunctionType", 1);
+        visitor.assert_visited("type", "SymbolType", 3);
+    }
+
+    #[test]
+    fn test_tuple_type() {
+        let mut ty = Type {
+            kind: TypeKind::Tuple(TupleType {
+                elements: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+        visitor.assert_visited("type", "Type", 3);
+        visitor.assert_visited("type", "TupleType", 1);
+        visitor.assert_visited("type", "SymbolType", 2);
+    }
+
+    #[test]
+    fn test_comprehensive_all_expression_types() {
+        let mut expr = Expr {
+            kind: ExprKind::FunctionCall(FunctionCallExpr {
+                callee: Box::new(dummy_expr_symbol("foo")),
+                arguments: Box::new([
+                    dummy_expr_number(1),
+                    Expr {
+                        kind: ExprKind::StructInstantiation(StructInstantiationExpr {
+                            name: dummy_ident("Bar"),
+                            properties: HashMap::from([
+                                (dummy_ident("x"), dummy_expr_number(2)),
+                                (
+                                    dummy_ident("y"),
+                                    Expr {
+                                        kind: ExprKind::Binary(BinaryExpr {
+                                            left: Box::new(dummy_expr_number(3)),
+                                            operator: dummy_token(
+                                                crate::lexer::token::TokenKind::Plus,
+                                            ),
+                                            right: Box::new(dummy_expr_number(4)),
+                                        }),
+                                        id: NodeId(0),
+                                        span: dummy_span(),
+                                    },
+                                ),
+                            ]),
+                        }),
+                        id: NodeId(0),
+                        span: dummy_span(),
+                    },
+                    Expr {
+                        kind: ExprKind::As(AsExpr {
+                            expr: Box::new(dummy_expr_symbol("z")),
+                            ty: Type {
+                                kind: TypeKind::Pointer(PointerType {
+                                    underlying: Box::new(dummy_type_symbol("i32")),
+                                }),
+                                id: NodeId(0),
+                                span: dummy_span(),
+                            },
+                        }),
+                        id: NodeId(0),
+                        span: dummy_span(),
+                    },
+                ]),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+
+        visitor.assert_all_visited(&[
+            ("expr", "FunctionCallExpr", 1),
+            ("expr", "StructInstantiationExpr", 1),
+            ("expr", "AsExpr", 1),
+            ("expr", "BinaryExpr", 1),
+            ("expr", "SymbolExpr", 2),
+            ("expr", "NumberExpr", 4),
+        ]);
+    }
+
+    #[test]
+    fn test_comprehensive_all_statement_types() {
+        let mut ast = Ast(Box::new([
+            Stmt {
+                kind: StmtKind::Import(ImportStmt {
+                    tree: ImportTree {
+                        prefix: Path {
+                            span: dummy_span(),
+                            segments: Box::new([dummy_ident("std")]),
+                        },
+                        kind: ImportTreeKind::Simple(None),
+                        span: dummy_span(),
+                    },
+                }),
+                id: NodeId(0),
+                span: dummy_span(),
+                attributes: Box::new([]),
+            },
+            Stmt {
+                kind: StmtKind::StructDecl(StructDeclStmt {
+                    name: dummy_ident("Foo"),
+                    properties: vec![StructProperty {
+                        name: dummy_ident("x"),
+                        type_: dummy_type_symbol("i32"),
+                        is_public: false,
+                    }],
+                    methods: vec![StructMethod {
+                        is_static: false,
+                        is_public: false,
+                        fn_decl: FnDeclStmt {
+                            name: dummy_ident("method"),
+                            arguments: vec![],
+                            body: vec![dummy_stmt_expr(dummy_expr_number(1))],
+                            return_type: dummy_type_never(),
+                            is_public: false,
+                            is_extern: false,
+                        },
+                    }],
+                    is_public: false,
+                }),
+                id: NodeId(0),
+                span: dummy_span(),
+                attributes: Box::new([]),
+            },
+            Stmt {
+                kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
+                    name: dummy_ident("Bar"),
+                    methods: vec![InterfaceMethod {
+                        fn_decl: FnDeclStmt {
+                            name: dummy_ident("method"),
+                            arguments: vec![],
+                            body: vec![],
+                            return_type: dummy_type_never(),
+                            is_public: false,
+                            is_extern: false,
+                        },
+                    }],
+                    is_public: false,
+                }),
+                id: NodeId(0),
+                span: dummy_span(),
+                attributes: Box::new([]),
+            },
+            Stmt {
+                kind: StmtKind::FnDecl(FnDeclStmt {
+                    name: dummy_ident("main"),
+                    arguments: vec![],
+                    body: vec![
+                        Stmt {
+                            kind: StmtKind::VarDecl(VarDeclStmt {
+                                variable_name: dummy_ident("a"),
+                                is_constant: false,
+                                is_public: false,
+                                assigned_value: Some(dummy_expr_number(1)),
+                                type_: dummy_type_infer(),
+                                is_static: false,
+                            }),
+                            id: NodeId(0),
+                            span: dummy_span(),
+                            attributes: Box::new([]),
+                        },
+                        Stmt {
+                            kind: StmtKind::Block(BlockStmt {
+                                body: vec![Stmt {
+                                    kind: StmtKind::Return(ReturnStmt {
+                                        value: Some(dummy_expr_number(2)),
+                                    }),
+                                    id: NodeId(0),
+                                    span: dummy_span(),
+                                    attributes: Box::new([]),
+                                }],
+                            }),
+                            id: NodeId(0),
+                            span: dummy_span(),
+                            attributes: Box::new([]),
+                        },
+                    ],
+                    return_type: dummy_type_symbol("isize"),
+                    is_public: false,
+                    is_extern: false,
+                }),
+                id: NodeId(0),
+                span: dummy_span(),
+                attributes: Box::new([]),
+            },
+        ]));
+
+        let mut visitor = NodeCounterVisitor::new();
+        ast.visit(&mut visitor);
+
+        visitor.assert_all_visited(&[
+            ("stmt", "ImportStmt", 1),
+            ("stmt", "StructDeclStmt", 1),
+            ("stmt", "InterfaceDeclStmt", 1),
+            ("stmt", "FnDeclStmt", 1),
+            ("stmt", "VarDeclStmt", 1),
+            ("stmt", "BlockStmt", 1),
+            ("stmt", "ReturnStmt", 1),
+            ("stmt", "ExpressionStmt", 1),
+        ]);
+    }
+
+    #[test]
+    fn test_comprehensive_all_type_types() {
+        let mut ty = Type {
+            kind: TypeKind::Function(FunctionType {
+                parameters: Box::new([
+                    Type {
+                        kind: TypeKind::Pointer(PointerType {
+                            underlying: Box::new(Type {
+                                kind: TypeKind::Mut(MutType {
+                                    underlying: Box::new(dummy_type_symbol("i32")),
+                                }),
+                                id: NodeId(0),
+                                span: dummy_span(),
+                            }),
+                        }),
+                        id: NodeId(0),
+                        span: dummy_span(),
+                    },
+                    Type {
+                        kind: TypeKind::Slice(SliceType {
+                            underlying: Box::new(dummy_type_symbol("u8")),
+                        }),
+                        id: NodeId(0),
+                        span: dummy_span(),
+                    },
+                    Type {
+                        kind: TypeKind::FixedArray(FixedArrayType {
+                            length: 10,
+                            underlying: Box::new(dummy_type_symbol("bool")),
+                        }),
+                        id: NodeId(0),
+                        span: dummy_span(),
+                    },
+                ]),
+                return_type: Box::new(Type {
+                    kind: TypeKind::Tuple(TupleType {
+                        elements: Box::new([
+                            dummy_type_infer(),
+                            dummy_type_never(),
+                            dummy_type_symbol("void"),
+                        ]),
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                }),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+
+        let mut visitor = NodeCounterVisitor::new();
+        ty.visit(&mut visitor);
+
+        visitor.assert_all_visited(&[
+            ("type", "Type", 12),
+            ("type", "FunctionType", 1),
+            ("type", "PointerType", 1),
+            ("type", "MutType", 1),
+            ("type", "SliceType", 1),
+            ("type", "FixedArrayType", 1),
+            ("type", "TupleType", 1),
+            ("type", "SymbolType", 4),
+            ("type", "Infer", 1),
+            ("type", "Never", 1),
+        ]);
+    }
+
+    #[test]
+    fn test_deeply_nested_visits() {
+        let mut expr = Expr {
+            kind: ExprKind::Binary(BinaryExpr {
+                left: Box::new(Expr {
+                    kind: ExprKind::Binary(BinaryExpr {
+                        left: Box::new(Expr {
+                            kind: ExprKind::Binary(BinaryExpr {
+                                left: Box::new(dummy_expr_symbol("a")),
+                                operator: dummy_token(crate::lexer::token::TokenKind::Plus),
+                                right: Box::new(dummy_expr_symbol("b")),
+                            }),
+                            id: NodeId(0),
+                            span: dummy_span(),
+                        }),
+                        operator: dummy_token(crate::lexer::token::TokenKind::Star),
+                        right: Box::new(Expr {
+                            kind: ExprKind::Binary(BinaryExpr {
+                                left: Box::new(dummy_expr_symbol("c")),
+                                operator: dummy_token(crate::lexer::token::TokenKind::Slash),
+                                right: Box::new(dummy_expr_symbol("d")),
+                            }),
+                            id: NodeId(0),
+                            span: dummy_span(),
+                        }),
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                }),
+                operator: dummy_token(crate::lexer::token::TokenKind::Dash),
+                right: Box::new(dummy_expr_symbol("e")),
+            }),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+
+        visitor.assert_all_visited(&[
+            ("expr", "Expr", 9),
+            ("expr", "BinaryExpr", 4),
+            ("expr", "SymbolExpr", 5),
+        ]);
     }
 }

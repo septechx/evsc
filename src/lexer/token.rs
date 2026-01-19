@@ -10,7 +10,7 @@ impl TokenStream {
         &self.0
     }
 
-    pub fn into_inner(self) -> Box<[Token]> {
+    pub fn into_boxed_slice(self) -> Box<[Token]> {
         self.0
     }
 }

@@ -494,11 +494,11 @@ pub fn parse_import_stmt(
             e.borrow_mut().add(
                 builders::error("Modifier not allowed here")
                     .add_widget(LocationWidget::new(
-                        attributes[0].span,
+                        modifiers[0].span,
                         parser.current_token().module_id,
                     )?)
                     .add_widget(CodeWidget::new(
-                        attributes[0].span,
+                        modifiers[0].span,
                         parser.current_token().module_id,
                     )?),
             );

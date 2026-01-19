@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn verify_tokens(tokens: &TokenStream) {
-    for token in tokens.inner_ref() {
+    for token in tokens.as_slice() {
         if let TokenKind::Illegal = &token.kind {
             let c = token.value.chars().next().unwrap_or('\0');
 

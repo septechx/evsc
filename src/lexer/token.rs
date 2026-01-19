@@ -6,15 +6,11 @@ use crate::span::{ModuleId, Span};
 pub struct TokenStream(Box<[Token]>);
 
 impl TokenStream {
-    pub fn inner_clone(&self) -> Box<[Token]> {
-        self.0.clone()
-    }
-
-    pub fn inner_ref(&self) -> &[Token] {
+    pub fn as_slice(&self) -> &[Token] {
         &self.0
     }
 
-    pub fn unwrap(self) -> Box<[Token]> {
+    pub fn into_inner(self) -> Box<[Token]> {
         self.0
     }
 }

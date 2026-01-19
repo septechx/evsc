@@ -30,7 +30,7 @@ pub struct Parser {
 impl Parser {
     pub fn new(tokens: TokenStream) -> Self {
         Parser {
-            tokens: tokens.unwrap(),
+            tokens: tokens.into_inner(),
             pos: 0,
             next_id: NodeId(0),
         }

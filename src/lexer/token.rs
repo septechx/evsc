@@ -3,7 +3,33 @@ use std::fmt::Display;
 use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
-pub struct TokenStream(pub Box<[Token]>);
+pub struct TokenStream(Box<[Token]>);
+
+impl TokenStream {
+    pub fn inner_clone(&self) -> Box<[Token]> {
+        self.0.clone()
+    }
+
+    pub fn inner_ref(&self) -> &[Token] {
+        &self.0
+    }
+
+    pub fn unwrap(self) -> Box<[Token]> {
+        self.0
+    }
+}
+
+impl From<Box<[Token]>> for TokenStream {
+    fn from(tokens: Box<[Token]>) -> Self {
+        TokenStream(tokens)
+    }
+}
+
+impl From<Vec<Token>> for TokenStream {
+    fn from(tokens: Vec<Token>) -> Self {
+        TokenStream(tokens.into_boxed_slice())
+    }
+}
 
 #[derive(Debug, Clone, Eq)]
 pub struct Token {

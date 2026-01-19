@@ -47,7 +47,7 @@ pub fn parse_path(parser: &mut Parser) -> Result<Path> {
     }
 
     Ok(Path {
-        segments,
+        segments: segments.into_boxed_slice(),
         span: Span::new(start.start(), last),
     })
 }

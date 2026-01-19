@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Ast(pub Vec<Stmt>);
+pub struct Ast(pub Box<[Stmt]>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Copy)]
 pub struct NodeId(pub usize);
@@ -20,7 +20,7 @@ pub struct NodeId(pub usize);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
     pub name: Ident,
-    pub arguments: Option<Vec<Box<str>>>,
+    pub arguments: Option<Box<[Box<str>]>>,
     pub span: Span,
 }
 
@@ -29,7 +29,7 @@ pub struct Stmt {
     pub kind: StmtKind,
     pub id: NodeId,
     pub span: Span,
-    pub attributes: Vec<Attribute>,
+    pub attributes: Box<[Attribute]>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +66,7 @@ pub enum ExprKind {
     MemberAccess(MemberAccessExpr),
     Type(TypeExpr),
     As(AsExpr),
+    TupleLiteral(TupleLiteralExpr),
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +84,7 @@ pub enum TypeKind {
     FixedArray(FixedArrayType),
     Mut(MutType),
     Function(FunctionType),
+    Tuple(TupleType),
     Infer,
     Never,
 }
@@ -110,7 +112,7 @@ impl TryFrom<Token> for Ident {
 #[derive(Debug, Clone)]
 pub struct Path {
     pub span: Span,
-    pub segments: Vec<Ident>,
+    pub segments: Box<[Ident]>,
 }
 
 #[derive(Debug, Clone)]
@@ -128,7 +130,7 @@ pub enum ImportTreeKind {
     ///             ^^^^^^^^^^
     /// ```
     Nested {
-        items: Vec<(ImportTree, NodeId)>,
+        items: Box<[(ImportTree, NodeId)]>,
         span: Span,
     },
     /// `import prefix::*`

@@ -26,7 +26,7 @@ pub enum BindingPower {
 }
 use BindingPower as BP;
 
-type StmtHandler = fn(&mut Parser, Vec<Attribute>, Vec<Modifier>) -> anyhow::Result<Stmt>;
+type StmtHandler = fn(&mut Parser, &[Attribute], &[Modifier]) -> anyhow::Result<Stmt>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expr>;
 type LedHandler = fn(&mut Parser, Expr, BindingPower) -> anyhow::Result<Expr>;
 
@@ -215,7 +215,7 @@ pub fn create_token_lookups() {
         nud(T::Number, parse_primary_expr, &mut nud_lu);
         nud(T::StringLiteral, parse_primary_expr, &mut nud_lu);
         nud(T::Identifier, parse_primary_expr, &mut nud_lu);
-        nud(T::OpenParen, parse_grouping_expr, &mut nud_lu);
+        nud(T::OpenParen, parse_parenthesis_expr, &mut nud_lu);
         nud(T::Dash, parse_prefix_expr, &mut nud_lu);
         nud(T::Reference, parse_prefix_expr, &mut nud_lu);
         nud(T::Dollar, parse_type_expr, &mut nud_lu);

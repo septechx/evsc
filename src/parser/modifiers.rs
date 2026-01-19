@@ -46,7 +46,7 @@ impl From<Token> for Modifier {
     }
 }
 
-pub fn parse_modifiers(parser: &mut Parser) -> Vec<Modifier> {
+pub fn parse_modifiers(parser: &mut Parser) -> Box<[Modifier]> {
     let mut modifiers = Vec::new();
 
     while matches!(
@@ -56,7 +56,7 @@ pub fn parse_modifiers(parser: &mut Parser) -> Vec<Modifier> {
         modifiers.push(parser.advance().into());
     }
 
-    modifiers
+    modifiers.into_boxed_slice()
 }
 
 /// Validates and extracts modifiers

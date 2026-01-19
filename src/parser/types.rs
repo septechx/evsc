@@ -7,7 +7,9 @@ use colored::Colorize;
 use crate::{
     ast::{
         Type, TypeKind,
-        types::{FixedArrayType, FunctionType, MutType, PointerType, SliceType, SymbolType},
+        types::{
+            FixedArrayType, FunctionType, MutType, PointerType, SliceType, SymbolType, TupleType,
+        },
     },
     lexer::token::TokenKind::{self, self as T},
     parser::{
@@ -56,7 +58,7 @@ pub fn create_token_type_lookups() {
         type_nud(T::Identifier, parse_symbol_type, &mut nud_lu);
         type_nud(T::OpenBracket, parse_array_type, &mut nud_lu);
         type_nud(T::Mut, parse_mut_type, &mut nud_lu);
-        type_nud(T::OpenParen, parse_function_type, &mut nud_lu);
+        type_nud(T::OpenParen, parse_parenthesis_type, &mut nud_lu);
         type_nud(T::Reference, parse_pointer_type, &mut nud_lu);
 
         let _ = TYPE_BP_LU.set(bp_lu);
@@ -187,34 +189,47 @@ fn parse_mut_type(parser: &mut Parser) -> Result<Type> {
     ))
 }
 
-fn parse_function_type(parser: &mut Parser) -> Result<Type> {
-    let start_token = parser.expect(TokenKind::OpenParen)?;
+fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
+    let start_token = parser.current_token();
 
-    let mut parameters = Vec::new();
+    let mut types = Vec::new();
+    parser.advance();
+
     while parser.current_token().kind != TokenKind::CloseParen {
-        parameters.push(parse_type(parser, BindingPower::DefaultBp)?);
+        types.push(parse_type(parser, BindingPower::DefaultBp)?);
 
         if parser.current_token().kind == TokenKind::Comma {
             parser.advance();
         } else if parser.current_token().kind != TokenKind::CloseParen {
-            bail!(
-                "Expected comma or closing parenthesis in function type"
-                    .red()
-                    .bold()
-            );
+            bail!("Expected comma or closing parenthesis in type".red().bold());
         }
     }
     parser.expect(TokenKind::CloseParen)?;
 
-    parser.expect(TokenKind::Arrow)?;
-    let return_type = parse_type(parser, BindingPower::DefaultBp)?;
-    let end_span = return_type.span;
+    if parser.current_token().kind == TokenKind::Arrow {
+        parser.expect(TokenKind::Arrow)?;
+        let return_type = parse_type(parser, BindingPower::DefaultBp)?;
+        let end_span = return_type.span;
 
-    Ok(parser.type_(
-        TypeKind::Function(FunctionType {
-            parameters,
-            return_type: Box::new(return_type),
-        }),
-        Span::new(start_token.span.start(), end_span.end()),
-    ))
+        Ok(parser.type_(
+            TypeKind::Function(FunctionType {
+                parameters: types.into_boxed_slice(),
+                return_type: Box::new(return_type),
+            }),
+            Span::new(start_token.span.start(), end_span.end()),
+        ))
+    } else {
+        let end_span = parser.current_token().span;
+
+        if types.len() == 1 {
+            Ok(types[0].clone())
+        } else {
+            Ok(parser.type_(
+                TypeKind::Tuple(TupleType {
+                    elements: types.into_boxed_slice(),
+                }),
+                Span::new(start_token.span.start(), end_span.end()),
+            ))
+        }
+    }
 }

@@ -1,3 +1,4 @@
+pub mod display;
 pub mod expressions;
 pub mod statements;
 pub mod types;
@@ -6,13 +7,28 @@ pub mod visit;
 use anyhow::bail;
 
 use crate::{
-    ast::{expressions::*, statements::*, types::*},
+    ast::{display::DisplayContext, expressions::*, statements::*, types::*},
     lexer::token::{Token, TokenKind},
     span::Span,
 };
 
 #[derive(Debug, Clone)]
 pub struct Ast(pub Box<[Stmt]>);
+
+impl Ast {
+    pub fn display(&self, color: bool) -> String {
+        let mut ctx = DisplayContext::new(color);
+        let mut output = String::new();
+        for (i, stmt) in self.0.iter().enumerate() {
+            if i > 0 {
+                output.push('\n');
+            }
+            display::write_stmt(&mut output, stmt, &mut ctx, false)
+                .expect("failed to display stmt");
+        }
+        output
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Copy)]
 pub struct NodeId(pub usize);

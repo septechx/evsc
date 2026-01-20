@@ -54,6 +54,13 @@ pub struct Cli {
     #[clap(long, help = "Print AST")]
     pub print_ast: bool,
 
+    #[clap(
+        long,
+        default_value = "auto",
+        help = "When to use colors: auto, always, never. Default: auto"
+    )]
+    pub color: String,
+
     #[clap(long, help = "Do not print any output")]
     pub quiet: bool,
 

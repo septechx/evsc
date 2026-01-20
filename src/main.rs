@@ -104,7 +104,18 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     check_for_errors();
 
     if cli.print_ast {
-        logln!("{:#?}", ast);
+        let use_color = match cli.color.as_str() {
+            "always" => {
+                colored::control::set_override(true);
+                true
+            }
+            "never" => {
+                colored::control::set_override(false);
+                false
+            }
+            _ => atty::is(atty::Stream::Stdout) && std::env::var("NO_COLOR").is_err(),
+        };
+        logln!("{}", ast.display(use_color));
         return Ok(());
     }
 

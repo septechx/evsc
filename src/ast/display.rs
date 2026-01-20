@@ -498,6 +498,7 @@ fn write_interface_method(
     if method.fn_decl.body.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;
+        writeln!(out)?;
     } else {
         writeln!(out)?;
         let mut body_ctx = sub_ctx.indented();

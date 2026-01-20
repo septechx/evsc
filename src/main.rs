@@ -113,7 +113,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
             }
         };
         colored::control::set_override(use_color);
-        logln!("{}", ast.display(use_color));
+        logln!("{}", ast.display(use_color)?);
         return Ok(());
     }
 

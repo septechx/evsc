@@ -49,6 +49,35 @@ fn type_with_color(s: &str, color: bool) -> String {
     }
 }
 
+fn modifiers_with_color(s: &str, color: bool) -> String {
+    if color {
+        s.blue().to_string()
+    } else {
+        s.to_string()
+    }
+}
+
+fn number_with_color(s: &str, color: bool) -> String {
+    if color {
+        s.green().to_string()
+    } else {
+        s.to_string()
+    }
+}
+
+fn punct_with_color(s: &str, color: bool) -> String {
+    if color {
+        s.white().to_string()
+    } else {
+        s.to_string()
+    }
+}
+
+fn node_id_with_color(n: usize, color: bool) -> String {
+    let s = format!("#{}", n);
+    if color { s.dimmed().to_string() } else { s }
+}
+
 fn string_with_color(s: &str, color: bool) -> String {
     let escaped = escape_string(s);
     if color {
@@ -74,27 +103,6 @@ fn escape_string(s: &str) -> String {
         }
     }
     result
-}
-
-fn number_with_color(s: &str, color: bool) -> String {
-    if color {
-        s.green().to_string()
-    } else {
-        s.to_string()
-    }
-}
-
-fn node_id_with_color(n: usize, color: bool) -> String {
-    let s = format!("#{}", n);
-    if color { s.dimmed().to_string() } else { s }
-}
-
-fn punct_with_color(s: &str, color: bool) -> String {
-    if color {
-        s.white().to_string()
-    } else {
-        s.to_string()
-    }
 }
 
 pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> std::fmt::Result {
@@ -160,7 +168,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 "{} {} {}{}{}{}: ",
                 "VarDecl".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
-                modifiers,
+                modifiers_with_color(&modifiers, ctx.color),
                 punct_with_color("\"", ctx.color),
                 var_decl.variable_name.value,
                 punct_with_color("\"", ctx.color)
@@ -197,7 +205,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 "{} {} {}{}{}",
                 "StructDecl".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
-                modifiers,
+                modifiers_with_color(&modifiers, ctx.color),
                 punct_with_color("\"", ctx.color),
                 struct_decl.name.value
             )?;
@@ -240,7 +248,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 "{} {} {}{}{}",
                 "InterfaceDecl".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
-                modifiers,
+                modifiers_with_color(&modifiers, ctx.color),
                 punct_with_color("\"", ctx.color),
                 interface_decl.name.value
             )?;
@@ -275,7 +283,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 "{} {} {}\"{}\"",
                 "FnDecl".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
-                modifiers,
+                modifiers_with_color(&modifiers, ctx.color),
                 fn_decl.name.value
             )?;
             write!(out, " {} ", punct_with_color("->", ctx.color))?;
@@ -286,12 +294,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             } else {
                 writeln!(out)?;
                 let sub_ctx = ctx.indented();
-                write!(
-                    out,
-                    "{}Arguments {}:",
-                    sub_ctx.indent_str(),
-                    node_id_with_color(id + 1, ctx.color)
-                )?;
+                write!(out, "{}Arguments:", sub_ctx.indent_str())?;
                 if fn_decl.arguments.is_empty() {
                     writeln!(out)?;
                     write!(out, "{}  (empty)", sub_ctx.indent_str())?;
@@ -310,12 +313,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                     }
                 }
                 writeln!(out)?;
-                write!(
-                    out,
-                    "{}Body {}:",
-                    sub_ctx.indent_str(),
-                    node_id_with_color(id + 2, ctx.color)
-                )?;
+                write!(out, "{}Body:", sub_ctx.indent_str())?;
                 if fn_decl.body.is_empty() {
                     writeln!(out)?;
                     write!(out, "{}  (empty)", sub_ctx.indent_str())?;
@@ -377,7 +375,7 @@ fn write_struct_property(
         "{} {} {}\"{}\": ",
         "Property".with_color(ctx.color),
         node_id_with_color(prop.type_.id.0, ctx.color),
-        modifiers,
+        modifiers_with_color(&modifiers, ctx.color),
         prop.name.value
     )?;
     write!(out, "{}", write_type(&prop.type_, ctx))?;
@@ -408,7 +406,7 @@ fn write_struct_method(
         "{} {} {}{}{}",
         "Method".with_color(ctx.color),
         node_id_with_color(id, ctx.color),
-        modifiers,
+        modifiers_with_color(&modifiers, ctx.color),
         punct_with_color("\"", ctx.color),
         method.fn_decl.name.value
     )?;
@@ -828,8 +826,8 @@ fn write_type(ty: &Type, ctx: &mut DisplayContext) -> String {
             let elems: Vec<String> = t.elements.iter().map(|e| write_type(e, ctx)).collect();
             format!("({})", elems.join(", "))
         }
-        TypeKind::Infer => "_".to_string(),
-        TypeKind::Never => "!".to_string(),
+        TypeKind::Infer => type_with_color("_", ctx.color),
+        TypeKind::Never => type_with_color("!", ctx.color),
     }
 }
 

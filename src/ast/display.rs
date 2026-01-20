@@ -100,7 +100,7 @@ fn escape_string(s: &str) -> String {
             '"' => result.push_str("\\\""),
             '\\' => result.push_str("\\\\"),
             c if c.is_control() => {
-                result.push_str(&format!("\\x{:02x}", c as u8));
+                result.push_str(&format!("\\u{{{:04x}}}", c as u32));
             }
             c => result.push(c),
         }
@@ -405,12 +405,10 @@ fn write_struct_method(
     } else {
         format!("{} ", modifiers)
     };
-    let id = method.fn_decl.return_type.id.0;
     write!(
         out,
-        "{} {} {}{}{}",
+        "{} {}{}{}",
         "Method".with_color(ctx.color),
-        node_id_with_color(id, ctx.color),
         modifiers_with_color(&modifiers, ctx.color),
         punct_with_color("\"", ctx.color),
         method.fn_decl.name.value
@@ -461,12 +459,10 @@ fn write_interface_method(
     method: &InterfaceMethod,
     ctx: &mut DisplayContext,
 ) -> std::fmt::Result {
-    let id = method.fn_decl.return_type.id.0;
     write!(
         out,
-        "{} {} {}{}",
+        "{} {}{}",
         "Method".with_color(ctx.color),
-        node_id_with_color(id, ctx.color),
         punct_with_color("\"", ctx.color),
         method.fn_decl.name.value
     )?;

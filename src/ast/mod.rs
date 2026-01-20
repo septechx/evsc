@@ -23,8 +23,7 @@ impl Ast {
             if i > 0 {
                 output.push('\n');
             }
-            display::write_stmt(&mut output, stmt, &mut ctx, false)
-                .expect("failed to display stmt");
+            display::write_stmt(&mut output, stmt, &mut ctx).expect("failed to display stmt");
         }
         output
     }

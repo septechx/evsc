@@ -284,7 +284,7 @@ pub fn write_stmt(
                     writeln!(out)?;
                     let mut arg_ctx = sub_ctx.indented();
                     for arg in &fn_decl.arguments {
-                        write!(
+                        writeln!(
                             out,
                             "{}FnArg {} \"{}\": {}",
                             arg_ctx.indent_str(),
@@ -406,7 +406,7 @@ fn write_struct_method(
         writeln!(out)?;
         let mut arg_ctx = sub_ctx.indented();
         for arg in &method.fn_decl.arguments {
-            write!(
+            writeln!(
                 out,
                 "{}FnArg {} \"{}\": {}",
                 arg_ctx.indent_str(),
@@ -471,7 +471,7 @@ fn write_interface_method(
         writeln!(out)?;
         let mut arg_ctx = sub_ctx.indented();
         for arg in &method.fn_decl.arguments {
-            write!(
+            writeln!(
                 out,
                 "{}FnArg {} \"{}\": {}",
                 arg_ctx.indent_str(),

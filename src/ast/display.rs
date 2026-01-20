@@ -2,7 +2,9 @@ use std::fmt::Write;
 
 use colored::Colorize;
 
-use crate::ast::{Expr, ExprKind, Stmt, StmtKind, Type, TypeKind, statements::*};
+use crate::ast::{
+    Expr, ExprKind, ImportTree, ImportTreeKind, Stmt, StmtKind, Type, TypeKind, statements::*,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct DisplayContext {
@@ -88,7 +90,8 @@ fn string_with_color(s: &str, color: bool) -> String {
 }
 
 fn escape_string(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
+    let mut result = String::with_capacity(s.len() + 2);
+    result.push('"');
     for c in s.chars() {
         match c {
             '\n' => result.push_str("\\n"),
@@ -102,6 +105,7 @@ fn escape_string(s: &str) -> String {
             c => result.push(c),
         }
     }
+    result.push('"');
     result
 }
 
@@ -666,8 +670,9 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                         writeln!(out)?;
                     } else {
                         writeln!(out)?;
-                        write!(out, "{}", prop_ctx.indent_str())?;
-                        write_expr(out, expr, &mut prop_ctx)?;
+                        let mut expr_ctx = prop_ctx.indented();
+                        write!(out, "{}", expr_ctx.indent_str())?;
+                        write_expr(out, expr, &mut expr_ctx)?;
                         writeln!(out)?;
                     }
                 }
@@ -803,24 +808,24 @@ fn write_type(ty: &Type, ctx: &mut DisplayContext) -> String {
         TypeKind::Symbol(s) => type_with_color(&s.name.value, ctx.color),
         TypeKind::Pointer(p) => {
             let inner = write_type(p.underlying.as_ref(), ctx);
-            format!("{}*", inner)
+            format!("&{}", inner)
         }
         TypeKind::Slice(s) => {
             let inner = write_type(s.underlying.as_ref(), ctx);
-            format!("[{}]", inner)
+            format!("[]{}", inner)
         }
         TypeKind::FixedArray(f) => {
             let inner = write_type(f.underlying.as_ref(), ctx);
-            format!("[{}[{}]]", inner, f.length)
+            format!("[{}]{}", f.length, inner)
         }
         TypeKind::Mut(m) => {
             let inner = write_type(m.underlying.as_ref(), ctx);
-            format!("{} mut", inner)
+            format!("mut {}", inner)
         }
         TypeKind::Function(ft) => {
             let params: Vec<String> = ft.parameters.iter().map(|p| write_type(p, ctx)).collect();
             let ret = write_type(ft.return_type.as_ref(), ctx);
-            format!("fn({}) -> {}", params.join(", "), ret)
+            format!("({}) -> {}", params.join(", "), ret)
         }
         TypeKind::Tuple(t) => {
             let elems: Vec<String> = t.elements.iter().map(|e| write_type(e, ctx)).collect();
@@ -833,7 +838,7 @@ fn write_type(ty: &Type, ctx: &mut DisplayContext) -> String {
 
 fn write_import_tree(
     out: &mut String,
-    tree: &crate::ast::ImportTree,
+    tree: &ImportTree,
     ctx: &mut DisplayContext,
 ) -> std::fmt::Result {
     let path: Vec<String> = tree
@@ -844,14 +849,14 @@ fn write_import_tree(
         .collect();
     let path_str = path.join("::");
     match &tree.kind {
-        crate::ast::ImportTreeKind::Simple(rename) => {
+        ImportTreeKind::Simple(rename) => {
             if let Some(r) = rename {
                 write!(out, "{} as {}", path_str, r.value)?;
             } else {
                 write!(out, "{}", path_str)?;
             }
         }
-        crate::ast::ImportTreeKind::Nested { items, .. } => {
+        ImportTreeKind::Nested { items, .. } => {
             write!(out, "{}::{}", path_str, punct_with_color("{", ctx.color))?;
             for (i, (item, _)) in items.iter().enumerate() {
                 if i > 0 {
@@ -861,7 +866,7 @@ fn write_import_tree(
             }
             write!(out, "{}", punct_with_color("}", ctx.color))?;
         }
-        crate::ast::ImportTreeKind::Glob => {
+        ImportTreeKind::Glob => {
             write!(out, "{}::*", path_str)?;
         }
     }

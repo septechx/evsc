@@ -13,6 +13,7 @@ pub mod utils;
 use std::{
     cell::RefCell,
     env, fs,
+    io::IsTerminal,
     marker::PhantomData,
     path::{Path, PathBuf},
 };
@@ -104,17 +105,14 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     check_for_errors();
 
     if cli.print_ast {
-        let use_color = match cli.color.as_str() {
-            "always" => {
-                colored::control::set_override(true);
-                true
+        let use_color = match cli.color {
+            cli::ColorChoice::Always => true,
+            cli::ColorChoice::Never => false,
+            cli::ColorChoice::Auto => {
+                std::io::stdout().is_terminal() && std::env::var("NO_COLOR").is_err()
             }
-            "never" => {
-                colored::control::set_override(false);
-                false
-            }
-            _ => atty::is(atty::Stream::Stdout) && std::env::var("NO_COLOR").is_err(),
         };
+        colored::control::set_override(use_color);
         logln!("{}", ast.display(use_color));
         return Ok(());
     }

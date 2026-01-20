@@ -133,7 +133,10 @@ pub fn write_stmt(
                 "ExpressionStmt".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            if !expr_stmt.expression.kind.is_leaf() {
+            if expr_stmt.expression.kind.is_leaf() {
+                write!(out, " ")?;
+                write_expr(out, &expr_stmt.expression, &mut ctx.clone())?;
+            } else {
                 writeln!(out)?;
                 let mut expr_ctx = ctx.indented();
                 write!(out, "{}", expr_ctx.indent_str())?;
@@ -141,21 +144,23 @@ pub fn write_stmt(
             }
         }
         StmtKind::VarDecl(var_decl) => {
-            let mut modifiers = String::new();
+            let mut modifiers = Vec::new();
             if var_decl.is_public {
-                modifiers.push_str(" pub");
+                modifiers.push("pub");
             }
             if var_decl.is_constant {
-                modifiers.push_str(" const");
+                modifiers.push("const");
             }
             if var_decl.is_static {
-                modifiers.push_str(" static");
+                modifiers.push("static");
             }
+            let modifiers = modifiers.join(" ");
             write!(
                 out,
-                "{} {} {}{}{}: ",
+                "{} {} {} {}{}{}: ",
                 "VarDecl".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
+                modifiers,
                 punct_with_color("\"", ctx.color),
                 var_decl.variable_name.value,
                 punct_with_color("\"", ctx.color)
@@ -177,10 +182,11 @@ pub fn write_stmt(
             }
         }
         StmtKind::StructDecl(struct_decl) => {
-            let mut modifiers = String::new();
+            let mut modifiers = Vec::new();
             if struct_decl.is_public {
-                modifiers.push_str(" pub");
+                modifiers.push("pub");
             }
+            let modifiers = modifiers.join(" ");
             write!(
                 out,
                 "{} {} {} {}{}",
@@ -214,13 +220,14 @@ pub fn write_stmt(
             }
         }
         StmtKind::InterfaceDecl(interface_decl) => {
-            let mut modifiers = String::new();
+            let mut modifiers = Vec::new();
             if interface_decl.is_public {
-                modifiers.push_str(" pub");
+                modifiers.push("pub");
             }
+            let modifiers = modifiers.join(" ");
             write!(
                 out,
-                "{}{}{} {}{}",
+                "{} {} {} {}{}",
                 "InterfaceDecl".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
                 modifiers,
@@ -240,13 +247,14 @@ pub fn write_stmt(
             }
         }
         StmtKind::FnDecl(fn_decl) => {
-            let mut modifiers = String::new();
+            let mut modifiers = Vec::new();
             if fn_decl.is_public {
-                modifiers.push_str("pub");
+                modifiers.push("pub");
             }
             if fn_decl.is_extern {
-                modifiers.push_str("extern");
+                modifiers.push("extern");
             }
+            let modifiers = modifiers.join(" ");
             write!(
                 out,
                 "{} {} {} \"{}\"",
@@ -328,7 +336,7 @@ pub fn write_stmt(
                 "Import".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            write_import_tree(out, &import_stmt.tree, ctx);
+            write_import_tree(out, &import_stmt.tree, ctx)?;
         }
     }
     Ok(())
@@ -339,13 +347,14 @@ fn write_struct_property(
     prop: &StructProperty,
     ctx: &mut DisplayContext,
 ) -> std::fmt::Result {
-    let mut modifiers = String::new();
+    let mut modifiers = Vec::new();
     if prop.is_public {
-        modifiers.push_str(" pub");
+        modifiers.push("pub");
     }
+    let modifiers = modifiers.join(" ");
     write!(
         out,
-        "{} {} {}\"{}\": ",
+        "{} {} {} \"{}\": ",
         "Property".with_color(ctx.color),
         node_id_with_color(prop.type_.id.0, ctx.color),
         modifiers,
@@ -360,13 +369,14 @@ fn write_struct_method(
     method: &StructMethod,
     ctx: &mut DisplayContext,
 ) -> std::fmt::Result {
-    let mut modifiers = String::new();
+    let mut modifiers = Vec::new();
     if method.is_public {
-        modifiers.push_str(" pub");
+        modifiers.push("pub");
     }
     if method.is_static {
-        modifiers.push_str(" static");
+        modifiers.push("static");
     }
+    let modifiers = modifiers.join(" ");
     let id = method.fn_decl.return_type.id.0;
     write!(
         out,
@@ -789,7 +799,11 @@ fn write_type(ty: &Type, ctx: &mut DisplayContext) -> String {
     }
 }
 
-fn write_import_tree(out: &mut String, tree: &crate::ast::ImportTree, ctx: &mut DisplayContext) {
+fn write_import_tree(
+    out: &mut String,
+    tree: &crate::ast::ImportTree,
+    ctx: &mut DisplayContext,
+) -> std::fmt::Result {
     let path: Vec<String> = tree
         .prefix
         .segments
@@ -800,25 +814,26 @@ fn write_import_tree(out: &mut String, tree: &crate::ast::ImportTree, ctx: &mut 
     match &tree.kind {
         crate::ast::ImportTreeKind::Simple(rename) => {
             if let Some(r) = rename {
-                write!(out, "{} as {}", path_str, r.value).unwrap();
+                write!(out, "{} as {}", path_str, r.value)?;
             } else {
-                write!(out, "{}", path_str).unwrap();
+                write!(out, "{}", path_str)?;
             }
         }
         crate::ast::ImportTreeKind::Nested { items, .. } => {
-            write!(out, "{}::{}", path_str, punct_with_color("{", ctx.color)).unwrap();
+            write!(out, "{}::{}", path_str, punct_with_color("{", ctx.color))?;
             for (i, (item, _)) in items.iter().enumerate() {
                 if i > 0 {
-                    write!(out, ", ").unwrap();
+                    write!(out, ", ")?;
                 }
-                write_import_tree(out, item, ctx);
+                write_import_tree(out, item, ctx)?;
             }
-            write!(out, "{}", punct_with_color("}", ctx.color)).unwrap();
+            write!(out, "{}", punct_with_color("}", ctx.color))?;
         }
         crate::ast::ImportTreeKind::Glob => {
-            write!(out, "{}::*", path_str).unwrap();
+            write!(out, "{}::*", path_str)?;
         }
     }
+    Ok(())
 }
 
 impl ExprKind {

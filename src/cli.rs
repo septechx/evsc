@@ -36,6 +36,14 @@ impl From<OptLevel> for OptimizationLevel {
     }
 }
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum, Default)]
+pub enum ColorChoice {
+    #[default]
+    Auto,
+    Always,
+    Never,
+}
+
 #[derive(Parser, Debug)]
 #[clap(version, about, long_about = None, arg_required_else_help(true))]
 pub struct Cli {
@@ -56,10 +64,11 @@ pub struct Cli {
 
     #[clap(
         long,
-        default_value = "auto",
+        value_enum,
+        default_value_t = ColorChoice::Auto,
         help = "When to use colors: auto, always, never. Default: auto"
     )]
-    pub color: String,
+    pub color: ColorChoice,
 
     #[clap(long, help = "Do not print any output")]
     pub quiet: bool,

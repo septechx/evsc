@@ -351,14 +351,15 @@ pub fn parse_interface_decl_stmt(
             break;
         }
 
-        if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind {
-                methods.push(InterfaceMethod { fn_decl });
-            }
-            continue;
+        if parser.current_token().kind == TokenKind::Fn
+            && let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind
+        {
+            methods.push(InterfaceMethod { fn_decl });
         }
 
-        unexpected_token(parser.current_token());
+        if parser.current_token().kind == TokenKind::Comma {
+            parser.advance();
+        }
     }
 
     let end_span = parser.expect(TokenKind::CloseCurly)?.span;

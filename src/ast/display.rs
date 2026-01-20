@@ -354,6 +354,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 node_id_with_color(id, ctx.color)
             )?;
             write_import_tree(out, &import_stmt.tree, ctx)?;
+            writeln!(out)?;
         }
     }
     Ok(())
@@ -494,20 +495,6 @@ fn write_interface_method(
         }
     }
     writeln!(out)?;
-    write!(out, "{}Body:", indent,)?;
-    if method.fn_decl.body.is_empty() {
-        writeln!(out)?;
-        write!(out, "{}  (empty)", indent)?;
-        writeln!(out)?;
-    } else {
-        writeln!(out)?;
-        let mut body_ctx = sub_ctx.indented();
-        for s in &method.fn_decl.body {
-            write!(out, "{}", body_ctx.indent_str())?;
-            write_stmt(out, s, &mut body_ctx)?;
-            writeln!(out)?;
-        }
-    }
     Ok(())
 }
 

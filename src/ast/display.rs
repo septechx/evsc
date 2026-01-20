@@ -420,12 +420,7 @@ fn write_struct_method(
     writeln!(out, ":")?;
     let sub_ctx = ctx.indented();
     let indent = sub_ctx.indent_str();
-    write!(
-        out,
-        "{}Arguments {}:",
-        indent,
-        node_id_with_color(id + 1, ctx.color)
-    )?;
+    write!(out, "{}Arguments:", indent,)?;
     if method.fn_decl.arguments.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;
@@ -444,12 +439,7 @@ fn write_struct_method(
         }
     }
     writeln!(out)?;
-    write!(
-        out,
-        "{}Body {}:",
-        indent,
-        node_id_with_color(id + 2, ctx.color)
-    )?;
+    write!(out, "{}Body:", indent,)?;
     if method.fn_decl.body.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;
@@ -485,12 +475,7 @@ fn write_interface_method(
     writeln!(out, ":")?;
     let sub_ctx = ctx.indented();
     let indent = sub_ctx.indent_str();
-    write!(
-        out,
-        "{}Arguments {}:",
-        indent,
-        node_id_with_color(id + 1, ctx.color)
-    )?;
+    write!(out, "{}Arguments:", indent,)?;
     if method.fn_decl.arguments.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;
@@ -509,12 +494,7 @@ fn write_interface_method(
         }
     }
     writeln!(out)?;
-    write!(
-        out,
-        "{}Body {}:",
-        indent,
-        node_id_with_color(id + 2, ctx.color)
-    )?;
+    write!(out, "{}Body:", indent,)?;
     if method.fn_decl.body.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;

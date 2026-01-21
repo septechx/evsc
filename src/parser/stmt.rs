@@ -355,10 +355,10 @@ pub fn parse_interface_decl_stmt(
             && let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind
         {
             methods.push(InterfaceMethod { fn_decl });
-        }
-
-        if parser.current_token().kind == TokenKind::Comma {
+        } else if parser.current_token().kind == TokenKind::Comma {
             parser.advance();
+        } else {
+            unexpected_token(parser.current_token());
         }
     }
 

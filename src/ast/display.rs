@@ -59,6 +59,14 @@ fn modifiers_with_color(s: &str, color: bool) -> String {
     }
 }
 
+fn format_modifiers(modifiers: &[&str]) -> String {
+    if modifiers.is_empty() {
+        String::new()
+    } else {
+        format!("{} ", modifiers.join(" "))
+    }
+}
+
 fn number_with_color(s: &str, color: bool) -> String {
     if color {
         s.green().to_string()
@@ -161,12 +169,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             if var_decl.is_static {
                 modifiers.push("static");
             }
-            let modifiers = modifiers.join(" ");
-            let modifiers = if modifiers.is_empty() {
-                String::new()
-            } else {
-                format!("{} ", modifiers)
-            };
+            let modifiers = format_modifiers(&modifiers);
             write!(
                 out,
                 "{} {} {}{}{}{}: ",
@@ -198,12 +201,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             if struct_decl.is_public {
                 modifiers.push("pub");
             }
-            let modifiers = modifiers.join(" ");
-            let modifiers = if modifiers.is_empty() {
-                String::new()
-            } else {
-                format!("{} ", modifiers)
-            };
+            let modifiers = format_modifiers(&modifiers);
             write!(
                 out,
                 "{} {} {}{}{}",
@@ -241,12 +239,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             if interface_decl.is_public {
                 modifiers.push("pub");
             }
-            let modifiers = modifiers.join(" ");
-            let modifiers = if modifiers.is_empty() {
-                String::new()
-            } else {
-                format!("{} ", modifiers)
-            };
+            let modifiers = format_modifiers(&modifiers);
             write!(
                 out,
                 "{} {} {}{}{}",
@@ -276,12 +269,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             if fn_decl.is_extern {
                 modifiers.push("extern");
             }
-            let modifiers = modifiers.join(" ");
-            let modifiers = if modifiers.is_empty() {
-                String::new()
-            } else {
-                format!("{} ", modifiers)
-            };
+            let modifiers = format_modifiers(&modifiers);
             write!(
                 out,
                 "{} {} {}\"{}\"",
@@ -369,12 +357,7 @@ fn write_struct_property(
     if prop.is_public {
         modifiers.push("pub");
     }
-    let modifiers = modifiers.join(" ");
-    let modifiers = if modifiers.is_empty() {
-        String::new()
-    } else {
-        format!("{} ", modifiers)
-    };
+    let modifiers = format_modifiers(&modifiers);
     write!(
         out,
         "{} {} {}\"{}\": ",
@@ -399,12 +382,7 @@ fn write_struct_method(
     if method.is_static {
         modifiers.push("static");
     }
-    let modifiers = modifiers.join(" ");
-    let modifiers = if modifiers.is_empty() {
-        String::new()
-    } else {
-        format!("{} ", modifiers)
-    };
+    let modifiers = format_modifiers(&modifiers);
     write!(
         out,
         "{} {}{}{}",

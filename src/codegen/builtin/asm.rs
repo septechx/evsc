@@ -33,15 +33,21 @@ impl BuiltinFunction for AsmBuiltin {
             _ => unreachable!(),
         };
 
-        let (asm_str, constraints) = match (&expr.arguments[0].kind, &expr.arguments[1].kind) {
-            (ExprKind::String(asm), ExprKind::String(cons)) => (asm, cons),
+        let (asm_str, constraints, arguments) = match (
+            &expr.arguments[0].kind,
+            &expr.arguments[1].kind,
+            &expr.arguments[2].kind,
+        ) {
+            (ExprKind::String(asm), ExprKind::String(cons), ExprKind::TupleLiteral(args)) => {
+                (asm, cons, args)
+            }
             _ => bail!("First two arguments must be string literals"),
         };
 
         let mut operands: Vec<BasicMetadataValueEnum> = Vec::new();
         let mut metadata_types: Vec<BasicMetadataTypeEnum> = Vec::new();
 
-        for arg in &expr.arguments[2..] {
+        for arg in &arguments.elements {
             let val =
                 compile_expression_to_value(context, module, builder, arg, compilation_context)?;
             let val = val.unwrap(builder)?;

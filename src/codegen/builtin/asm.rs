@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use inkwell::{
     InlineAsmDialect,
     builder::Builder,
@@ -17,6 +17,12 @@ use crate::{
     },
 };
 
+fn fail<'ctx>() -> Result<SmartValue<'ctx>> {
+    Err(anyhow!(
+        "Invalid arguments to asm builtin, expected @asm(string, string, tuple) (First 2 arguments must be available at compile time)",
+    ))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct AsmBuiltin;
 
@@ -33,15 +39,27 @@ impl BuiltinFunction for AsmBuiltin {
             _ => unreachable!(),
         };
 
-        let (asm_str, constraints) = match (&expr.arguments[0].kind, &expr.arguments[1].kind) {
-            (ExprKind::String(asm), ExprKind::String(cons)) => (asm, cons),
-            _ => bail!("First two arguments must be string literals"),
+        if expr.arguments.len() != 3 {
+            return fail();
+        }
+
+        let (asm_str, constraints, arguments) = match (
+            &expr.arguments[0].kind,
+            &expr.arguments[1].kind,
+            &expr.arguments[2].kind,
+        ) {
+            (ExprKind::String(asm), ExprKind::String(cons), ExprKind::TupleLiteral(args)) => {
+                (asm, cons, args)
+            }
+            _ => {
+                return fail();
+            }
         };
 
         let mut operands: Vec<BasicMetadataValueEnum> = Vec::new();
         let mut metadata_types: Vec<BasicMetadataTypeEnum> = Vec::new();
 
-        for arg in &expr.arguments[2..] {
+        for arg in &arguments.elements {
             let val =
                 compile_expression_to_value(context, module, builder, arg, compilation_context)?;
             let val = val.unwrap(builder)?;
@@ -75,7 +93,7 @@ impl BuiltinFunction for AsmBuiltin {
                 call_site_value
                     .try_as_basic_value()
                     .basic()
-                    .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
+                    .ok_or_else(|| anyhow!("Expected call site value to be a basic value"))?,
             )
         })
     }

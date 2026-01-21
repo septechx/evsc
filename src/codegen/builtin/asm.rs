@@ -17,6 +17,12 @@ use crate::{
     },
 };
 
+fn fail<'ctx>() -> Result<SmartValue<'ctx>> {
+    Err(anyhow!(
+        "Invalid arguments to asm builtin, expected @asm(string, string, tuple) (First 2 arguments must be available at compile time)",
+    ))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct AsmBuiltin;
 
@@ -33,6 +39,10 @@ impl BuiltinFunction for AsmBuiltin {
             _ => unreachable!(),
         };
 
+        if expr.arguments.len() != 3 {
+            return fail();
+        }
+
         let (asm_str, constraints, arguments) = match (
             &expr.arguments[0].kind,
             &expr.arguments[1].kind,
@@ -41,9 +51,9 @@ impl BuiltinFunction for AsmBuiltin {
             (ExprKind::String(asm), ExprKind::String(cons), ExprKind::TupleLiteral(args)) => {
                 (asm, cons, args)
             }
-            _ => bail!(
-                "Invalid arguments to asm builtin, expected @asm(string, string, tuple) (First 2 arguments must be available at compile time)"
-            ),
+            _ => {
+                return fail();
+            }
         };
 
         let mut operands: Vec<BasicMetadataValueEnum> = Vec::new();
@@ -83,7 +93,7 @@ impl BuiltinFunction for AsmBuiltin {
                 call_site_value
                     .try_as_basic_value()
                     .basic()
-                    .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
+                    .ok_or_else(|| anyhow!("Expected call site value to be a basic value"))?,
             )
         })
     }

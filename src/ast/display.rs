@@ -300,7 +300,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                             arg_ctx.indent_str(),
                             node_id_with_color(arg.type_.id.0, ctx.color),
                             arg.name.value,
-                            write_type(&arg.type_, &mut arg_ctx)
+                            write_type(&arg.type_, &arg_ctx)
                         )?;
                     }
                 }
@@ -412,7 +412,7 @@ fn write_struct_method(
                 arg_ctx.indent_str(),
                 node_id_with_color(arg.type_.id.0, ctx.color),
                 arg.name.value,
-                write_type(&arg.type_, &mut arg_ctx)
+                write_type(&arg.type_, &arg_ctx)
             )?;
         }
     }
@@ -465,7 +465,7 @@ fn write_interface_method(
                 arg_ctx.indent_str(),
                 node_id_with_color(arg.type_.id.0, ctx.color),
                 arg.name.value,
-                write_type(&arg.type_, &mut arg_ctx)
+                write_type(&arg.type_, &arg_ctx)
             )?;
         }
     }
@@ -634,7 +634,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 out,
                 "{}{}",
                 expr_ctx.indent_str(),
-                write_type(&a.underlying, &mut expr_ctx)
+                write_type(&a.underlying, &expr_ctx)
             )?;
             writeln!(out)?;
             write!(out, "{}Contents:", expr_ctx.indent_str())?;
@@ -719,7 +719,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
             writeln!(out)?;
             writeln!(out, "{}Type:", expr_ctx.indent_str())?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write!(out, "{}", write_type(&a.ty, &mut expr_ctx))?;
+            write!(out, "{}", write_type(&a.ty, &expr_ctx))?;
         }
         ExprKind::TupleLiteral(t) => {
             write!(
@@ -746,7 +746,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
     Ok(())
 }
 
-fn write_type(ty: &Type, ctx: &mut DisplayContext) -> String {
+fn write_type(ty: &Type, ctx: &DisplayContext) -> String {
     match &ty.kind {
         TypeKind::Symbol(s) => type_with_color(&s.name.value, ctx.color),
         TypeKind::Pointer(p) => {

@@ -88,6 +88,40 @@ fn node_id_with_color(n: usize, color: bool) -> String {
     if color { s.dimmed().to_string() } else { s }
 }
 
+fn write_expr_inline_or_nested(
+    out: &mut String,
+    label: &str,
+    expr: &Expr,
+    ctx: &mut DisplayContext,
+) -> std::fmt::Result {
+    write!(out, "{}{}", ctx.indent_str(), label)?;
+    if expr.kind.is_leaf() {
+        write_expr(out, expr, &mut ctx.clone())?;
+    } else {
+        writeln!(out)?;
+        let mut child_ctx = ctx.indented();
+        write!(out, "{}", child_ctx.indent_str())?;
+        write_expr(out, expr, &mut child_ctx)?;
+    }
+    Ok(())
+}
+
+fn write_expr_inline_or_indented(
+    out: &mut String,
+    expr: &Expr,
+    ctx: &mut DisplayContext,
+) -> std::fmt::Result {
+    if expr.kind.is_leaf() {
+        write_expr(out, expr, ctx)?;
+    } else {
+        writeln!(out)?;
+        let mut child_ctx = ctx.indented();
+        write!(out, "{}", child_ctx.indent_str())?;
+        write_expr(out, expr, &mut child_ctx)?;
+    }
+    Ok(())
+}
+
 fn string_with_color(s: &str, color: bool) -> String {
     let escaped = escape_string(s);
     if color {
@@ -497,7 +531,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
         ExprKind::Symbol(s) => {
             write!(
                 out,
-                "{} {}: {}{}{}",
+                "{} {} {}{}{}",
                 "Symbol".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
                 punct_with_color("\"", ctx.color),
@@ -608,16 +642,8 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 let mut prop_ctx = ctx.indented();
                 for (name, expr) in &s.properties {
                     write!(out, "{}\"{}\": ", prop_ctx.indent_str(), name.value)?;
-                    if expr.kind.is_leaf() {
-                        write_expr(out, expr, &mut prop_ctx)?;
-                        writeln!(out)?;
-                    } else {
-                        writeln!(out)?;
-                        let mut expr_ctx = prop_ctx.indented();
-                        write!(out, "{}", expr_ctx.indent_str())?;
-                        write_expr(out, expr, &mut expr_ctx)?;
-                        writeln!(out)?;
-                    }
+                    write_expr_inline_or_indented(out, expr, &mut prop_ctx)?;
+                    writeln!(out)?;
                 }
             }
         }
@@ -628,11 +654,10 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "ArrayLiteral".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
-            writeln!(out, "{}Type:", expr_ctx.indent_str())?;
+            let expr_ctx = ctx.indented();
             write!(
                 out,
-                "{}{}",
+                "{}Type: []{}",
                 expr_ctx.indent_str(),
                 write_type(&a.underlying, &expr_ctx)
             )?;
@@ -642,12 +667,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
+                let mut child_ctx = expr_ctx.indented();
                 for (i, elem) in a.contents.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }
-                    write!(out, "{}", expr_ctx.indent_str())?;
-                    write_expr(out, elem, &mut expr_ctx)?;
+                    write!(out, "{}", child_ctx.indent_str())?;
+                    write_expr(out, elem, &mut child_ctx)?;
                 }
             }
         }
@@ -659,21 +685,20 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 node_id_with_color(id, ctx.color)
             )?;
             let mut expr_ctx = ctx.indented();
-            writeln!(out, "{}Callee:", expr_ctx.indent_str())?;
-            write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &call.callee, &mut expr_ctx)?;
+            write_expr_inline_or_nested(out, "Callee: ", &call.callee, &mut expr_ctx)?;
             writeln!(out)?;
             write!(out, "{}Arguments:", expr_ctx.indent_str())?;
             if call.arguments.is_empty() {
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
+                let mut child_ctx = expr_ctx.indented();
                 for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }
-                    write!(out, "{}", expr_ctx.indent_str())?;
-                    write_expr(out, arg, &mut expr_ctx)?;
+                    write!(out, "{}", child_ctx.indent_str())?;
+                    write_expr(out, arg, &mut child_ctx)?;
                 }
             }
         }
@@ -685,8 +710,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 node_id_with_color(id, ctx.color)
             )?;
             let mut expr_ctx = ctx.indented();
-            write!(out, "{}Base: ", expr_ctx.indent_str())?;
-            write_expr(out, &m.base, &mut expr_ctx)?;
+            write_expr_inline_or_nested(out, "Base: ", &m.base, &mut expr_ctx)?;
             writeln!(out)?;
             write!(
                 out,

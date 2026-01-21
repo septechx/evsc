@@ -92,16 +92,16 @@ fn write_expr_inline_or_nested(
     out: &mut String,
     label: &str,
     expr: &Expr,
-    ctx: &mut DisplayContext,
+    ctx: &DisplayContext,
 ) -> std::fmt::Result {
     write!(out, "{}{}", ctx.indent_str(), label)?;
     if expr.kind.is_leaf() {
-        write_expr(out, expr, &mut ctx.clone())?;
+        write_expr(out, expr, &ctx.clone())?;
     } else {
         writeln!(out)?;
-        let mut child_ctx = ctx.indented();
+        let child_ctx = ctx.indented();
         write!(out, "{}", child_ctx.indent_str())?;
-        write_expr(out, expr, &mut child_ctx)?;
+        write_expr(out, expr, &child_ctx)?;
     }
     Ok(())
 }
@@ -109,15 +109,15 @@ fn write_expr_inline_or_nested(
 fn write_expr_inline_or_indented(
     out: &mut String,
     expr: &Expr,
-    ctx: &mut DisplayContext,
+    ctx: &DisplayContext,
 ) -> std::fmt::Result {
     if expr.kind.is_leaf() {
         write_expr(out, expr, ctx)?;
     } else {
         writeln!(out)?;
-        let mut child_ctx = ctx.indented();
+        let child_ctx = ctx.indented();
         write!(out, "{}", child_ctx.indent_str())?;
-        write_expr(out, expr, &mut child_ctx)?;
+        write_expr(out, expr, &child_ctx)?;
     }
     Ok(())
 }
@@ -151,7 +151,7 @@ fn escape_string(s: &str) -> String {
     result
 }
 
-pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> std::fmt::Result {
+pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::fmt::Result {
     let id = stmt.id.0;
     match &stmt.kind {
         StmtKind::Block(block) => {
@@ -167,10 +167,10 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 write!(out, "{}  (empty)", ctx.indent_str())?;
             } else {
                 writeln!(out)?;
-                let mut body_ctx = ctx.indented();
+                let body_ctx = ctx.indented();
                 for s in &block.body {
                     write!(out, "{}", body_ctx.indent_str())?;
-                    write_stmt(out, s, &mut body_ctx)?;
+                    write_stmt(out, s, &body_ctx)?;
                     writeln!(out)?;
                 }
             }
@@ -184,12 +184,12 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             )?;
             if expr_stmt.expression.kind.is_leaf() {
                 write!(out, " ")?;
-                write_expr(out, &expr_stmt.expression, &mut ctx.clone())?;
+                write_expr(out, &expr_stmt.expression, &ctx.clone())?;
             } else {
                 writeln!(out)?;
-                let mut expr_ctx = ctx.indented();
+                let expr_ctx = ctx.indented();
                 write!(out, "{}", expr_ctx.indent_str())?;
-                write_expr(out, &expr_stmt.expression, &mut expr_ctx)?;
+                write_expr(out, &expr_stmt.expression, &expr_ctx)?;
             }
         }
         StmtKind::VarDecl(var_decl) => {
@@ -222,9 +222,9 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                     write_expr(out, value, ctx)?;
                 } else {
                     writeln!(out)?;
-                    let mut value_ctx = ctx.indented();
+                    let value_ctx = ctx.indented();
                     write!(out, "{}", value_ctx.indent_str())?;
-                    write_expr(out, value, &mut value_ctx)?;
+                    write_expr(out, value, &value_ctx)?;
                 }
             } else {
                 write!(out, " (uninitialized)")?;
@@ -250,11 +250,11 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 write!(out, ": (empty)")?;
             } else {
                 writeln!(out, ":")?;
-                let mut body_ctx = ctx.indented();
+                let body_ctx = ctx.indented();
                 let mut idx = 0;
                 for prop in &struct_decl.properties {
                     write!(out, "{}", body_ctx.indent_str())?;
-                    write_struct_property(out, prop, &mut body_ctx)?;
+                    write_struct_property(out, prop, &body_ctx)?;
                     writeln!(out)?;
                     idx += 1;
                 }
@@ -263,7 +263,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                         writeln!(out)?;
                     }
                     write!(out, "{}", body_ctx.indent_str())?;
-                    write_struct_method(out, method, &mut body_ctx)?;
+                    write_struct_method(out, method, &body_ctx)?;
                     idx += 1;
                 }
             }
@@ -288,10 +288,10 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 write!(out, ": (empty)")?;
             } else {
                 writeln!(out, ":")?;
-                let mut body_ctx = ctx.indented();
+                let body_ctx = ctx.indented();
                 for method in &interface_decl.methods {
                     write!(out, "{}", body_ctx.indent_str())?;
-                    write_interface_method(out, method, &mut body_ctx)?;
+                    write_interface_method(out, method, &body_ctx)?;
                 }
             }
         }
@@ -345,10 +345,10 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                     write!(out, "{}  (empty)", sub_ctx.indent_str())?;
                 } else {
                     writeln!(out)?;
-                    let mut body_ctx = sub_ctx.indented();
+                    let body_ctx = sub_ctx.indented();
                     for s in &fn_decl.body {
                         write!(out, "{}", body_ctx.indent_str())?;
-                        write_stmt(out, s, &mut body_ctx)?;
+                        write_stmt(out, s, &body_ctx)?;
                         writeln!(out)?;
                     }
                 }
@@ -363,9 +363,9 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
             )?;
             if let Some(value) = &return_stmt.value {
                 writeln!(out)?;
-                let mut value_ctx = ctx.indented();
+                let value_ctx = ctx.indented();
                 write!(out, "{}", value_ctx.indent_str())?;
-                write_expr(out, value, &mut value_ctx)?;
+                write_expr(out, value, &value_ctx)?;
             } else {
                 write!(out, " (empty)")?;
             }
@@ -386,7 +386,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
 fn write_struct_property(
     out: &mut String,
     prop: &StructProperty,
-    ctx: &mut DisplayContext,
+    ctx: &DisplayContext,
 ) -> std::fmt::Result {
     let mut modifiers = Vec::new();
     if prop.is_public {
@@ -408,7 +408,7 @@ fn write_struct_property(
 fn write_struct_method(
     out: &mut String,
     method: &StructMethod,
-    ctx: &mut DisplayContext,
+    ctx: &DisplayContext,
 ) -> std::fmt::Result {
     let mut modifiers = Vec::new();
     if method.is_public {
@@ -457,10 +457,10 @@ fn write_struct_method(
         write!(out, "{}  (empty)", indent)?;
     } else {
         writeln!(out)?;
-        let mut body_ctx = sub_ctx.indented();
+        let body_ctx = sub_ctx.indented();
         for s in &method.fn_decl.body {
             write!(out, "{}", body_ctx.indent_str())?;
-            write_stmt(out, s, &mut body_ctx)?;
+            write_stmt(out, s, &body_ctx)?;
             writeln!(out)?;
         }
     }
@@ -470,7 +470,7 @@ fn write_struct_method(
 fn write_interface_method(
     out: &mut String,
     method: &InterfaceMethod,
-    ctx: &mut DisplayContext,
+    ctx: &DisplayContext,
 ) -> std::fmt::Result {
     write!(
         out,
@@ -507,7 +507,7 @@ fn write_interface_method(
     Ok(())
 }
 
-fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::fmt::Result {
+fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::Result {
     let id = expr.id.0;
     match &expr.kind {
         ExprKind::Number(num) => {
@@ -546,10 +546,10 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "Binary".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
+            let expr_ctx = ctx.indented();
             writeln!(out, "{}Left:", expr_ctx.indent_str())?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &b.left, &mut expr_ctx)?;
+            write_expr(out, &b.left, &expr_ctx)?;
             writeln!(out)?;
             write!(
                 out,
@@ -561,7 +561,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
             write!(out, "{}Right:", expr_ctx.indent_str())?;
             writeln!(out)?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &b.right, &mut expr_ctx)?;
+            write_expr(out, &b.right, &expr_ctx)?;
         }
         ExprKind::Postfix(p) => {
             writeln!(
@@ -570,10 +570,10 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "Postfix".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
+            let expr_ctx = ctx.indented();
             writeln!(out, "{}Left:", expr_ctx.indent_str())?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &p.left, &mut expr_ctx)?;
+            write_expr(out, &p.left, &expr_ctx)?;
             writeln!(out)?;
             write!(
                 out,
@@ -589,7 +589,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "Prefix".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
+            let expr_ctx = ctx.indented();
             writeln!(out, "{}Operator:", expr_ctx.indent_str())?;
             write!(
                 out,
@@ -601,7 +601,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
             write!(out, "{}Right:", expr_ctx.indent_str())?;
             writeln!(out)?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &p.right, &mut expr_ctx)?;
+            write_expr(out, &p.right, &expr_ctx)?;
         }
         ExprKind::Assignment(a) => {
             writeln!(
@@ -610,10 +610,10 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "Assignment".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
+            let expr_ctx = ctx.indented();
             writeln!(out, "{}Assignee:", expr_ctx.indent_str())?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &a.assigne, &mut expr_ctx)?;
+            write_expr(out, &a.assigne, &expr_ctx)?;
             writeln!(out)?;
             write!(
                 out,
@@ -625,7 +625,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
             write!(out, "{}Value:", expr_ctx.indent_str())?;
             writeln!(out)?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &a.value, &mut expr_ctx)?;
+            write_expr(out, &a.value, &expr_ctx)?;
         }
         ExprKind::StructInstantiation(s) => {
             write!(
@@ -639,11 +639,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 write!(out, ": (empty)")?;
             } else {
                 writeln!(out, ":")?;
-                let mut prop_ctx = ctx.indented();
-                for (name, expr) in &s.properties {
+                let prop_ctx = ctx.indented();
+                for (i, (name, expr)) in s.properties.iter().enumerate() {
+                    if i > 0 {
+                        writeln!(out)?;
+                    }
                     write!(out, "{}\"{}\": ", prop_ctx.indent_str(), name.value)?;
-                    write_expr_inline_or_indented(out, expr, &mut prop_ctx)?;
-                    writeln!(out)?;
+                    write_expr_inline_or_indented(out, expr, &prop_ctx)?;
                 }
             }
         }
@@ -667,13 +669,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
-                let mut child_ctx = expr_ctx.indented();
+                let child_ctx = expr_ctx.indented();
                 for (i, elem) in a.contents.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }
                     write!(out, "{}", child_ctx.indent_str())?;
-                    write_expr(out, elem, &mut child_ctx)?;
+                    write_expr(out, elem, &child_ctx)?;
                 }
             }
         }
@@ -684,21 +686,21 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "FunctionCall".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
-            write_expr_inline_or_nested(out, "Callee: ", &call.callee, &mut expr_ctx)?;
+            let expr_ctx = ctx.indented();
+            write_expr_inline_or_nested(out, "Callee: ", &call.callee, &expr_ctx)?;
             writeln!(out)?;
             write!(out, "{}Arguments:", expr_ctx.indent_str())?;
             if call.arguments.is_empty() {
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
-                let mut child_ctx = expr_ctx.indented();
+                let child_ctx = expr_ctx.indented();
                 for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }
                     write!(out, "{}", child_ctx.indent_str())?;
-                    write_expr(out, arg, &mut child_ctx)?;
+                    write_expr(out, arg, &child_ctx)?;
                 }
             }
         }
@@ -709,8 +711,8 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "MemberAccess".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
-            write_expr_inline_or_nested(out, "Base: ", &m.base, &mut expr_ctx)?;
+            let expr_ctx = ctx.indented();
+            write_expr_inline_or_nested(out, "Base: ", &m.base, &expr_ctx)?;
             writeln!(out)?;
             write!(
                 out,
@@ -736,10 +738,10 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 "As".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
-            let mut expr_ctx = ctx.indented();
+            let expr_ctx = ctx.indented();
             writeln!(out, "{}Expr:", expr_ctx.indent_str())?;
             write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &a.expr, &mut expr_ctx)?;
+            write_expr(out, &a.expr, &expr_ctx)?;
             writeln!(out)?;
             writeln!(out, "{}Type:", expr_ctx.indent_str())?;
             write!(out, "{}", expr_ctx.indent_str())?;
@@ -756,13 +758,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &mut DisplayContext) -> std::f
                 write!(out, ": (empty)")?;
             } else {
                 writeln!(out, ":")?;
-                let mut expr_ctx = ctx.indented();
+                let expr_ctx = ctx.indented();
                 for (i, elem) in t.elements.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }
                     write!(out, "{}", expr_ctx.indent_str())?;
-                    write_expr(out, elem, &mut expr_ctx)?;
+                    write_expr(out, elem, &expr_ctx)?;
                 }
             }
         }
@@ -806,7 +808,7 @@ fn write_type(ty: &Type, ctx: &DisplayContext) -> String {
 fn write_import_tree(
     out: &mut String,
     tree: &ImportTree,
-    ctx: &mut DisplayContext,
+    ctx: &DisplayContext,
 ) -> std::fmt::Result {
     let path: Vec<String> = tree
         .prefix

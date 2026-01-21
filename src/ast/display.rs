@@ -332,6 +332,8 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 let mut value_ctx = ctx.indented();
                 write!(out, "{}", value_ctx.indent_str())?;
                 write_expr(out, value, &mut value_ctx)?;
+            } else {
+                write!(out, " (empty)")?;
             }
         }
         StmtKind::Import(import_stmt) => {

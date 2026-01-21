@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use inkwell::{
     InlineAsmDialect,
     builder::Builder,

@@ -292,7 +292,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                     write!(out, "{}  (empty)", sub_ctx.indent_str())?;
                 } else {
                     writeln!(out)?;
-                    let mut arg_ctx = sub_ctx.indented();
+                    let arg_ctx = sub_ctx.indented();
                     for arg in &fn_decl.arguments {
                         writeln!(
                             out,
@@ -404,7 +404,7 @@ fn write_struct_method(
         write!(out, "{}  (empty)", indent)?;
     } else {
         writeln!(out)?;
-        let mut arg_ctx = sub_ctx.indented();
+        let arg_ctx = sub_ctx.indented();
         for arg in &method.fn_decl.arguments {
             writeln!(
                 out,
@@ -457,7 +457,7 @@ fn write_interface_method(
         write!(out, "{}  (empty)", indent)?;
     } else {
         writeln!(out)?;
-        let mut arg_ctx = sub_ctx.indented();
+        let arg_ctx = sub_ctx.indented();
         for arg in &method.fn_decl.arguments {
             writeln!(
                 out,

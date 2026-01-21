@@ -41,7 +41,9 @@ impl BuiltinFunction for AsmBuiltin {
             (ExprKind::String(asm), ExprKind::String(cons), ExprKind::TupleLiteral(args)) => {
                 (asm, cons, args)
             }
-            _ => bail!("First two arguments must be string literals"),
+            _ => bail!(
+                "Invalid arguments to asm builtin, expected @asm(string, string, tuple) (First 2 arguments must be available at compile time)"
+            ),
         };
 
         let mut operands: Vec<BasicMetadataValueEnum> = Vec::new();

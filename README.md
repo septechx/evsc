@@ -1,4 +1,8 @@
-# oxic
+<div align="center">
+  <picture>
+    <img alt="oxi" src="assets/oxi_logo.png" width="50%">
+  </picture>
+</div>
 
 ![CI status](https://github.com/septechx/oxi/actions/workflows/linux.yml/badge.svg)
 

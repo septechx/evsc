@@ -342,7 +342,6 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &mut DisplayContext) -> st
                 node_id_with_color(id, ctx.color)
             )?;
             write_import_tree(out, &import_stmt.tree, ctx)?;
-            writeln!(out)?;
         }
     }
     Ok(())

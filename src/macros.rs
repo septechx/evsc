@@ -16,7 +16,7 @@ macro_rules! struct_fields {
 #[macro_export]
 macro_rules! logln {
     ($fmt:expr $(, $($arg:tt)*)?) => {
-        if $crate::ENABLE_PRINTING.with(|e| *e.borrow()) {
+        if $crate::ENABLE_PRINTING.with(|e| e.get()) {
             println!($fmt $(, $($arg)*)?);
         }
     };
@@ -25,7 +25,7 @@ macro_rules! logln {
 #[macro_export]
 macro_rules! log {
     ($fmt:expr $(, $($arg:tt)*)?) => {
-        if $crate::ENABLE_PRINTING.with(|e| *e.borrow()) {
+        if $crate::ENABLE_PRINTING.with(|e| e.get()) {
             print!($fmt $(, $($arg)*)?);
         }
     };
@@ -34,7 +34,7 @@ macro_rules! log {
 #[macro_export]
 macro_rules! elogln {
     ($fmt:expr $(, $($arg:tt)*)?) => {
-        if $crate::ENABLE_PRINTING.with(|e| *e.borrow()) {
+        if $crate::ENABLE_PRINTING.with(|e| e.get()) {
             eprintln!($fmt $(, $($arg)*)?);
         }
     };
@@ -43,7 +43,7 @@ macro_rules! elogln {
 #[macro_export]
 macro_rules! elog {
     ($fmt:expr $(, $($arg:tt)*)?) => {
-        if $crate::ENABLE_PRINTING.with(|e| *e.borrow()) {
+        if $crate::ENABLE_PRINTING.with(|e| e.get()) {
             eprint!($fmt $(, $($arg)*)?);
         }
     };

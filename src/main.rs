@@ -11,7 +11,7 @@ pub mod span;
 pub mod utils;
 
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     env, fs,
     io::IsTerminal,
     marker::PhantomData,
@@ -44,14 +44,14 @@ pub static DEFAULT_ROOT: &str = "..";
 thread_local! {
     pub static ERRORS: RefCell<ErrorCollector> = RefCell::new(ErrorCollector::new());
     pub static SOURCE_MAPS: RefCell<SourceMapManager> = RefCell::new(SourceMapManager::default());
-    pub static ENABLE_PRINTING: RefCell<bool> = const { RefCell::new(true) };
+    pub static ENABLE_PRINTING: Cell<bool> = const { Cell::new(true) };
 }
 
 pub fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if cli.quiet {
-        ENABLE_PRINTING.with(|e| *e.borrow_mut() = false);
+        ENABLE_PRINTING.with(|e| e.set(false));
     }
 
     if cli.input.len() > 1 {

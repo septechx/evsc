@@ -4,6 +4,8 @@
   </picture>
 </div>
 
+---
+
 ![CI status](https://github.com/septechx/oxi/actions/workflows/linux.yml/badge.svg)
 
 Oxic is a compiler for the Oxi programming language.

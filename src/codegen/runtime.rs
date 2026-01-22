@@ -9,10 +9,8 @@ use inkwell::{
 
 use crate::{
     codegen::arch::{compile_arch_size_type, is_64},
-    errors::{
-        builders,
-        widgets::{CodeExampleWidget, CodeType},
-    },
+    errors::widgets::CodeType,
+    fatal, warning_with_example,
 };
 
 pub fn generate_c_runtime_integration<'ctx>(
@@ -41,12 +39,7 @@ pub fn generate_c_runtime_integration<'ctx>(
         let result_value = if let Some(ret_ty) = ret_ty {
             // TODO: Move this check to the type checker
             if !ret_ty.is_int_type() {
-                crate::ERRORS.with(|e| {
-                    e.borrow_mut().add(builders::fatal(
-                        "Main function must return an integer or void",
-                    ));
-                });
-                unreachable!();
+                fatal!("Main function must return an integer or void");
             }
 
             main_result
@@ -61,12 +54,12 @@ pub fn generate_c_runtime_integration<'ctx>(
 
         create_exit_syscall(context, builder, result_value)?;
     } else {
-        crate::ERRORS.with(|e| {
-            e.borrow_mut()
-                .add(builders::warning("Main function not found").add_widget(
-                    CodeExampleWidget::new("pub fn main() void {}", 1, CodeType::Add),
-                ));
-        });
+        warning_with_example!(
+            "Main function not found",
+            "pub fn main() void {}",
+            1,
+            CodeType::Add
+        );
 
         let exit_code = compile_arch_size_type(context)
             .const_zero()

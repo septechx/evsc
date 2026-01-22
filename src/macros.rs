@@ -9,7 +9,7 @@ macro_rules! struct_fields {
         names.iter()
              .enumerate()
              .map(|(i, &s)| (s.into(), i as u32))
-             .collect::<HashMap<Box<str>, u32>>()
+             .collect::<std::collections::HashMap<Box<str>, u32>>()
     }};
 }
 
@@ -46,5 +46,174 @@ macro_rules! elog {
         if $crate::ENABLE_PRINTING.with(|e| e.get()) {
             eprint!($fmt $(, $($arg)*)?);
         }
+    };
+}
+
+#[macro_export]
+macro_rules! error_at {
+    ($span:expr, $module_id:expr, $msg:expr $(,)?) => {
+        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
+            e.borrow_mut().add(
+                $crate::errors::builders::error($msg)
+                    .add_widget($crate::errors::widgets::LocationWidget::new(
+                        $span, $module_id,
+                    )?)
+                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?),
+            );
+            Ok(())
+        })
+    };
+    ($token:expr, $msg:expr $(,)?) => {
+        $crate::error_at!($token.span, $token.module_id, $msg)
+    };
+}
+
+#[macro_export]
+macro_rules! warning_at {
+    ($span:expr, $module_id:expr, $msg:expr $(,)?) => {
+        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
+            e.borrow_mut().add(
+                $crate::errors::builders::warning($msg)
+                    .add_widget($crate::errors::widgets::LocationWidget::new(
+                        $span, $module_id,
+                    )?)
+                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?),
+            );
+            Ok(())
+        })
+    };
+    ($token:expr, $msg:expr $(,)?) => {
+        $crate::warning_at!($token.span, $token.module_id, $msg)
+    };
+}
+
+#[macro_export]
+macro_rules! fatal_at {
+    ($span:expr, $module_id:expr, $msg:expr $(,)?) => {{
+        $crate::ERRORS
+            .with(|e| -> anyhow::Result<()> {
+                e.borrow_mut().add(
+                    $crate::errors::builders::fatal($msg)
+                        .add_widget($crate::errors::widgets::LocationWidget::new(
+                            $span, $module_id,
+                        )?)
+                        .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?),
+                );
+                Ok(())
+            })
+            .expect("failed to create error");
+        unreachable!()
+    }};
+    ($token:expr, $msg:expr $(,)?) => {
+        $crate::fatal_at!($token.span, $token.module_id, $msg)
+    };
+}
+
+#[macro_export]
+macro_rules! error_at_with_info {
+    ($span:expr, $module_id:expr, $msg:expr, $info:expr $(,)?) => {
+        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
+            e.borrow_mut().add(
+                $crate::errors::builders::error($msg)
+                    .add_widget($crate::errors::widgets::LocationWidget::new(
+                        $span, $module_id,
+                    )?)
+                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?)
+                    .add_widget($crate::errors::widgets::InfoWidget::new(
+                        $span, $module_id, $info,
+                    )?),
+            );
+            Ok(())
+        })
+    };
+    ($token:expr, $msg:expr, $info:expr $(,)?) => {
+        $crate::error_at_with_info!($token.span, $token.module_id, $msg, $info)
+    };
+}
+
+#[macro_export]
+macro_rules! warning_at_with_info {
+    ($span:expr, $module_id:expr, $msg:expr, $info:expr $(,)?) => {
+        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
+            e.borrow_mut().add(
+                $crate::errors::builders::warning($msg)
+                    .add_widget($crate::errors::widgets::LocationWidget::new(
+                        $span, $module_id,
+                    )?)
+                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?)
+                    .add_widget($crate::errors::widgets::InfoWidget::new(
+                        $span, $module_id, $info,
+                    )?),
+            );
+            Ok(())
+        })
+    };
+    ($token:expr, $msg:expr, $info:expr $(,)?) => {
+        $crate::warning_at_with_info!($token.span, $token.module_id, $msg, $info)
+    };
+}
+
+#[macro_export]
+macro_rules! fatal_at_with_info {
+    ($span:expr, $module_id:expr, $msg:expr, $info:expr $(,)?) => {{
+        $crate::ERRORS
+            .with(|e| -> anyhow::Result<()> {
+                e.borrow_mut().add(
+                    $crate::errors::builders::fatal($msg)
+                        .add_widget($crate::errors::widgets::LocationWidget::new(
+                            $span, $module_id,
+                        )?)
+                        .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?)
+                        .add_widget($crate::errors::widgets::InfoWidget::new(
+                            $span, $module_id, $info,
+                        )?),
+                );
+                Ok(())
+            })
+            .expect("failed to create error");
+        unreachable!()
+    }};
+    ($token:expr, $msg:expr, $info:expr $(,)?) => {
+        $crate::fatal_at_with_info!($token.span, $token.module_id, $msg, $info)
+    };
+}
+
+#[macro_export]
+macro_rules! error {
+    ($msg:expr $(,)?) => {
+        $crate::ERRORS.with(|e| {
+            e.borrow_mut().add($crate::errors::builders::error($msg));
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! warning {
+    ($msg:expr $(,)?) => {
+        $crate::ERRORS.with(|e| {
+            e.borrow_mut().add($crate::errors::builders::warning($msg));
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! fatal {
+    ($msg:expr $(,)?) => {{
+        $crate::ERRORS.with(|e| {
+            e.borrow_mut().add($crate::errors::builders::fatal($msg));
+        });
+        unreachable!()
+    }};
+}
+
+#[macro_export]
+macro_rules! warning_with_example {
+    ($msg:expr, $code:expr, $line:expr, $code_type:expr $(,)?) => {
+        $crate::ERRORS.with(|e| {
+            e.borrow_mut()
+                .add($crate::errors::builders::warning($msg).add_widget(
+                    $crate::errors::widgets::CodeExampleWidget::new($code, $line, $code_type),
+                ));
+        })
     };
 }

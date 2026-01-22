@@ -9,10 +9,7 @@ mod utils;
 
 use crate::{
     ast::{Ast, Attribute, Expr, ExprKind, Ident, NodeId, Stmt, StmtKind, Type, TypeKind},
-    errors::{
-        builders,
-        widgets::{CodeWidget, LocationWidget},
-    },
+    fatal_at,
     lexer::token::{Token, TokenKind, TokenStream},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
     span::Span,
@@ -113,17 +110,14 @@ impl Parser {
         let token = self.current_token();
 
         if token.kind != expected_kind {
-            crate::ERRORS.with(|e| -> Result<()> {
-                e.borrow_mut().add(
-                    builders::fatal(err.unwrap_or(format!(
-                        "Syntax error: Expected {} but recieved {} instead.",
-                        expected_kind, token.kind
-                    )))
-                    .add_widget(LocationWidget::new(token.span, token.module_id)?)
-                    .add_widget(CodeWidget::new(token.span, token.module_id)?),
-                );
-                Ok(())
-            })?;
+            fatal_at!(
+                token.span,
+                token.module_id,
+                err.unwrap_or(format!(
+                    "Syntax error: Expected {} but recieved {} instead.",
+                    expected_kind, token.kind
+                ))
+            );
         }
 
         Ok(self.advance())

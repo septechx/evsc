@@ -1,7 +1,6 @@
 use anyhow::Result;
 
 use crate::{
-    ERRORS,
     ast::{
         Attribute, Expr, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type, TypeKind,
         statements::{
@@ -9,11 +8,7 @@ use crate::{
             ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
         },
     },
-    errors::{
-        builders,
-        widgets::{CodeWidget, LocationWidget},
-    },
-    get_modifiers,
+    error_at, get_modifiers,
     lexer::token::TokenKind,
     parser::{
         Parser,
@@ -25,6 +20,7 @@ use crate::{
         utils::{parse_path, parse_rename, unexpected_token},
     },
     span::Span,
+    warning_at,
 };
 
 pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
@@ -38,37 +34,19 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         stmt_fn(parser, &attributes, &modifiers)
     } else {
         if !attributes.is_empty() {
-            crate::ERRORS.with(|e| -> Result<()> {
-                e.borrow_mut().add(
-                    builders::error("Attribute not allowed here")
-                        .add_widget(LocationWidget::new(
-                            attributes[0].span,
-                            parser.current_token().module_id,
-                        )?)
-                        .add_widget(CodeWidget::new(
-                            attributes[0].span,
-                            parser.current_token().module_id,
-                        )?),
-                );
-                Ok(())
-            })?;
+            error_at!(
+                attributes[0].span,
+                parser.current_token().module_id,
+                "Attribute not allowed here"
+            )?;
         }
 
         if !modifiers.is_empty() {
-            crate::ERRORS.with(|e| -> Result<()> {
-                e.borrow_mut().add(
-                    builders::error("Modifier not allowed here")
-                        .add_widget(LocationWidget::new(
-                            modifiers[0].span,
-                            parser.current_token().module_id,
-                        )?)
-                        .add_widget(CodeWidget::new(
-                            modifiers[0].span,
-                            parser.current_token().module_id,
-                        )?),
-                );
-                Ok(())
-            })?;
+            error_at!(
+                modifiers[0].span,
+                parser.current_token().module_id,
+                "Modifier not allowed here"
+            )?;
         }
 
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
@@ -89,20 +67,11 @@ pub fn parse_var_decl_statement(
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
     if !attributes.is_empty() {
-        crate::ERRORS.with(|e| -> Result<()> {
-            e.borrow_mut().add(
-                builders::error("Attribute not allowed here")
-                    .add_widget(LocationWidget::new(
-                        attributes[0].span,
-                        parser.current_token().module_id,
-                    )?)
-                    .add_widget(CodeWidget::new(
-                        attributes[0].span,
-                        parser.current_token().module_id,
-                    )?),
-            );
-            Ok(())
-        })?;
+        error_at!(
+            attributes[0].span,
+            parser.current_token().module_id,
+            "Attribute not allowed here"
+        )?;
     }
 
     let var_token = parser.advance();
@@ -117,16 +86,11 @@ pub fn parse_var_decl_statement(
     let is_constant = parser.current_token().kind != TokenKind::Mut;
 
     if is_static && !is_constant {
-        let span = parser.current_token().span;
-
-        crate::ERRORS.with(|e| -> Result<()> {
-            e.borrow_mut().add(
-                builders::error("Static variables must be constant")
-                    .add_widget(LocationWidget::new(span, parser.current_token().module_id)?)
-                    .add_widget(CodeWidget::new(span, parser.current_token().module_id)?),
-            );
-            Ok(())
-        })?;
+        error_at!(
+            parser.current_token().span,
+            parser.current_token().module_id,
+            "Static variables must be constant"
+        )?;
     }
 
     if !is_constant {
@@ -154,20 +118,11 @@ pub fn parse_var_decl_statement(
 
     if let Some(pub_mod) = pub_mod {
         if !is_static {
-            crate::ERRORS.with(|e| -> Result<()> {
-                e.borrow_mut().add(
-                    builders::error("Modifier 'pub' is only allowed on static variables")
-                        .add_widget(LocationWidget::new(
-                            pub_mod.span,
-                            parser.current_token().module_id,
-                        )?)
-                        .add_widget(CodeWidget::new(
-                            pub_mod.span,
-                            parser.current_token().module_id,
-                        )?),
-                );
-                Ok(())
-            })?;
+            error_at!(
+                pub_mod.span,
+                parser.current_token().module_id,
+                "Modifier 'pub' is only allowed on static variables"
+            )?;
         }
 
         start_span = pub_mod.span;
@@ -177,14 +132,11 @@ pub fn parse_var_decl_statement(
     let span = Span::new(start_span.start(), end_span.end());
 
     if assigned_value.is_none() && is_constant {
-        crate::ERRORS.with(|e| -> Result<()> {
-            e.borrow_mut().add(
-                builders::warning("Declared constant without providing a value")
-                    .add_widget(LocationWidget::new(span, parser.current_token().module_id)?)
-                    .add_widget(CodeWidget::new(span, parser.current_token().module_id)?),
-            );
-            Ok(())
-        })?;
+        warning_at!(
+            span,
+            parser.current_token().module_id,
+            "Declared constant without providing a value"
+        )?;
     }
 
     Ok(parser.stmt(
@@ -244,17 +196,11 @@ pub fn parse_struct_decl_stmt(
         }
 
         if is_static {
-            let span = parser.current_token().span;
-            let module_id = parser.current_token().module_id;
-
-            crate::ERRORS.with(|e| -> Result<()> {
-                e.borrow_mut().add(
-                    builders::error("Only struct methods are allowed to be static")
-                        .add_widget(LocationWidget::new(span, module_id)?)
-                        .add_widget(CodeWidget::new(span, module_id)?),
-                );
-                Ok(())
-            })?;
+            error_at!(
+                parser.current_token().span,
+                parser.current_token().module_id,
+                "Only struct methods are allowed to be static"
+            )?;
         }
 
         if parser.current_token().kind == TokenKind::Identifier {
@@ -277,23 +223,14 @@ pub fn parse_struct_decl_stmt(
                 .collect::<Vec<_>>()
                 .is_empty()
             {
-                crate::ERRORS.with(|e| -> Result<()> {
-                    e.borrow_mut().add(
-                        builders::error(format!(
-                            "Property {} has already been defined in struct",
-                            property_name.value
-                        ))
-                        .add_widget(LocationWidget::new(
-                            property_name.span,
-                            parser.current_token().module_id,
-                        )?)
-                        .add_widget(CodeWidget::new(
-                            property_name.span,
-                            parser.current_token().module_id,
-                        )?),
-                    );
-                    Ok(())
-                })?;
+                error_at!(
+                    property_name.span,
+                    parser.current_token().module_id,
+                    format!(
+                        "Property {} has already been defined in struct",
+                        property_name.value
+                    )
+                )?;
             }
 
             properties.push(StructProperty {
@@ -491,20 +428,11 @@ pub fn parse_import_stmt(
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
     if !modifiers.is_empty() {
-        crate::ERRORS.with(|e| -> Result<()> {
-            e.borrow_mut().add(
-                builders::error("Modifier not allowed here")
-                    .add_widget(LocationWidget::new(
-                        modifiers[0].span,
-                        parser.current_token().module_id,
-                    )?)
-                    .add_widget(CodeWidget::new(
-                        modifiers[0].span,
-                        parser.current_token().module_id,
-                    )?),
-            );
-            Ok(())
-        })?;
+        error_at!(
+            modifiers[0].span,
+            parser.current_token().module_id,
+            "Modifier not allowed here"
+        )?;
     }
 
     let start_span = parser.expect(TokenKind::Import)?.span;

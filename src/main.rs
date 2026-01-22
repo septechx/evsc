@@ -33,7 +33,7 @@ use crate::{
     },
     cli::{Cli, OptLevel},
     codegen::{CompileOptions, EmitType},
-    errors::{ErrorCollector, builders},
+    errors::ErrorCollector,
     lexer::tokenize,
     parser::parse,
     span::sourcemaps::SourceMapManager,
@@ -85,16 +85,11 @@ fn check_for_errors() {
 
 fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let source_text = match fs::read_to_string(&file_path) {
-        Err(err) => {
-            ERRORS.with(|e| {
-                e.borrow_mut().add(builders::fatal(format!(
-                    "Source file `{}` not found: {}",
-                    file_path.display(),
-                    err
-                )));
-            });
-            unreachable!();
-        }
+        Err(err) => fatal!(format!(
+            "Source file `{}` not found: {}",
+            file_path.display(),
+            err
+        )),
         Ok(source_text) => source_text,
     };
 

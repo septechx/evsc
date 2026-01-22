@@ -1,6 +1,6 @@
 use inkwell::{context::Context, types::IntType};
 
-use crate::errors::builders;
+use crate::fatal;
 
 pub fn is_64() -> bool {
     match std::env::consts::ARCH {
@@ -9,15 +9,7 @@ pub fn is_64() -> bool {
         "x86_64" | "aarch64" | "mips64" | "mips64r6" | "powerpc64" | "riscv64" | "loongarch64" => {
             true
         }
-        _ => {
-            crate::ERRORS.with(|e| {
-                e.borrow_mut().add(builders::fatal(format!(
-                    "Unknown architecture `{}`",
-                    std::env::consts::ARCH
-                )));
-            });
-            unreachable!()
-        }
+        _ => fatal!(format!("Unknown architecture `{}`", std::env::consts::ARCH)),
     }
 }
 

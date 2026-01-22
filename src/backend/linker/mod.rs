@@ -9,7 +9,7 @@ pub mod linkers {
 use anyhow::{Result, anyhow};
 use std::{path::Path, process::Command};
 
-use crate::errors::builders;
+use crate::fatal;
 
 #[derive(Debug, Clone)]
 pub struct LinkerOptions {
@@ -96,9 +96,7 @@ fn run_linker(linker: &impl Linker) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        crate::ERRORS.with(|e| {
-            e.borrow_mut().add(builders::fatal(stderr));
-        });
+        fatal!(stderr);
     }
 
     Ok(())

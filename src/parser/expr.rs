@@ -12,10 +12,7 @@ use crate::{
             StructInstantiationExpr, SymbolExpr, TupleLiteralExpr, TypeExpr,
         },
     },
-    errors::{
-        builders,
-        widgets::{CodeWidget, LocationWidget},
-    },
+    fatal_at,
     lexer::token::TokenKind,
     parser::{
         Parser,
@@ -332,21 +329,11 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
             has_comma = true;
             parser.advance();
         } else if parser.current_token().kind != TokenKind::CloseParen {
-            crate::ERRORS.with(|e| -> Result<()> {
-                e.borrow_mut().add(
-                    builders::fatal("Expected comma or closing parenthesis in expression")
-                        .add_widget(LocationWidget::new(
-                            parser.current_token().span,
-                            parser.current_token().module_id,
-                        )?)
-                        .add_widget(CodeWidget::new(
-                            parser.current_token().span,
-                            parser.current_token().module_id,
-                        )?),
-                );
-                Ok(())
-            })?;
-            unreachable!();
+            fatal_at!(
+                parser.current_token().span,
+                parser.current_token().module_id,
+                "Expected comma or closing parenthesis in expression"
+            );
         }
     }
     let close_token = parser.expect(TokenKind::CloseParen)?;

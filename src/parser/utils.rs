@@ -2,31 +2,18 @@ use anyhow::Result;
 
 use crate::{
     ast::{Ident, Path},
-    errors::{
-        builders,
-        widgets::{CodeWidget, LocationWidget},
-    },
+    fatal_at,
     lexer::token::{Token, TokenKind},
     parser::Parser,
     span::Span,
 };
 
 pub fn unexpected_token(token: Token) -> ! {
-    let span = token.span;
-    let module_id = token.module_id;
-
-    crate::ERRORS
-        .with(|e| -> Result<()> {
-            e.borrow_mut().add(
-                builders::fatal(format!("Syntax error: Unexpected token `{}`", token.value))
-                    .add_widget(LocationWidget::new(span, module_id)?)
-                    .add_widget(CodeWidget::new(span, module_id)?),
-            );
-            Ok(())
-        })
-        .expect("failed to create error");
-
-    unreachable!()
+    fatal_at!(
+        token.span,
+        token.module_id,
+        format!("Syntax error: Unexpected token `{}`", token.value)
+    )
 }
 
 pub fn parse_path(parser: &mut Parser) -> Result<Path> {

@@ -20,7 +20,7 @@ use crate::{
         compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,
     },
-    errors::builders,
+    fatal,
     lexer::tokenize,
     parser::parse,
 };
@@ -96,19 +96,15 @@ fn compile_oxi_module<'ctx>(
     // Resolve path
 
     // Compile module
-    let file = fs::read_to_string(&module_path);
-    if let Err(err) = file {
-        crate::ERRORS.with(|e| {
-            e.borrow_mut().add(builders::fatal(format!(
-                "Module `{}` (resolved to {}) not found: {}",
-                module_name,
-                module_path.display(),
-                err
-            )));
-        });
-        unreachable!();
-    }
-    let file = file.unwrap();
+    let file = match fs::read_to_string(&module_path) {
+        Err(err) => fatal!(format!(
+            "Module `{}` (resolved to {}) not found: {}",
+            module_name,
+            module_path.display(),
+            err
+        )),
+        Ok(file) => file,
+    };
 
     let (tokens, module_id) = tokenize(file, &module_path)?;
     let ast = parse(tokens)?;

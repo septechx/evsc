@@ -74,31 +74,19 @@ macro_rules! get_modifiers {
         if !modifiers.is_empty() && !expected_order.is_empty() {
             for (idx, modifier) in modifiers.iter().enumerate() {
                 if !expected_order.contains(&modifier.kind) {
-                    ERRORS.with(|e| -> Result<()> {
-                        e.borrow_mut().add(
-                            builders::error(format!(
-                                "Unexpected modifier '{}'",
-                                modifier.kind
-                            ))
-                            .add_widget(LocationWidget::new(modifier.span, module_id)?)
-                            .add_widget(CodeWidget::new(modifier.span, module_id)?)
-                        );
-                        Ok(())
-                    })?;
+                    $crate::error_at!(
+                        modifier.span,
+                        module_id,
+                        format!("Unexpected modifier '{}'", modifier.kind)
+                    )?;
                 }
 
                 if modifiers.iter().enumerate().any(|(i, m)| i != idx && m.kind == modifier.kind) {
-                   ERRORS.with(|e| -> Result<()> {
-                        e.borrow_mut().add(
-                            builders::error(format!(
-                                "Duplicate modifier '{}'",
-                                modifier.kind
-                            ))
-                            .add_widget(LocationWidget::new(modifier.span, module_id)?)
-                            .add_widget(CodeWidget::new(modifier.span, module_id)?)
-                        );
-                        Ok(())
-                   })?;
+                    $crate::error_at!(
+                        modifier.span,
+                        module_id,
+                        format!("Duplicate modifier '{}'", modifier.kind)
+                    )?;
                 }
 
                 if let Some(expected_idx) = expected_order.iter().position(|&e| e == modifier.kind) {
@@ -110,18 +98,15 @@ macro_rules! get_modifiers {
                     }
                     if let Some(prev) = prev_idx {
                         if expected_idx < prev {
-                            ERRORS.with(|e| -> Result<()> {
-                                e.borrow_mut().add(
-                                    builders::error(format!(
-                                        "Modifier '{}' must appear before '{}'",
-                                        modifier.kind,
-                                        expected_order[expected_idx.saturating_sub(1)]
-                                    ))
-                                    .add_widget(LocationWidget::new(modifier.span, module_id)?)
-                                    .add_widget(CodeWidget::new(modifier.span, module_id)?)
-                                );
-                                Ok(())
-                            })?;
+                            $crate::error_at!(
+                                modifier.span,
+                                module_id,
+                                format!(
+                                    "Modifier '{}' must appear before '{}'",
+                                    modifier.kind,
+                                    expected_order[prev]
+                                )
+                            )?;
                         }
                     }
                 }

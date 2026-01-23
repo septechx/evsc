@@ -134,7 +134,12 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self);
+        if check_for_errors(self) {
+            if self.should_compile == Some(false) {
+                return;
+            }
+            panic!("Compilation had errors or warnings above threshold");
+        }
 
         let ast = match parse(tokens) {
             Ok(a) => a,
@@ -146,7 +151,12 @@ impl Drop for Test {
             }
         };
 
-        check_for_errors(self);
+        if check_for_errors(self) {
+            if self.should_compile == Some(false) {
+                return;
+            }
+            panic!("Compilation had errors or warnings above threshold");
+        }
 
         let module_name = "main";
         let opts = CompileOptions {
@@ -177,7 +187,12 @@ impl Drop for Test {
             }
         }
 
-        check_for_errors(self);
+        if check_for_errors(self) {
+            if self.should_compile == Some(false) {
+                return;
+            }
+            panic!("Compilation had errors or warnings above threshold");
+        }
 
         if let Some(expected_ir_file) = &self.expected_ir {
             let expected_path = Path::new("tests").join(expected_ir_file);
@@ -234,12 +249,17 @@ impl Drop for Test {
                 panic!("Failed to compile executable: {}", e);
             }
 
-            check_for_errors(self);
+            if check_for_errors(self) {
+                if self.should_compile == Some(false) {
+                    return;
+                }
+                panic!("Compilation had errors or warnings above threshold");
+            }
 
             let output = match Command::new(&exe_path).output() {
                 Ok(o) => o,
                 Err(e) => {
-                    eprintln!("Tried to execute: {exe_path:?}");
+                    eprintln!("Tried to execute: {{exe_path:?}}");
                     panic!("Failed to execute test: {}", e);
                 }
             };
@@ -257,14 +277,12 @@ impl Drop for Test {
     }
 }
 
-fn check_for_errors(test: &Test) {
+fn check_for_errors(test: &Test) -> bool {
     if ERRORS.with(|e| e.borrow().has_errors_above_level(test.fail_on_level)) {
         ERRORS.with(|e| e.borrow().print_errors(ErrorLevel::Warning));
-        if test.should_compile == Some(false) {
-            return;
-        }
-        panic!("Compilation had errors or warnings above threshold");
+        return true;
     }
+    false
 }
 
 pub fn it(f: impl FnOnce(&mut Test)) {

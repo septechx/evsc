@@ -53,18 +53,21 @@ macro_rules! elog {
 macro_rules! emit_at {
     ($builder:expr, $span:expr, $module_id:expr, $msg:expr, $info:expr, $highlight:expr) => {
         $crate::ERRORS.with(|e| -> anyhow::Result<()> {
-            let builder = $builder($msg)
+            let span = $span;
+            let module_id = $module_id;
+            let msg = $msg;
+            let builder = $builder(msg)
                 .add_widget($crate::errors::widgets::LocationWidget::new(
-                    $span, $module_id,
+                    span, module_id,
                 )?)
                 .add_widget($crate::errors::widgets::CodeWidget::new(
-                    $span,
-                    $module_id,
+                    span,
+                    module_id,
                     $highlight,
                 )?);
             let builder = if let Some(info) = $info {
                 builder.add_widget($crate::errors::widgets::InfoWidget::new(
-                    $span, $module_id, info,
+                    span, module_id, info,
                 )?)
             } else {
                 builder

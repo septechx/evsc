@@ -229,6 +229,7 @@ pub fn parse_struct_decl_stmt(
                         property_name.value
                     )
                 )?;
+                continue;
             }
 
             properties.push(StructProperty {

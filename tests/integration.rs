@@ -4,6 +4,23 @@ use common::it;
 use oxic::errors::ErrorLevel;
 
 #[test]
+fn duplicate_struct_property_fails() {
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            struct Foo {
+                a: i32,
+                a: i32,
+            }
+
+            pub fn main() void {}
+            "#,
+        )
+        .compiles(false);
+    })
+}
+
+#[test]
 fn can_compile_program_with_shebang() {
     it(|ctx| {
         ctx.add_source(

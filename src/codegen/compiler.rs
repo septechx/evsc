@@ -15,10 +15,8 @@ use inkwell::{
 
 use crate::{
     ast::{
-        Stmt, StmtKind, Type,
-        statements::{
-            BlockStmt, ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt,
-        },
+        ExprKind, Stmt, StmtKind, Type,
+        statements::{ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -183,16 +181,6 @@ pub fn compile_stmts<'a, 'ctx>(
             StmtKind::VarDecl(var_decl) => {
                 compile_var_decl(context, module, builder, var_decl, compilation_context)?;
             }
-            StmtKind::Block(block) => {
-                let mut inner_compilation_context = compilation_context.clone();
-                compile_stmts(
-                    context,
-                    module,
-                    builder,
-                    &block.body,
-                    &mut inner_compilation_context,
-                )?;
-            }
             StmtKind::StructDecl(_) => (), // Structs are compiled during the first pass
             StmtKind::InterfaceDecl(_) => todo!(),
             StmtKind::Import(_) => todo!(),
@@ -249,20 +237,23 @@ fn compile_function<'ctx>(
         }
     }
 
-    let body = BlockStmt {
-        body: fn_decl.body.clone(),
-    };
-
     let mut inner_compilation_context = compilation_context.clone();
     inner_compilation_context.symbol_table.extend(symbol_table);
 
-    compile_stmts(
-        context,
-        module,
-        &builder,
-        &body.body,
-        &mut inner_compilation_context,
-    )?;
+    if let Some(body) = &fn_decl.body {
+        match &body.kind {
+            ExprKind::Block(block) => {
+                compile_stmts(
+                    context,
+                    module,
+                    &builder,
+                    &block.body,
+                    &mut inner_compilation_context,
+                )?;
+            }
+            _ => panic!("Expected block expression, got {:?}", body.kind),
+        }
+    }
 
     if function
         .get_last_basic_block()

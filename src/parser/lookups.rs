@@ -216,6 +216,7 @@ pub fn create_token_lookups() {
         nud(T::StringLiteral, parse_primary_expr, &mut nud_lu);
         nud(T::Identifier, parse_primary_expr, &mut nud_lu);
         nud(T::OpenParen, parse_parenthesis_expr, &mut nud_lu);
+        nud(T::OpenCurly, parse_block_expr, &mut nud_lu);
         nud(T::Dash, parse_prefix_expr, &mut nud_lu);
         nud(T::Reference, parse_prefix_expr, &mut nud_lu);
         nud(T::Dollar, parse_type_expr, &mut nud_lu);

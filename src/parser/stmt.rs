@@ -2,7 +2,8 @@ use anyhow::Result;
 
 use crate::{
     ast::{
-        Attribute, Expr, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type, TypeKind,
+        Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type,
+        TypeKind,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
             ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
@@ -261,9 +262,9 @@ pub fn parse_struct_decl_stmt(
 
     Ok(parser.stmt(
         StmtKind::StructDecl(StructDeclStmt {
+            properties: properties.into_boxed_slice(),
+            methods: methods.into_boxed_slice(),
             name,
-            properties,
-            methods,
             is_public,
         }),
         span,
@@ -315,8 +316,8 @@ pub fn parse_interface_decl_stmt(
 
     Ok(parser.stmt(
         StmtKind::InterfaceDecl(InterfaceDeclStmt {
+            methods: methods.into_boxed_slice(),
             name,
-            methods,
             is_public,
         }),
         span,
@@ -361,20 +362,20 @@ pub fn parse_fn_decl_stmt(
 
     let return_type = parse_type(parser, BindingPower::DefaultBp)?;
 
-    let mut body: Vec<Stmt> = vec![];
+    let mut body: Option<Expr> = None;
 
     if parser.current_token().kind == TokenKind::OpenCurly {
-        parser.expect(TokenKind::OpenCurly)?;
-
-        loop {
-            if parser.current_token().kind == TokenKind::CloseCurly {
-                break;
-            }
-
-            body.push(parse_stmt(parser)?);
+        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
+        end_span = expr.span;
+        if let ExprKind::Block(_) = &expr.kind {
+            body = Some(expr);
+        } else {
+            error_at!(
+                expr.span,
+                parser.current_token().module_id,
+                "Expected block as function body"
+            )?;
         }
-
-        end_span = parser.expect(TokenKind::CloseCurly)?.span;
     }
 
     let mut start_span = fn_token.span;
@@ -389,9 +390,9 @@ pub fn parse_fn_decl_stmt(
 
     Ok(parser.stmt(
         StmtKind::FnDecl(FnDeclStmt {
-            name,
-            arguments,
+            arguments: arguments.into_boxed_slice(),
             body,
+            name,
             return_type,
             is_public: pub_mod.is_some(),
             is_extern: extern_mod.is_some(),

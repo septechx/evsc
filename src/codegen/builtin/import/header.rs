@@ -72,7 +72,7 @@ pub fn compile_header<'ctx>(
                         },
                         type_: arg,
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Box<[_]>>();
 
             let location = e.get_location().expect("function has no location");
             let (span, _module_id) = convert_clang_location(location);
@@ -81,7 +81,7 @@ pub fn compile_header<'ctx>(
                 kind: StmtKind::FnDecl(FnDeclStmt {
                     name: Ident { value: name, span },
                     arguments,
-                    body: Vec::new(),
+                    body: None,
                     return_type: ty.0,
                     is_public: true,
                     is_extern: true,

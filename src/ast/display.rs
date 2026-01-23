@@ -154,27 +154,6 @@ fn escape_string(s: &str) -> String {
 pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::fmt::Result {
     let id = stmt.id.0;
     match &stmt.kind {
-        StmtKind::Block(block) => {
-            write!(
-                out,
-                "{} {}",
-                "BlockStmt".with_color(ctx.color),
-                node_id_with_color(id, ctx.color)
-            )?;
-            write!(out, ":")?;
-            if block.body.is_empty() {
-                writeln!(out)?;
-                write!(out, "{}  (empty)", ctx.indent_str())?;
-            } else {
-                writeln!(out)?;
-                let body_ctx = ctx.indented();
-                for s in &block.body {
-                    write!(out, "{}", body_ctx.indent_str())?;
-                    write_stmt(out, s, &body_ctx)?;
-                    writeln!(out)?;
-                }
-            }
-        }
         StmtKind::Expression(expr_stmt) => {
             write!(
                 out,
@@ -315,7 +294,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
             write!(out, " {} ", punct_with_color("->", ctx.color))?;
             write!(out, "{}", write_type(&fn_decl.return_type, ctx))?;
             write!(out, ":")?;
-            if fn_decl.arguments.is_empty() && fn_decl.body.is_empty() {
+            if fn_decl.arguments.is_empty() && fn_decl.body.is_none() {
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
@@ -339,19 +318,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                     }
                 }
                 writeln!(out)?;
-                write!(out, "{}Body:", sub_ctx.indent_str())?;
-                if fn_decl.body.is_empty() {
-                    writeln!(out)?;
-                    write!(out, "{}  (empty)", sub_ctx.indent_str())?;
-                } else {
-                    writeln!(out)?;
-                    let body_ctx = sub_ctx.indented();
-                    for s in &fn_decl.body {
-                        write!(out, "{}", body_ctx.indent_str())?;
-                        write_stmt(out, s, &body_ctx)?;
-                        writeln!(out)?;
-                    }
-                }
+                write_fn_decl(out, &fn_decl, &sub_ctx)?;
             }
         }
         StmtKind::Return(return_stmt) => {
@@ -451,18 +418,33 @@ fn write_struct_method(
         }
     }
     writeln!(out)?;
-    write!(out, "{}Body:", indent,)?;
-    if method.fn_decl.body.is_empty() {
-        writeln!(out)?;
-        write!(out, "{}  (empty)", indent)?;
+    write_fn_decl(out, &method.fn_decl, ctx)?;
+    Ok(())
+}
+
+fn write_fn_decl(out: &mut String, fn_decl: &FnDeclStmt, ctx: &DisplayContext) -> std::fmt::Result {
+    write!(out, "{}Body:", ctx.indent_str())?;
+    if let Some(body) = &fn_decl.body {
+        match &body.kind {
+            ExprKind::Block(body) => {
+                if body.body.is_empty() {
+                    writeln!(out)?;
+                    write!(out, "{}  (empty)", ctx.indent_str())?;
+                } else {
+                    writeln!(out)?;
+                    let body_ctx = ctx.indented();
+                    for s in &body.body {
+                        write!(out, "{}", body_ctx.indent_str())?;
+                        write_stmt(out, s, &body_ctx)?;
+                        writeln!(out)?;
+                    }
+                }
+            }
+            _ => panic!("Expected block expression, got {:?}", body.kind),
+        }
     } else {
         writeln!(out)?;
-        let body_ctx = sub_ctx.indented();
-        for s in &method.fn_decl.body {
-            write!(out, "{}", body_ctx.indent_str())?;
-            write_stmt(out, s, &body_ctx)?;
-            writeln!(out)?;
-        }
+        write!(out, "{}  (none)", ctx.indent_str())?;
     }
     Ok(())
 }
@@ -510,6 +492,27 @@ fn write_interface_method(
 fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::Result {
     let id = expr.id.0;
     match &expr.kind {
+        ExprKind::Block(block) => {
+            write!(
+                out,
+                "{} {}",
+                "BlockStmt".with_color(ctx.color),
+                node_id_with_color(id, ctx.color)
+            )?;
+            write!(out, ":")?;
+            if block.body.is_empty() {
+                writeln!(out)?;
+                write!(out, "{}  (empty)", ctx.indent_str())?;
+            } else {
+                writeln!(out)?;
+                let body_ctx = ctx.indented();
+                for s in &block.body {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_stmt(out, s, &body_ctx)?;
+                    writeln!(out)?;
+                }
+            }
+        }
         ExprKind::Number(num) => {
             write!(
                 out,

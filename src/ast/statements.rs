@@ -1,9 +1,4 @@
-use crate::ast::{Expr, Ident, ImportTree, Stmt, Type};
-
-#[derive(Debug, Clone)]
-pub struct BlockStmt {
-    pub body: Vec<Stmt>,
-}
+use crate::ast::{Expr, Ident, ImportTree, Type};
 
 #[derive(Debug, Clone)]
 pub struct ExpressionStmt {
@@ -37,8 +32,8 @@ pub struct StructMethod {
 #[derive(Debug, Clone)]
 pub struct StructDeclStmt {
     pub name: Ident,
-    pub properties: Vec<StructProperty>,
-    pub methods: Vec<StructMethod>,
+    pub properties: Box<[StructProperty]>,
+    pub methods: Box<[StructMethod]>,
     pub is_public: bool,
 }
 
@@ -50,7 +45,7 @@ pub struct InterfaceMethod {
 #[derive(Debug, Clone)]
 pub struct InterfaceDeclStmt {
     pub name: Ident,
-    pub methods: Vec<InterfaceMethod>,
+    pub methods: Box<[InterfaceMethod]>,
     pub is_public: bool,
 }
 
@@ -63,8 +58,8 @@ pub struct FnArgument {
 #[derive(Debug, Clone)]
 pub struct FnDeclStmt {
     pub name: Ident,
-    pub arguments: Vec<FnArgument>,
-    pub body: Vec<Stmt>,
+    pub arguments: Box<[FnArgument]>,
+    pub body: Option<Expr>,
     pub return_type: Type,
     pub is_public: bool,
     pub is_extern: bool,

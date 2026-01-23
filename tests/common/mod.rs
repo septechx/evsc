@@ -64,6 +64,24 @@ impl Test {
         self.fail_on_level = level;
         self
     }
+
+    fn check_for_errors(&self) -> bool {
+        if ERRORS.with(|e| e.borrow().has_errors_above_level(self.fail_on_level)) {
+            ERRORS.with(|e| e.borrow().print_errors(ErrorLevel::Warning));
+            return true;
+        }
+        false
+    }
+
+    fn handle_error_check(&self) -> bool {
+        if self.check_for_errors() {
+            if self.should_compile == Some(false) {
+                return true;
+            }
+            panic!("Compilation had errors or warnings above threshold");
+        }
+        false
+    }
 }
 
 #[allow(dead_code)]
@@ -134,11 +152,8 @@ impl Drop for Test {
             }
         };
 
-        if check_for_errors(self) {
-            if self.should_compile == Some(false) {
-                return;
-            }
-            panic!("Compilation had errors or warnings above threshold");
+        if self.handle_error_check() {
+            return;
         }
 
         let ast = match parse(tokens) {
@@ -151,11 +166,8 @@ impl Drop for Test {
             }
         };
 
-        if check_for_errors(self) {
-            if self.should_compile == Some(false) {
-                return;
-            }
-            panic!("Compilation had errors or warnings above threshold");
+        if self.handle_error_check() {
+            return;
         }
 
         let module_name = "main";
@@ -187,11 +199,8 @@ impl Drop for Test {
             }
         }
 
-        if check_for_errors(self) {
-            if self.should_compile == Some(false) {
-                return;
-            }
-            panic!("Compilation had errors or warnings above threshold");
+        if self.handle_error_check() {
+            return;
         }
 
         if let Some(expected_ir_file) = &self.expected_ir {
@@ -249,11 +258,8 @@ impl Drop for Test {
                 panic!("Failed to compile executable: {}", e);
             }
 
-            if check_for_errors(self) {
-                if self.should_compile == Some(false) {
-                    return;
-                }
-                panic!("Compilation had errors or warnings above threshold");
+            if self.handle_error_check() {
+                return;
             }
 
             let output = match Command::new(&exe_path).output() {
@@ -277,15 +283,8 @@ impl Drop for Test {
     }
 }
 
-fn check_for_errors(test: &Test) -> bool {
-    if ERRORS.with(|e| e.borrow().has_errors_above_level(test.fail_on_level)) {
-        ERRORS.with(|e| e.borrow().print_errors(ErrorLevel::Warning));
-        return true;
-    }
-    false
-}
-
 pub fn it(f: impl FnOnce(&mut Test)) {
     let mut test = Test::new();
     f(&mut test);
 }
+

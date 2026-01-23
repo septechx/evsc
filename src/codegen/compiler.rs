@@ -251,7 +251,7 @@ fn compile_function<'ctx>(
                     &mut inner_compilation_context,
                 )?;
             }
-            _ => panic!("Expected block expression, got {:?}", body.kind),
+            _ => bail!("Expected block expression, got {:?}", body.kind),
         }
     }
 

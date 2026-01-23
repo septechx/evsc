@@ -417,6 +417,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(slice_val.as_basic_value_enum())
         }
+        // TODO: Return the value of the last expression in the block
         ExprKind::Block(block) => {
             let mut inner_compilation_context = compilation_context.clone();
             compile_stmts(

@@ -418,7 +418,7 @@ fn write_struct_method(
         }
     }
     writeln!(out)?;
-    write_fn_decl(out, &method.fn_decl, ctx)?;
+    write_fn_decl(out, &method.fn_decl, &sub_ctx)?;
     Ok(())
 }
 
@@ -440,7 +440,7 @@ fn write_fn_decl(out: &mut String, fn_decl: &FnDeclStmt, ctx: &DisplayContext) -
                     }
                 }
             }
-            _ => panic!("Expected block expression, got {:?}", body.kind),
+            _ => panic!("Expected block expression, got {:?}", body.kind), // This should never happen
         }
     } else {
         writeln!(out)?;
@@ -496,7 +496,7 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
             write!(
                 out,
                 "{} {}",
-                "BlockStmt".with_color(ctx.color),
+                "BlockExpr".with_color(ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
             write!(out, ":")?;

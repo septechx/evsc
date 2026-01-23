@@ -104,7 +104,7 @@ macro_rules! get_modifiers {
                                 format!(
                                     "Modifier '{}' must appear before '{}'",
                                     modifier.kind,
-                                    expected_order[expected_idx.saturating_sub(1)]
+                                    expected_order[prev]
                                 )
                             )?;
                         }

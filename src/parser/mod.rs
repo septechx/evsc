@@ -114,7 +114,7 @@ impl Parser {
                 token.span,
                 token.module_id,
                 err.unwrap_or(format!(
-                    "Syntax error: Expected {} but recieved {} instead.",
+                    "Syntax error: Expected {} but received {} instead.",
                     expected_kind, token.kind
                 ))
             );

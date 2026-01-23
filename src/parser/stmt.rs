@@ -217,11 +217,9 @@ pub fn parse_struct_decl_stmt(
                 parser.expect(TokenKind::Comma)?;
             }
 
-            if !properties
+            if properties
                 .iter()
-                .filter(|arg| arg.name.value == property_name.value)
-                .collect::<Vec<_>>()
-                .is_empty()
+                .any(|arg| arg.name.value == property_name.value)
             {
                 error_at!(
                     property_name.span,

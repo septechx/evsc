@@ -50,18 +50,37 @@ macro_rules! elog {
 }
 
 #[macro_export]
-macro_rules! error_at {
-    ($span:expr, $module_id:expr, $msg:expr $(,)?) => {
+macro_rules! emit_at {
+    ($builder:expr, $span:expr, $module_id:expr, $msg:expr, $info:expr) => {
         $crate::ERRORS.with(|e| -> anyhow::Result<()> {
-            e.borrow_mut().add(
-                $crate::errors::builders::error($msg)
-                    .add_widget($crate::errors::widgets::LocationWidget::new(
-                        $span, $module_id,
-                    )?)
-                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?),
-            );
+            let builder = $builder($msg)
+                .add_widget($crate::errors::widgets::LocationWidget::new(
+                    $span, $module_id,
+                )?)
+                .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?);
+            let builder = if let Some(info) = $info {
+                builder.add_widget($crate::errors::widgets::InfoWidget::new(
+                    $span, $module_id, info,
+                )?)
+            } else {
+                builder
+            };
+            e.borrow_mut().add(builder);
             Ok(())
         })
+    };
+}
+
+#[macro_export]
+macro_rules! error_at {
+    ($span:expr, $module_id:expr, $msg:expr $(,)?) => {
+        $crate::emit_at!(
+            $crate::errors::builders::error,
+            $span,
+            $module_id,
+            $msg,
+            None::<Box<str>>
+        )
     };
     ($token:expr, $msg:expr $(,)?) => {
         $crate::error_at!($token.span, $token.module_id, $msg)
@@ -71,16 +90,13 @@ macro_rules! error_at {
 #[macro_export]
 macro_rules! warning_at {
     ($span:expr, $module_id:expr, $msg:expr $(,)?) => {
-        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
-            e.borrow_mut().add(
-                $crate::errors::builders::warning($msg)
-                    .add_widget($crate::errors::widgets::LocationWidget::new(
-                        $span, $module_id,
-                    )?)
-                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?),
-            );
-            Ok(())
-        })
+        $crate::emit_at!(
+            $crate::errors::builders::warning,
+            $span,
+            $module_id,
+            $msg,
+            None::<Box<str>>
+        )
     };
     ($token:expr, $msg:expr $(,)?) => {
         $crate::warning_at!($token.span, $token.module_id, $msg)
@@ -90,18 +106,14 @@ macro_rules! warning_at {
 #[macro_export]
 macro_rules! fatal_at {
     ($span:expr, $module_id:expr, $msg:expr $(,)?) => {{
-        $crate::ERRORS
-            .with(|e| -> anyhow::Result<()> {
-                e.borrow_mut().add(
-                    $crate::errors::builders::fatal($msg)
-                        .add_widget($crate::errors::widgets::LocationWidget::new(
-                            $span, $module_id,
-                        )?)
-                        .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?),
-                );
-                Ok(())
-            })
-            .expect("failed to create error");
+        $crate::emit_at!(
+            $crate::errors::builders::fatal,
+            $span,
+            $module_id,
+            $msg,
+            None::<Box<str>>
+        )
+        .expect("failed to create error");
         unreachable!()
     }};
     ($token:expr, $msg:expr $(,)?) => {
@@ -112,19 +124,13 @@ macro_rules! fatal_at {
 #[macro_export]
 macro_rules! error_at_with_info {
     ($span:expr, $module_id:expr, $msg:expr, $info:expr $(,)?) => {
-        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
-            e.borrow_mut().add(
-                $crate::errors::builders::error($msg)
-                    .add_widget($crate::errors::widgets::LocationWidget::new(
-                        $span, $module_id,
-                    )?)
-                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?)
-                    .add_widget($crate::errors::widgets::InfoWidget::new(
-                        $span, $module_id, $info,
-                    )?),
-            );
-            Ok(())
-        })
+        $crate::emit_at!(
+            $crate::errors::builders::error,
+            $span,
+            $module_id,
+            $msg,
+            Some($info)
+        )
     };
     ($token:expr, $msg:expr, $info:expr $(,)?) => {
         $crate::error_at_with_info!($token.span, $token.module_id, $msg, $info)
@@ -134,19 +140,13 @@ macro_rules! error_at_with_info {
 #[macro_export]
 macro_rules! warning_at_with_info {
     ($span:expr, $module_id:expr, $msg:expr, $info:expr $(,)?) => {
-        $crate::ERRORS.with(|e| -> anyhow::Result<()> {
-            e.borrow_mut().add(
-                $crate::errors::builders::warning($msg)
-                    .add_widget($crate::errors::widgets::LocationWidget::new(
-                        $span, $module_id,
-                    )?)
-                    .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?)
-                    .add_widget($crate::errors::widgets::InfoWidget::new(
-                        $span, $module_id, $info,
-                    )?),
-            );
-            Ok(())
-        })
+        $crate::emit_at!(
+            $crate::errors::builders::warning,
+            $span,
+            $module_id,
+            $msg,
+            Some($info)
+        )
     };
     ($token:expr, $msg:expr, $info:expr $(,)?) => {
         $crate::warning_at_with_info!($token.span, $token.module_id, $msg, $info)
@@ -156,21 +156,14 @@ macro_rules! warning_at_with_info {
 #[macro_export]
 macro_rules! fatal_at_with_info {
     ($span:expr, $module_id:expr, $msg:expr, $info:expr $(,)?) => {{
-        $crate::ERRORS
-            .with(|e| -> anyhow::Result<()> {
-                e.borrow_mut().add(
-                    $crate::errors::builders::fatal($msg)
-                        .add_widget($crate::errors::widgets::LocationWidget::new(
-                            $span, $module_id,
-                        )?)
-                        .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?)
-                        .add_widget($crate::errors::widgets::InfoWidget::new(
-                            $span, $module_id, $info,
-                        )?),
-                );
-                Ok(())
-            })
-            .expect("failed to create error");
+        $crate::emit_at!(
+            $crate::errors::builders::fatal,
+            $span,
+            $module_id,
+            $msg,
+            Some($info)
+        )
+        .expect("failed to create error");
         unreachable!()
     }};
     ($token:expr, $msg:expr, $info:expr $(,)?) => {

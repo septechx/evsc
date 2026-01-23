@@ -157,8 +157,9 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
         StmtKind::Expression(expr_stmt) => {
             write!(
                 out,
-                "{} {}:",
+                "{}{} {}:",
                 "ExpressionStmt".with_color(ctx.color),
+                punct_with_color(if expr_stmt.has_semicolon { ";" } else { "" }, ctx.color),
                 node_id_with_color(id, ctx.color)
             )?;
             if expr_stmt.expression.kind.is_leaf() {

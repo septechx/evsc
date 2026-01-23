@@ -51,11 +51,27 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         }
 
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
-        parser.expect(TokenKind::Semicolon)?;
+
+        let mut has_semicolon = false;
+        if parser.current_token().kind == TokenKind::Semicolon {
+            has_semicolon = true;
+            parser.advance();
+        }
+
+        if !has_semicolon && parser.current_token().kind != TokenKind::CloseCurly {
+            error_at!(
+                expression.span,
+                parser.current_token().module_id,
+                "Implicit return not allowed here"
+            )?;
+        }
 
         let span = expression.span;
         Ok(parser.stmt(
-            StmtKind::Expression(ExpressionStmt { expression }),
+            StmtKind::Expression(ExpressionStmt {
+                expression,
+                has_semicolon,
+            }),
             span,
             Box::new([]),
         ))
@@ -375,6 +391,23 @@ pub fn parse_fn_decl_stmt(
                 parser.current_token().module_id,
                 "Expected block as function body"
             )?;
+        }
+    } else {
+        match parser.current_token().kind {
+            TokenKind::Semicolon => {
+                end_span = parser.expect(TokenKind::Semicolon)?.span;
+            }
+            TokenKind::Comma => {
+                end_span = parser.peek().span;
+                // Token is consumed by the caller (interface)
+            }
+            _ => {
+                error_at!(
+                    parser.current_token().span,
+                    parser.current_token().module_id,
+                    "Expected function body or terminator after signature"
+                )?;
+            }
         }
     }
 

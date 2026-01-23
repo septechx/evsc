@@ -3,6 +3,40 @@ mod common;
 use common::it;
 use oxic::errors::ErrorLevel;
 
+// TODO: This is supported by the parser, but not by the codegen
+#[ignore]
+#[test]
+fn can_compile_interface_declaration() {
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            interface Foo {
+                fn bar() void,
+            }
+            "#,
+        )
+        .compiles(true);
+    })
+}
+
+#[test]
+fn can_compile_nested_block_with_implicit_returns() {
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            pub fn main() void {
+                {
+                    {
+                        {}
+                    }
+                }
+            }
+            "#,
+        )
+        .compiles(true);
+    })
+}
+
 #[test]
 fn can_compile_simple_nested_block() {
     it(|ctx| {

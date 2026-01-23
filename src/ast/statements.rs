@@ -3,6 +3,7 @@ use crate::ast::{Expr, Ident, ImportTree, Type};
 #[derive(Debug, Clone)]
 pub struct ExpressionStmt {
     pub expression: Expr,
+    pub has_semicolon: bool,
 }
 
 #[derive(Debug, Clone)]

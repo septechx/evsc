@@ -548,7 +548,10 @@ mod tests {
 
     fn dummy_stmt_expr(expr: Expr) -> Stmt {
         Stmt {
-            kind: StmtKind::Expression(ExpressionStmt { expression: expr }),
+            kind: StmtKind::Expression(ExpressionStmt {
+                expression: expr,
+                has_semicolon: true,
+            }),
             id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
@@ -1408,6 +1411,7 @@ mod tests {
                                             id: NodeId(0),
                                             span: dummy_span(),
                                         },
+                                        has_semicolon: true,
                                     }),
                                     id: NodeId(0),
                                     span: dummy_span(),

@@ -318,7 +318,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                     }
                 }
                 writeln!(out)?;
-                write_fn_decl(out, &fn_decl, &sub_ctx)?;
+                write_fn_decl(out, fn_decl, &sub_ctx)?;
             }
         }
         StmtKind::Return(return_stmt) => {

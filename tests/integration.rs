@@ -4,6 +4,24 @@ use common::it;
 use oxic::errors::ErrorLevel;
 
 #[test]
+fn can_compile_simple_nested_block() {
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            pub fn main() void {
+                {
+                    {
+                        {};
+                    };
+                };
+            }
+            "#,
+        )
+        .compiles(true);
+    })
+}
+
+#[test]
 fn duplicate_struct_property_fails() {
     it(|ctx| {
         ctx.add_source(

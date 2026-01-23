@@ -358,12 +358,12 @@ pub fn parse_fn_decl_stmt(
         }
     }
 
-    let mut end_span = parser.expect(TokenKind::CloseParen)?.span;
+    parser.expect(TokenKind::CloseParen)?;
 
     let return_type = parse_type(parser, BindingPower::DefaultBp)?;
+    let mut end_span = return_type.span;
 
     let mut body: Option<Expr> = None;
-
     if parser.current_token().kind == TokenKind::OpenCurly {
         let expr = parse_expr(parser, BindingPower::DefaultBp)?;
         end_span = expr.span;

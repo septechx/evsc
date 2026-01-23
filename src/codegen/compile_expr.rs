@@ -16,7 +16,7 @@ use crate::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
         compile_type::{cast_int_to_type, compile_type},
-        compiler::CompilationContext,
+        compiler::{CompilationContext, compile_stmts},
         pointer::SmartValue,
     },
     lexer::token::TokenKind,
@@ -416,6 +416,22 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let slice_val = builder.build_insert_value(slice_val, len_val, 1, "slice_len")?;
 
             SmartValue::from_value(slice_val.as_basic_value_enum())
+        }
+        // TODO: Return the value of the last expression in the block
+        ExprKind::Block(block) => {
+            let mut inner_compilation_context = compilation_context.clone();
+            compile_stmts(
+                context,
+                module,
+                builder,
+                &block.body,
+                &mut inner_compilation_context,
+            )?;
+            SmartValue::from_value(
+                compile_arch_size_type(context)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            )
         }
         expr => unimplemented!("{expr:#?}"),
     })

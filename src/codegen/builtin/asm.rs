@@ -87,7 +87,12 @@ impl BuiltinFunction for AsmBuiltin {
         let call_site_value = builder.build_indirect_call(fn_type, inline_asm, &operands, "asm")?;
 
         Ok(if ret_void {
-            SmartValue::from_value(context.i32_type().const_zero().as_basic_value_enum())
+            SmartValue::from_value(
+                context
+                    .struct_type(&[], false)
+                    .get_undef()
+                    .as_basic_value_enum(),
+            )
         } else {
             SmartValue::from_value(
                 call_site_value

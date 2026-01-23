@@ -1,8 +1,13 @@
 use crate::{
-    ast::{Expr, Ident, Type},
+    ast::{Expr, Ident, Stmt, Type},
     lexer::token::Token,
 };
 use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+pub struct BlockExpr {
+    pub body: Box<[Stmt]>,
+}
 
 // TODO: Add float support, replace i32
 #[derive(Debug, Clone)]

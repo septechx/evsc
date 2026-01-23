@@ -79,7 +79,7 @@ pub struct CodeWidget {
 }
 
 impl CodeWidget {
-    pub fn new(span: Span, module_id: ModuleId) -> Result<Self> {
+    pub fn new(span: Span, module_id: ModuleId, highlight_type: HighlightType) -> Result<Self> {
         let (_, line, column, length) = crate::SOURCE_MAPS.with(|sm| {
             let maps = sm.borrow();
             maps.get_source(module_id)
@@ -99,7 +99,7 @@ impl CodeWidget {
             line,
             column,
             length,
-            highlight_type: HighlightType::Error,
+            highlight_type,
             code: code.into(),
         })
     }

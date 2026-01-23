@@ -51,13 +51,17 @@ macro_rules! elog {
 
 #[macro_export]
 macro_rules! emit_at {
-    ($builder:expr, $span:expr, $module_id:expr, $msg:expr, $info:expr) => {
+    ($builder:expr, $span:expr, $module_id:expr, $msg:expr, $info:expr, $highlight:expr) => {
         $crate::ERRORS.with(|e| -> anyhow::Result<()> {
             let builder = $builder($msg)
                 .add_widget($crate::errors::widgets::LocationWidget::new(
                     $span, $module_id,
                 )?)
-                .add_widget($crate::errors::widgets::CodeWidget::new($span, $module_id)?);
+                .add_widget($crate::errors::widgets::CodeWidget::new(
+                    $span,
+                    $module_id,
+                    $highlight,
+                )?);
             let builder = if let Some(info) = $info {
                 builder.add_widget($crate::errors::widgets::InfoWidget::new(
                     $span, $module_id, info,
@@ -79,12 +83,14 @@ macro_rules! error_at {
             $span,
             $module_id,
             $msg,
-            None::<Box<str>>
+            None::<Box<str>>,
+            $crate::errors::widgets::HighlightType::Error
         )
     };
-    ($token:expr, $msg:expr $(,)?) => {
-        $crate::error_at!($token.span, $token.module_id, $msg)
-    };
+    ($token:expr, $msg:expr $(,)?) => {{
+        let token = $token;
+        $crate::error_at!(token.span, token.module_id, $msg)
+    }};
 }
 
 #[macro_export]
@@ -95,12 +101,14 @@ macro_rules! warning_at {
             $span,
             $module_id,
             $msg,
-            None::<Box<str>>
+            None::<Box<str>>,
+            $crate::errors::widgets::HighlightType::Warning
         )
     };
-    ($token:expr, $msg:expr $(,)?) => {
-        $crate::warning_at!($token.span, $token.module_id, $msg)
-    };
+    ($token:expr, $msg:expr $(,)?) => {{
+        let token = $token;
+        $crate::warning_at!(token.span, token.module_id, $msg)
+    }};
 }
 
 #[macro_export]
@@ -111,14 +119,16 @@ macro_rules! fatal_at {
             $span,
             $module_id,
             $msg,
-            None::<Box<str>>
+            None::<Box<str>>,
+            $crate::errors::widgets::HighlightType::Error
         )
         .expect("failed to create error");
         unreachable!()
     }};
-    ($token:expr, $msg:expr $(,)?) => {
-        $crate::fatal_at!($token.span, $token.module_id, $msg)
-    };
+    ($token:expr, $msg:expr $(,)?) => {{
+        let token = $token;
+        $crate::fatal_at!(token.span, token.module_id, $msg)
+    }};
 }
 
 #[macro_export]
@@ -129,12 +139,14 @@ macro_rules! error_at_with_info {
             $span,
             $module_id,
             $msg,
-            Some($info)
+            Some($info),
+            $crate::errors::widgets::HighlightType::Error
         )
     };
-    ($token:expr, $msg:expr, $info:expr $(,)?) => {
-        $crate::error_at_with_info!($token.span, $token.module_id, $msg, $info)
-    };
+    ($token:expr, $msg:expr, $info:expr $(,)?) => {{
+        let token = $token;
+        $crate::error_at_with_info!(token.span, token.module_id, $msg, $info)
+    }};
 }
 
 #[macro_export]
@@ -145,12 +157,14 @@ macro_rules! warning_at_with_info {
             $span,
             $module_id,
             $msg,
-            Some($info)
+            Some($info),
+            $crate::errors::widgets::HighlightType::Warning
         )
     };
-    ($token:expr, $msg:expr, $info:expr $(,)?) => {
-        $crate::warning_at_with_info!($token.span, $token.module_id, $msg, $info)
-    };
+    ($token:expr, $msg:expr, $info:expr $(,)?) => {{
+        let token = $token;
+        $crate::warning_at_with_info!(token.span, token.module_id, $msg, $info)
+    }};
 }
 
 #[macro_export]
@@ -161,14 +175,16 @@ macro_rules! fatal_at_with_info {
             $span,
             $module_id,
             $msg,
-            Some($info)
+            Some($info),
+            $crate::errors::widgets::HighlightType::Error
         )
         .expect("failed to create error");
         unreachable!()
     }};
-    ($token:expr, $msg:expr, $info:expr $(,)?) => {
-        $crate::fatal_at_with_info!($token.span, $token.module_id, $msg, $info)
-    };
+    ($token:expr, $msg:expr, $info:expr $(,)?) => {{
+        let token = $token;
+        $crate::fatal_at_with_info!(token.span, token.module_id, $msg, $info)
+    }};
 }
 
 #[macro_export]

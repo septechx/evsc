@@ -71,24 +71,24 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
     let span = token.span;
 
     match token.kind {
-        TokenKind::Number => Ok(parser.expr(
-            ExprKind::Number(NumberExpr {
+        TokenKind::Number => Ok(Expr {
+            kind: ExprKind::Number(NumberExpr {
                 value: value.parse::<i32>()?,
             }),
             span,
-        )),
-        TokenKind::StringLiteral => Ok(parser.expr(
-            ExprKind::String(StringExpr {
+        }),
+        TokenKind::StringLiteral => Ok(Expr {
+            kind: ExprKind::String(StringExpr {
                 value: process_string(&value, span, token.module_id).into(),
             }),
             span,
-        )),
-        TokenKind::Identifier => Ok(parser.expr(
-            ExprKind::Symbol(SymbolExpr {
+        }),
+        TokenKind::Identifier => Ok(Expr {
+            kind: ExprKind::Symbol(SymbolExpr {
                 value: TryInto::<Ident>::try_into(token)?,
             }),
             span,
-        )),
+        }),
         _ => unreachable!(),
     }
 }
@@ -98,14 +98,14 @@ pub fn parse_binary_expr(parser: &mut Parser, left: Expr, bp: BindingPower) -> R
     let right = parse_expr(parser, bp)?;
 
     let span = Span::new(left.span.start(), right.span.end());
-    Ok(parser.expr(
-        ExprKind::Binary(BinaryExpr {
+    Ok(Expr {
+        kind: ExprKind::Binary(BinaryExpr {
             left: Box::new(left),
             operator,
             right: Box::new(right),
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_postfix_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) -> Result<Expr> {
@@ -118,13 +118,13 @@ pub fn parse_postfix_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) ->
     let operator = parser.advance();
 
     let span = Span::new(left.span.start(), operator.span.end());
-    Ok(parser.expr(
-        ExprKind::Postfix(PostfixExpr {
+    Ok(Expr {
+        kind: ExprKind::Postfix(PostfixExpr {
             left: Box::new(left),
             operator,
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expr> {
@@ -132,13 +132,13 @@ pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Expr> {
     let right = parse_expr(parser, BindingPower::DefaultBp)?;
 
     let span = Span::new(operator.span.start(), right.span.end());
-    Ok(parser.expr(
-        ExprKind::Prefix(PrefixExpr {
+    Ok(Expr {
+        kind: ExprKind::Prefix(PrefixExpr {
             operator,
             right: Box::new(right),
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_assignment_expr(
@@ -150,14 +150,14 @@ pub fn parse_assignment_expr(
     let value = parse_expr(parser, BindingPower::Assignment)?;
 
     let span = Span::new(assigne.span.start(), value.span.end());
-    Ok(parser.expr(
-        ExprKind::Assignment(AssignmentExpr {
+    Ok(Expr {
+        kind: ExprKind::Assignment(AssignmentExpr {
             assigne: Box::new(assigne),
             operator,
             value: Box::new(value),
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_struct_instantiation_expr(
@@ -193,13 +193,13 @@ pub fn parse_struct_instantiation_expr(
     let close_token = parser.expect(TokenKind::CloseCurly)?;
 
     let span = Span::new(left.span.start(), close_token.span.end());
-    Ok(parser.expr(
-        ExprKind::StructInstantiation(StructInstantiationExpr {
+    Ok(Expr {
+        kind: ExprKind::StructInstantiation(StructInstantiationExpr {
             name: struct_name,
             properties,
         }),
         span,
-    ))
+    })
 }
 
 // TODO: This only parses slices, not arrays
@@ -229,13 +229,13 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
     let close_token = parser.expect(TokenKind::CloseCurly)?;
     let span = Span::new(start_token.span.start(), close_token.span.end());
 
-    Ok(parser.expr(
-        ExprKind::ArrayLiteral(ArrayLiteralExpr {
+    Ok(Expr {
+        kind: ExprKind::ArrayLiteral(ArrayLiteralExpr {
             underlying: type_,
             contents: contents.into_boxed_slice(),
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_function_call_expr(
@@ -262,13 +262,13 @@ pub fn parse_function_call_expr(
     parser.expect(TokenKind::CloseParen)?;
 
     let span = Span::new(left.span.start(), parser.current_token().span.end());
-    Ok(parser.expr(
-        ExprKind::FunctionCall(FunctionCallExpr {
+    Ok(Expr {
+        kind: ExprKind::FunctionCall(FunctionCallExpr {
             callee: Box::new(left),
             arguments: arguments.into_boxed_slice(),
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_member_access_expr(
@@ -282,13 +282,13 @@ pub fn parse_member_access_expr(
     let member_span = member.span;
 
     let span = Span::new(left.span.start(), member_span.end());
-    Ok(parser.expr(
-        ExprKind::MemberAccess(MemberAccessExpr {
+    Ok(Expr {
+        kind: ExprKind::MemberAccess(MemberAccessExpr {
             base: Box::new(left),
             member,
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_type_expr(parser: &mut Parser) -> Result<Expr> {
@@ -299,7 +299,10 @@ pub fn parse_type_expr(parser: &mut Parser) -> Result<Expr> {
     let end_token = parser.current_token();
     let span = Span::new(start_token.span.start(), end_token.span.end());
 
-    Ok(parser.expr(ExprKind::Type(TypeExpr { underlying: ty }), span))
+    Ok(Expr {
+        kind: ExprKind::Type(TypeExpr { underlying: ty }),
+        span,
+    })
 }
 
 pub fn parse_as_cast_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) -> Result<Expr> {
@@ -308,13 +311,13 @@ pub fn parse_as_cast_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) ->
     let ty = parse_type(parser, BindingPower::DefaultBp)?;
 
     let span = Span::new(left.span.start(), ty.span.end());
-    Ok(parser.expr(
-        ExprKind::As(AsExpr {
+    Ok(Expr {
+        kind: ExprKind::As(AsExpr {
             expr: Box::new(left),
             ty,
         }),
         span,
-    ))
+    })
 }
 
 pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
@@ -341,17 +344,16 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
     let end_span = close_token.span;
 
     if expressions.len() == 1 && !has_comma {
-        Ok(parser.expr(
-            expressions[0].kind.clone(),
-            Span::new(start_token.span.start(), end_span.end()),
-        ))
+        let mut expr = expressions.pop().unwrap();
+        expr.span = Span::new(start_token.span.start(), end_span.end());
+        Ok(expr)
     } else {
-        Ok(parser.expr(
-            ExprKind::TupleLiteral(TupleLiteralExpr {
+        Ok(Expr {
+            kind: ExprKind::TupleLiteral(TupleLiteralExpr {
                 elements: expressions.into_boxed_slice(),
             }),
-            Span::new(start_token.span.start(), end_span.end()),
-        ))
+            span: Span::new(start_token.span.start(), end_span.end()),
+        })
     }
 }
 
@@ -370,10 +372,10 @@ pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
     let end_token = parser.expect(TokenKind::CloseCurly)?;
     let span = Span::new(start_token.span.start(), end_token.span.end());
 
-    Ok(parser.expr(
-        ExprKind::Block(BlockExpr {
+    Ok(Expr {
+        kind: ExprKind::Block(BlockExpr {
             body: body.into_boxed_slice(),
         }),
         span,
-    ))
+    })
 }

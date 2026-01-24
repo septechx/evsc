@@ -287,4 +287,3 @@ pub fn it(f: impl FnOnce(&mut Test)) {
     let mut test = Test::new();
     f(&mut test);
 }
-

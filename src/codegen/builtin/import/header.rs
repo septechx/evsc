@@ -4,7 +4,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        Ast, Ident, NodeId, Stmt, StmtKind, Type, TypeKind,
+        Ast, Ident, Stmt, StmtKind, Type, TypeKind,
         statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
     },
@@ -16,22 +16,6 @@ use crate::{
     span::{ModuleId, Span},
 };
 use std::fs;
-
-struct NodeIdManager {
-    next_id: NodeId,
-}
-
-impl NodeIdManager {
-    fn new() -> Self {
-        Self { next_id: NodeId(0) }
-    }
-
-    fn next_id(&mut self) -> NodeId {
-        let id = self.next_id;
-        self.next_id = NodeId(self.next_id.0 + 1);
-        id
-    }
-}
 
 pub fn compile_header<'ctx>(
     context: &'ctx Context,
@@ -50,17 +34,14 @@ pub fn compile_header<'ctx>(
     let index = Index::new(&clang, false, false);
     let tu = index.parser(module_path.clone()).parse()?;
 
-    let mut nid_mgr = NodeIdManager::new();
-
     let mut ast: Vec<Stmt> = Vec::new();
 
-    for (i, e) in tu.get_entity().get_children().iter().enumerate() {
+    for e in tu.get_entity().get_children().iter() {
         if e.get_kind() == EntityKind::FunctionDecl {
             let name = parse_function_name(e.get_display_name().expect("function has no name"))
                 .expect("function has no name")
                 .into();
-            let ty =
-                parse_function_type(e.get_type().expect("function has no type"), &mut nid_mgr)?;
+            let ty = parse_function_type(e.get_type().expect("function has no type"))?;
 
             let arguments =
                 ty.1.into_iter()
@@ -86,7 +67,6 @@ pub fn compile_header<'ctx>(
                     is_public: true,
                     is_extern: true,
                 }),
-                id: NodeId(i),
                 span,
                 attributes: Box::new([]),
             };
@@ -123,37 +103,33 @@ fn parse_function_name(name: String) -> Option<String> {
     name.split_once('(').map(|(name, _)| name.to_string())
 }
 
-fn parse_function_type(ty: clang::Type, nid_mgr: &mut NodeIdManager) -> Result<(Type, Vec<Type>)> {
+fn parse_function_type(ty: clang::Type) -> Result<(Type, Vec<Type>)> {
     let return_type = ty.get_result_type().expect("function type is not valid");
     let args = ty.get_argument_types().unwrap_or_default();
 
     let arg_types: Vec<Type> = args
         .iter()
         .map(|arg| {
-            let loc = arg
+            let span = arg
                 .get_declaration()
-                .expect("argument has no location")
-                .get_location()
-                .expect("argument has no location");
-            let (span, _) = convert_clang_location(loc);
-            let id = nid_mgr.next_id();
-            parse_type(&arg.get_display_name(), id, span)
+                .and_then(|decl| decl.get_location())
+                .map(|loc| convert_clang_location(loc).0)
+                .unwrap_or(Span::new(0, 0));
+            parse_type(&arg.get_display_name(), span)
         })
         .collect();
 
-    let loc = return_type
+    let span = return_type
         .get_declaration()
-        .expect("return type has no location")
-        .get_location()
-        .expect("return type has no location");
-    let (span, _) = convert_clang_location(loc);
-    let id = nid_mgr.next_id();
-    let return_type = parse_type(&return_type.get_display_name(), id, span);
+        .and_then(|decl| decl.get_location())
+        .map(|loc| convert_clang_location(loc).0)
+        .unwrap_or(Span::new(0, 0));
+    let return_type = parse_type(&return_type.get_display_name(), span);
 
     Ok((return_type, arg_types))
 }
 
-fn parse_type(ty: &str, id: NodeId, span: Span) -> Type {
+fn parse_type(ty: &str, span: Span) -> Type {
     let ty = map_c_type(ty);
 
     Type {
@@ -163,7 +139,6 @@ fn parse_type(ty: &str, id: NodeId, span: Span) -> Type {
                 span,
             },
         }),
-        id,
         span,
     }
 }

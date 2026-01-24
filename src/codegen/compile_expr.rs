@@ -20,6 +20,7 @@ use crate::{
         pointer::SmartValue,
     },
     lexer::token::TokenKind,
+    span::Span,
 };
 
 pub fn compile_expression_to_value<'a, 'ctx>(
@@ -392,13 +393,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 )?
             };
 
-            // TODO: This is a temporary hack to get an id and span for a built-in type
             let slice_ty = Type {
                 kind: TypeKind::Slice(SliceType {
                     underlying: Box::new(ar_expr.underlying.clone()),
                 }),
-                id: expr.id,
-                span: expr.span,
+                span: Span::new(expr.span.start(), ar_expr.underlying.span.end()),
             };
 
             let slice_llvm_type = compile_type(context, &slice_ty, compilation_context)?;

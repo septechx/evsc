@@ -7,7 +7,7 @@ use crate::{
     ast::{
         Expr, ExprKind, Ident, Literal,
         expressions::{
-            ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr,
+            ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, BlockExpr, FunctionCallExpr,
             MemberAccessExpr, PostfixExpr, PrefixExpr, StructInstantiationExpr, SymbolExpr,
             TupleLiteralExpr, TypeExpr,
         },
@@ -17,6 +17,7 @@ use crate::{
     parser::{
         Parser,
         lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
+        stmt::parse_stmt,
         string::process_string,
         types::parse_type,
         utils::unexpected_token,
@@ -365,4 +366,27 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
             Span::new(start_token.span.start(), end_span.end()),
         ))
     }
+}
+
+pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_token = parser.expect(TokenKind::OpenCurly)?;
+    let mut body = Vec::new();
+
+    loop {
+        if parser.current_token().kind == TokenKind::CloseCurly {
+            break;
+        }
+
+        body.push(parse_stmt(parser)?);
+    }
+
+    let end_token = parser.expect(TokenKind::CloseCurly)?;
+    let span = Span::new(start_token.span.start(), end_token.span.end());
+
+    Ok(parser.expr(
+        ExprKind::Block(BlockExpr {
+            body: body.into_boxed_slice(),
+        }),
+        span,
+    ))
 }

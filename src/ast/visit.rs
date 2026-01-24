@@ -66,7 +66,6 @@ impl Visitable for Stmt {
         visitor.visit_stmt(self);
 
         match &mut self.kind {
-            StmtKind::Block(block) => block.visit(visitor),
             StmtKind::Expression(expr_stmt) => expr_stmt.visit(visitor),
             StmtKind::VarDecl(var) => var.visit(visitor),
             StmtKind::StructDecl(s) => s.visit(visitor),
@@ -80,11 +79,11 @@ impl Visitable for Stmt {
 
 impl Visitable for ImportStmt {
     fn visit(&mut self, _visitor: &mut impl Visitor) {
-        // Unit
+        // Leaf
     }
 }
 
-impl Visitable for BlockStmt {
+impl Visitable for BlockExpr {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         self.body.visit(visitor);
     }
@@ -153,8 +152,8 @@ impl Visitable for FnDeclStmt {
         for arg in &mut self.arguments {
             arg.visit(visitor);
         }
-        for stmt in &mut self.body {
-            stmt.visit(visitor);
+        if let Some(body) = &mut self.body {
+            body.visit(visitor);
         }
         self.return_type.visit(visitor);
     }
@@ -174,6 +173,7 @@ impl Visitable for Expr {
 
         match &mut self.kind {
             ExprKind::Literal(l) => l.visit(visitor),
+            ExprKind::Block(block) => block.visit(visitor),
             ExprKind::Symbol(s) => s.visit(visitor),
             ExprKind::Binary(b) => b.visit(visitor),
             ExprKind::Postfix(p) => p.visit(visitor),
@@ -192,7 +192,7 @@ impl Visitable for Expr {
 
 impl Visitable for SymbolExpr {
     fn visit(&mut self, _visitor: &mut impl Visitor) {
-        // Unit
+        // Leaf
     }
 }
 
@@ -285,10 +285,10 @@ impl Visitable for Type {
                 t.elements.visit(visitor);
             }
             TypeKind::Infer => {
-                // Unit
+                // Leaf
             }
             TypeKind::Never => {
-                // Unit
+                // Leaf
             }
         }
     }
@@ -296,7 +296,7 @@ impl Visitable for Type {
 
 impl Visitable for SymbolType {
     fn visit(&mut self, _visitor: &mut impl Visitor) {
-        // Unit
+        // Leaf
     }
 }
 impl Visitable for PointerType {
@@ -405,7 +405,6 @@ mod tests {
     impl Visitor for NodeCounterVisitor {
         fn visit_stmt(&mut self, stmt: &mut Stmt) {
             let kind_name = match &stmt.kind {
-                StmtKind::Block(_) => "Stmt",
                 StmtKind::Expression(_) => "Stmt",
                 StmtKind::VarDecl(_) => "Stmt",
                 StmtKind::StructDecl(_) => "Stmt",
@@ -417,7 +416,6 @@ mod tests {
             *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
 
             let kind_name = match &stmt.kind {
-                StmtKind::Block(_) => "BlockStmt",
                 StmtKind::Expression(_) => "ExpressionStmt",
                 StmtKind::VarDecl(_) => "VarDeclStmt",
                 StmtKind::StructDecl(_) => "StructDeclStmt",
@@ -442,6 +440,7 @@ mod tests {
                         Literal::Bool(_) => "BoolExpr",
                     }
                 }
+                ExprKind::Block(_) => "BlockExpr",
                 ExprKind::Symbol(_) => "SymbolExpr",
                 ExprKind::Binary(_) => "BinaryExpr",
                 ExprKind::Postfix(_) => "PostfixExpr",
@@ -540,18 +539,22 @@ mod tests {
         }
     }
 
-    fn dummy_stmt_block(body: Vec<Stmt>) -> Stmt {
-        Stmt {
-            kind: StmtKind::Block(BlockStmt { body }),
+    fn dummy_expr_block(body: Vec<Stmt>) -> Expr {
+        Expr {
+            kind: ExprKind::Block(BlockExpr {
+                body: body.into_boxed_slice(),
+            }),
             id: NodeId(0),
             span: dummy_span(),
-            attributes: Box::new([]),
         }
     }
 
     fn dummy_stmt_expr(expr: Expr) -> Stmt {
         Stmt {
-            kind: StmtKind::Expression(ExpressionStmt { expression: expr }),
+            kind: StmtKind::Expression(ExpressionStmt {
+                expression: expr,
+                has_semicolon: true,
+            }),
             id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
@@ -570,7 +573,7 @@ mod tests {
     #[test]
     fn test_float_expr_visited_once() {
         let mut expr = Expr {
-            kind: ExprKind::Literal(Literal::Float(3.14)),
+            kind: ExprKind::Literal(Literal::Float(3.15)),
             id: NodeId(0),
             span: dummy_span(),
         };
@@ -856,22 +859,23 @@ mod tests {
 
     #[test]
     fn test_block_stmt_empty() {
-        let mut stmt = dummy_stmt_block(vec![]);
+        let mut stmt = dummy_expr_block(vec![]);
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
-        visitor.assert_visited("stmt", "Stmt", 1);
-        visitor.assert_visited("stmt", "BlockStmt", 1);
+        visitor.assert_visited("stmt", "Stmt", 0);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "BlockExpr", 1);
     }
 
     #[test]
     fn test_block_stmt_with_body() {
-        let mut stmt = dummy_stmt_block(vec![dummy_stmt_expr(dummy_expr_number(1))]);
+        let mut stmt = dummy_expr_block(vec![dummy_stmt_expr(dummy_expr_number(1))]);
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
-        visitor.assert_visited("stmt", "Stmt", 2);
-        visitor.assert_visited("stmt", "BlockStmt", 1);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("expr", "BlockExpr", 1);
         visitor.assert_visited("stmt", "ExpressionStmt", 1);
-        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "Expr", 2);
         visitor.assert_visited("expr", "NumberExpr", 1);
     }
 
@@ -939,8 +943,8 @@ mod tests {
         let mut stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                properties: vec![],
-                methods: vec![],
+                properties: Box::new([]),
+                methods: Box::new([]),
                 is_public: false,
             }),
             id: NodeId(0),
@@ -969,8 +973,9 @@ mod tests {
                         type_: dummy_type_symbol("bool"),
                         is_public: false,
                     },
-                ],
-                methods: vec![],
+                ]
+                .into_boxed_slice(),
+                methods: Box::new([]),
                 is_public: false,
             }),
             id: NodeId(0),
@@ -990,19 +995,24 @@ mod tests {
         let mut stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                properties: vec![],
+                properties: Box::new([]),
                 methods: vec![StructMethod {
                     is_static: false,
                     is_public: false,
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: vec![],
-                        body: vec![],
+                        arguments: Box::new([]),
+                        body: Some(Expr {
+                            kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
+                            id: NodeId(0),
+                            span: dummy_span(),
+                        }),
                         return_type: dummy_type_never(),
                         is_public: false,
                         is_extern: false,
                     },
-                }],
+                }]
+                .into_boxed_slice(),
                 is_public: false,
             }),
             id: NodeId(0),
@@ -1025,13 +1035,14 @@ mod tests {
                 methods: vec![InterfaceMethod {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: vec![],
-                        body: vec![],
+                        arguments: Box::new([]),
+                        body: None,
                         return_type: dummy_type_never(),
                         is_public: false,
                         is_extern: false,
                     },
-                }],
+                }]
+                .into_boxed_slice(),
                 is_public: false,
             }),
             id: NodeId(0),
@@ -1060,8 +1071,15 @@ mod tests {
                         name: dummy_ident("b"),
                         type_: dummy_type_symbol("bool"),
                     },
-                ],
-                body: vec![dummy_stmt_expr(dummy_expr_number(1))],
+                ]
+                .into_boxed_slice(),
+                body: Some(Expr {
+                    kind: ExprKind::Block(BlockExpr {
+                        body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                }),
                 return_type: dummy_type_symbol("void"),
                 is_public: false,
                 is_extern: false,
@@ -1075,7 +1093,8 @@ mod tests {
         visitor.assert_visited("stmt", "Stmt", 2);
         visitor.assert_visited("stmt", "FnDeclStmt", 1);
         visitor.assert_visited("stmt", "ExpressionStmt", 1);
-        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "BlockExpr", 1);
         visitor.assert_visited("expr", "NumberExpr", 1);
         visitor.assert_visited("type", "Type", 3);
         visitor.assert_visited("type", "SymbolType", 3);
@@ -1352,19 +1371,28 @@ mod tests {
                             name: dummy_ident("x"),
                             type_: dummy_type_symbol("i32"),
                             is_public: false,
-                        }],
+                        }]
+                        .into_boxed_slice(),
                         methods: vec![StructMethod {
                             is_static: false,
                             is_public: false,
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
-                                arguments: vec![],
-                                body: vec![dummy_stmt_expr(dummy_expr_number(1))],
+                                arguments: Box::new([]),
+                                body: Some(Expr {
+                                    kind: ExprKind::Block(BlockExpr {
+                                        body: vec![dummy_stmt_expr(dummy_expr_number(1))]
+                                            .into_boxed_slice(),
+                                    }),
+                                    id: NodeId(0),
+                                    span: dummy_span(),
+                                }),
                                 return_type: dummy_type_never(),
                                 is_public: false,
                                 is_extern: false,
                             },
-                        }],
+                        }]
+                        .into_boxed_slice(),
                         is_public: false,
                     }),
                     id: NodeId(0),
@@ -1377,13 +1405,18 @@ mod tests {
                         methods: vec![InterfaceMethod {
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
-                                arguments: vec![],
-                                body: vec![],
+                                arguments: Box::new([]),
+                                body: Some(Expr {
+                                    kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
+                                    id: NodeId(0),
+                                    span: dummy_span(),
+                                }),
                                 return_type: dummy_type_never(),
                                 is_public: false,
                                 is_extern: false,
                             },
-                        }],
+                        }]
+                        .into_boxed_slice(),
                         is_public: false,
                     }),
                     id: NodeId(0),
@@ -1393,37 +1426,52 @@ mod tests {
                 Stmt {
                     kind: StmtKind::FnDecl(FnDeclStmt {
                         name: dummy_ident("main"),
-                        arguments: vec![],
-                        body: vec![
-                            Stmt {
-                                kind: StmtKind::VarDecl(VarDeclStmt {
-                                    variable_name: dummy_ident("a"),
-                                    is_constant: false,
-                                    is_public: false,
-                                    assigned_value: Some(dummy_expr_number(1)),
-                                    type_: dummy_type_infer(),
-                                    is_static: false,
-                                }),
-                                id: NodeId(0),
-                                span: dummy_span(),
-                                attributes: Box::new([]),
-                            },
-                            Stmt {
-                                kind: StmtKind::Block(BlockStmt {
-                                    body: vec![Stmt {
-                                        kind: StmtKind::Return(ReturnStmt {
-                                            value: Some(dummy_expr_number(2)),
+                        arguments: Box::new([]),
+                        body: Some(Expr {
+                            kind: ExprKind::Block(BlockExpr {
+                                body: vec![
+                                    Stmt {
+                                        kind: StmtKind::VarDecl(VarDeclStmt {
+                                            variable_name: dummy_ident("a"),
+                                            is_constant: false,
+                                            is_public: false,
+                                            assigned_value: Some(dummy_expr_number(1)),
+                                            type_: dummy_type_infer(),
+                                            is_static: false,
                                         }),
                                         id: NodeId(0),
                                         span: dummy_span(),
                                         attributes: Box::new([]),
-                                    }],
-                                }),
-                                id: NodeId(0),
-                                span: dummy_span(),
-                                attributes: Box::new([]),
-                            },
-                        ],
+                                    },
+                                    Stmt {
+                                        kind: StmtKind::Expression(ExpressionStmt {
+                                            expression: Expr {
+                                                kind: ExprKind::Block(BlockExpr {
+                                                    body: vec![Stmt {
+                                                        kind: StmtKind::Return(ReturnStmt {
+                                                            value: Some(dummy_expr_number(2)),
+                                                        }),
+                                                        id: NodeId(0),
+                                                        span: dummy_span(),
+                                                        attributes: Box::new([]),
+                                                    }]
+                                                    .into_boxed_slice(),
+                                                }),
+                                                id: NodeId(0),
+                                                span: dummy_span(),
+                                            },
+                                            has_semicolon: true,
+                                        }),
+                                        id: NodeId(0),
+                                        span: dummy_span(),
+                                        attributes: Box::new([]),
+                                    },
+                                ]
+                                .into_boxed_slice(),
+                            }),
+                            id: NodeId(0),
+                            span: dummy_span(),
+                        }),
                         return_type: dummy_type_symbol("isize"),
                         is_public: false,
                         is_extern: false,
@@ -1444,9 +1492,9 @@ mod tests {
             ("stmt", "InterfaceDeclStmt", 1),
             ("stmt", "FnDeclStmt", 1),
             ("stmt", "VarDeclStmt", 1),
-            ("stmt", "BlockStmt", 1),
+            ("expr", "BlockExpr", 4),
             ("stmt", "ReturnStmt", 1),
-            ("stmt", "ExpressionStmt", 1),
+            ("stmt", "ExpressionStmt", 2),
         ]);
     }
 

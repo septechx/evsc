@@ -52,7 +52,6 @@ pub struct Stmt {
 
 #[derive(Debug, Clone)]
 pub enum StmtKind {
-    Block(BlockStmt),
     Expression(ExpressionStmt),
     VarDecl(VarDeclStmt),
     StructDecl(StructDeclStmt),
@@ -84,6 +83,7 @@ pub enum ExprKind {
     Type(TypeExpr),
     As(AsExpr),
     TupleLiteral(TupleLiteralExpr),
+    Block(BlockExpr),
 }
 
 #[derive(Debug, Clone)]

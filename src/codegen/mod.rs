@@ -40,7 +40,7 @@ use crate::{
         emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
-    span::PackageId,
+    span::ModuleId,
 };
 
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub struct CompileOptions<'a, T: Linker> {
     pub source_dir: &'a Path,
     pub output_file: &'a Path,
     pub source_file: &'a Path,
-    pub module_id: PackageId,
+    pub module_id: ModuleId,
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
     pub pie: bool,

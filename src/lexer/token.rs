@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::span::{PackageId, Span};
+use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
 pub struct TokenStream(Box<[Token]>);
@@ -31,7 +31,7 @@ impl From<Vec<Token>> for TokenStream {
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
-    pub module_id: PackageId,
+    pub module_id: ModuleId,
     pub value: Box<str>,
 }
 

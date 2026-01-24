@@ -26,7 +26,7 @@ use crate::{
         inkwell_ext::add_global_constant,
         pointer::SmartValue,
     },
-    span::PackageId,
+    span::ModuleId,
 };
 
 pub type FunctionTable<'ctx> = HashMap<Box<str>, FunctionTableEntry<'ctx>>;
@@ -104,11 +104,11 @@ pub struct CompilationContext<'ctx> {
     /// Keeps track of all used builtins, currently unused
     pub builtins: HashSet<Builtin>,
     pub module_path: PathBuf,
-    pub module_id: PackageId,
+    pub module_id: ModuleId,
 }
 
 impl<'ctx> CompilationContext<'ctx> {
-    pub fn new(path: PathBuf, module_id: PackageId) -> Self {
+    pub fn new(path: PathBuf, module_id: ModuleId) -> Self {
         CompilationContext {
             symbol_table: HashMap::new(),
             function_table: HashMap::new(),

@@ -1,9 +1,9 @@
 use crate::{
-    span::{PackageId, Span},
+    span::{ModuleId, Span},
     warning_at,
 };
 
-pub fn process_string(str: &str, span: Span, module_id: PackageId) -> String {
+pub fn process_string(str: &str, span: Span, module_id: ModuleId) -> String {
     let mut builder = String::new();
 
     let mut escaped = false;

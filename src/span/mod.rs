@@ -5,9 +5,9 @@ use crate::elogln;
 pub mod sourcemaps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct PackageId(pub u32);
+pub struct ModuleId(pub u32);
 
-impl Display for PackageId {
+impl Display for ModuleId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }

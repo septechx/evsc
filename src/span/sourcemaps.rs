@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::span::{PackageId, Span};
+use crate::span::{ModuleId, Span};
 
 #[derive(Debug, Clone)]
 pub struct SourceMap {
@@ -75,30 +75,30 @@ impl SourceMap {
 
 #[derive(Debug, Clone, Default)]
 pub struct SourceMapManager {
-    source_maps: HashMap<PackageId, SourceMap>,
-    next_id: PackageId,
+    source_maps: HashMap<ModuleId, SourceMap>,
+    next_id: ModuleId,
 }
 
 impl SourceMapManager {
-    pub fn add_source(&mut self, content: String, path: PathBuf) -> PackageId {
+    pub fn add_source(&mut self, content: String, path: PathBuf) -> ModuleId {
         let id = self.next_id;
         let source_map = SourceMap::new(content, path);
         self.source_maps.insert(id, source_map);
-        self.next_id = PackageId(self.next_id.0 + 1);
+        self.next_id = ModuleId(self.next_id.0 + 1);
         id
     }
 
-    pub fn next_id(&mut self) -> PackageId {
+    pub fn next_id(&mut self) -> ModuleId {
         let id = self.next_id;
-        self.next_id = PackageId(self.next_id.0 + 1);
+        self.next_id = ModuleId(self.next_id.0 + 1);
         id
     }
 
-    pub fn get_source(&self, id: PackageId) -> Option<&SourceMap> {
+    pub fn get_source(&self, id: ModuleId) -> Option<&SourceMap> {
         self.source_maps.get(&id)
     }
 
-    pub fn get_line_column(&self, id: PackageId, offset: u32) -> Option<(usize, usize)> {
+    pub fn get_line_column(&self, id: ModuleId, offset: u32) -> Option<(usize, usize)> {
         self.source_maps.get(&id).map(|sm| sm.line_column(offset))
     }
 }

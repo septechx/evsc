@@ -113,7 +113,7 @@ impl Parser {
             fatal_at!(
                 token.span,
                 token.module_id,
-                err.unwrap_or(format!(
+                err.unwrap_or_else(|| format!(
                     "Syntax error: Expected {} but received {} instead.",
                     expected_kind, token.kind
                 ))

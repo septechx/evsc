@@ -6,7 +6,7 @@ use std::{
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::span::{PackageId, Span};
+use crate::span::{ModuleId, Span};
 
 pub trait Widget<T: Write>: Debug {
     fn render(&self, f: &mut T) -> std::fmt::Result;
@@ -79,7 +79,7 @@ pub struct CodeWidget {
 }
 
 impl CodeWidget {
-    pub fn new(span: Span, module_id: PackageId, highlight_type: HighlightType) -> Result<Self> {
+    pub fn new(span: Span, module_id: ModuleId, highlight_type: HighlightType) -> Result<Self> {
         let (_, line, column, length) = crate::SOURCE_MAPS.with(|sm| {
             let maps = sm.borrow();
             maps.get_source(module_id)
@@ -167,7 +167,7 @@ pub struct LocationWidget {
 }
 
 impl LocationWidget {
-    pub fn new(span: Span, module_id: PackageId) -> Result<Self> {
+    pub fn new(span: Span, module_id: ModuleId) -> Result<Self> {
         let (file, line, column, _) = crate::SOURCE_MAPS.with(|sm| {
             let maps = sm.borrow();
             maps.get_source(module_id)
@@ -205,7 +205,7 @@ pub struct InfoWidget {
 }
 
 impl InfoWidget {
-    pub fn new(span: Span, module_id: PackageId, content: impl Into<Box<str>>) -> Result<Self> {
+    pub fn new(span: Span, module_id: ModuleId, content: impl Into<Box<str>>) -> Result<Self> {
         let (_, line, ..) = crate::SOURCE_MAPS.with(|sm| {
             let maps = sm.borrow();
             maps.get_source(module_id)

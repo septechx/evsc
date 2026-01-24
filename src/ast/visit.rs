@@ -341,7 +341,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Ident, ImportTree, ImportTreeKind, NodeId, Path},
-        span::{PackageId, Span},
+        span::{ModuleId, Span},
     };
     use std::collections::HashMap;
 
@@ -491,7 +491,7 @@ mod tests {
             kind,
             value: "".to_string().into_boxed_str(),
             span: dummy_span(),
-            module_id: PackageId(0),
+            module_id: ModuleId(0),
         }
     }
 

@@ -13,7 +13,7 @@ use crate::{
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
-    span::{PackageId, Span},
+    span::{ModuleId, Span},
 };
 use std::fs;
 
@@ -191,7 +191,7 @@ fn map_c_type(ty: &str) -> &str {
     }
 }
 
-fn convert_clang_location(location: SourceLocation) -> (Span, PackageId) {
+fn convert_clang_location(location: SourceLocation) -> (Span, ModuleId) {
     let loc = location.get_file_location();
     let clang_file = loc.file.expect("file location has no file").get_path();
     let file_path = clang_file.clone();
@@ -201,7 +201,7 @@ fn convert_clang_location(location: SourceLocation) -> (Span, PackageId) {
         if let Ok(content) = fs::read_to_string(&file_path) {
             maps.add_source(content, file_path)
         } else {
-            PackageId(0)
+            ModuleId(0)
         }
     });
 

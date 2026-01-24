@@ -2,5 +2,6 @@
 /.vscode/
 /main*
 /mini_libc*
+/*.oxi
 /_*
 /.oxi/

@@ -36,12 +36,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .const_int(*i as u64, false)
                     .as_basic_value_enum(),
             ),
-            Literal::Float(f) => SmartValue::from_value(
-                context
-                    .f64_type()
-                    .const_float(*f)
-                    .as_basic_value_enum(),
-            ),
+            Literal::Float(f) => {
+                SmartValue::from_value(context.f64_type().const_float(*f).as_basic_value_enum())
+            }
             Literal::Bool(b) => SmartValue::from_value(
                 context
                     .bool_type()
@@ -251,7 +248,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 compilation_context,
             )?;
 
-            let base_type = base.pointee_ty.unwrap_or(base.value.get_type());
+            let base_type = base.pointee_ty.unwrap_or_else(|| base.value.get_type());
 
             let struct_ty = base_type.into_struct_type();
             let struct_name = struct_ty

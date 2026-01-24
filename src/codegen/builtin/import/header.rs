@@ -119,12 +119,11 @@ fn parse_function_type(ty: clang::Type) -> Result<(Type, Vec<Type>)> {
         })
         .collect();
 
-    let loc = return_type
+    let span = return_type
         .get_declaration()
-        .expect("return type has no location")
-        .get_location()
-        .expect("return type has no location");
-    let (span, _) = convert_clang_location(loc);
+        .and_then(|decl| decl.get_location())
+        .map(|loc| convert_clang_location(loc).0)
+        .unwrap_or(Span::new(0, 0));
     let return_type = parse_type(&return_type.get_display_name(), span);
 
     Ok((return_type, arg_types))

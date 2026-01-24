@@ -61,9 +61,7 @@ macro_rules! emit_at {
                     span, module_id,
                 )?)
                 .add_widget($crate::errors::widgets::CodeWidget::new(
-                    span,
-                    module_id,
-                    $highlight,
+                    span, module_id, $highlight,
                 )?);
             let builder = if let Some(info) = $info {
                 builder.add_widget($crate::errors::widgets::InfoWidget::new(

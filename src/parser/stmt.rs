@@ -521,13 +521,16 @@ fn parse_import_tree_list(parser: &mut Parser) -> Result<Box<[ImportTree]>> {
     loop {
         items.push(parse_import_tree(parser)?);
 
-        if parser.peek().kind != TokenKind::CloseCurly
-            && parser.current_token().kind == TokenKind::Comma
-        {
-            parser.expect(TokenKind::Comma)?;
+        if parser.current_token().kind == TokenKind::CloseCurly {
+            break;
         }
 
-        if parser.current_token().kind == TokenKind::CloseCurly {
+        if parser.current_token().kind == TokenKind::Comma {
+            parser.advance();
+            if parser.current_token().kind == TokenKind::CloseCurly {
+                break;
+            }
+        } else {
             break;
         }
     }

@@ -437,13 +437,21 @@ pub fn parse_fn_decl_stmt(
 pub fn parse_return_stmt(
     parser: &mut Parser,
     attributes: &[Attribute],
-    _modifiers: &[Modifier],
+    modifiers: &[Modifier],
 ) -> Result<Stmt> {
     if !attributes.is_empty() {
         error_at!(
             attributes[0].span,
             parser.current_token().module_id,
             "Attribute not allowed here"
+        )?;
+    }
+
+    if !modifiers.is_empty() {
+        error_at!(
+            modifiers[0].span,
+            parser.current_token().module_id,
+            "Modifier not allowed here"
         )?;
     }
 

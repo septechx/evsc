@@ -8,7 +8,7 @@ use crate::{
         token::{Token, TokenKind, TokenStream, lookup_reserved},
         verify::verify_tokens,
     },
-    span::{ModuleId, Span},
+    span::{PackageId, Span},
 };
 use anyhow::Result;
 use parking_lot::Once;
@@ -44,7 +44,7 @@ impl Lexer {
         &self.file_content[self.pos..]
     }
 
-    pub fn tokenize(&mut self, module_id: ModuleId) -> Result<TokenStream> {
+    pub fn tokenize(&mut self, module_id: PackageId) -> Result<TokenStream> {
         let mut tokens: Vec<Token> = vec![];
 
         if self.file_content.starts_with("#!") {
@@ -100,7 +100,7 @@ impl Lexer {
     }
 }
 
-pub fn tokenize(file: String, path: &Path) -> Result<(TokenStream, ModuleId)> {
+pub fn tokenize(file: String, path: &Path) -> Result<(TokenStream, PackageId)> {
     initialize_regexes();
 
     let module_id = crate::SOURCE_MAPS.with(|sm| {
@@ -119,7 +119,7 @@ fn default_handler(tok: TokenKind) -> TokenHandler {
         Ok(Some(Token {
             kind: tok,
             span,
-            module_id: ModuleId(0),
+            module_id: PackageId(0),
             value: value.into(),
         }))
     })
@@ -130,7 +130,7 @@ fn number_handler() -> TokenHandler {
         Ok(Some(Token {
             kind: TokenKind::Number,
             span,
-            module_id: ModuleId(0),
+            module_id: PackageId(0),
             value: val.into(),
         }))
     })
@@ -146,7 +146,7 @@ fn string_literal_handler() -> TokenHandler {
         Ok(Some(Token {
             kind: TokenKind::StringLiteral,
             span,
-            module_id: ModuleId(0),
+            module_id: PackageId(0),
             value: inner.into(),
         }))
     })
@@ -158,7 +158,7 @@ fn identifier_handler() -> TokenHandler {
         Ok(Some(Token {
             kind: tok,
             span,
-            module_id: ModuleId(0),
+            module_id: PackageId(0),
             value: val.into(),
         }))
     })

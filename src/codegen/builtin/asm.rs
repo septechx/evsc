@@ -9,7 +9,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expr, ExprKind},
+    ast::{Expr, ExprKind, Literal},
     codegen::{
         arch::compile_arch_size_type, builtin::BuiltinFunction,
         compile_expr::compile_expression_to_value, compiler::CompilationContext,
@@ -48,8 +48,11 @@ impl BuiltinFunction for AsmBuiltin {
             &expr.arguments[1].kind,
             &expr.arguments[2].kind,
         ) {
-            (ExprKind::String(asm), ExprKind::String(cons), ExprKind::TupleLiteral(args)) => {
-                (asm, cons, args)
+            (ExprKind::Literal(asm), ExprKind::Literal(cons), ExprKind::TupleLiteral(args)) => {
+                match (asm, cons) {
+                    (Literal::String(asm), Literal::String(cons)) => (asm, cons, args),
+                    _ => return fail(),
+                }
             }
             _ => {
                 return fail();
@@ -67,7 +70,7 @@ impl BuiltinFunction for AsmBuiltin {
             operands.push(val.into());
         }
 
-        let ret_void = !constraints.value.contains('=');
+        let ret_void = !constraints.contains('=');
         let fn_type = if ret_void {
             context.void_type().fn_type(&metadata_types, false)
         } else {
@@ -76,8 +79,8 @@ impl BuiltinFunction for AsmBuiltin {
 
         let inline_asm = context.create_inline_asm(
             fn_type,
-            asm_str.value.to_string(),
-            constraints.value.to_string(),
+            asm_str.to_string(),
+            constraints.to_string(),
             true,
             false,
             Some(InlineAsmDialect::Intel),

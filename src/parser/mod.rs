@@ -133,7 +133,7 @@ impl Parser {
     }
 }
 
-pub fn parse(tokens: TokenStream) -> Result<Ast> {
+pub fn parse(tokens: TokenStream, name: &str) -> Result<Ast> {
     create_token_lookups();
     create_token_type_lookups();
 
@@ -144,5 +144,8 @@ pub fn parse(tokens: TokenStream) -> Result<Ast> {
         body.push(parse_stmt(&mut parser)?);
     }
 
-    Ok(Ast(body.into_boxed_slice()))
+    Ok(Ast {
+        name: name.into(),
+        items: body.into_boxed_slice(),
+    })
 }

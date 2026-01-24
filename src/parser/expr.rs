@@ -5,11 +5,11 @@ use anyhow::{Result, bail};
 
 use crate::{
     ast::{
-        Expr, ExprKind, Ident,
+        Expr, ExprKind, Ident, Literal,
         expressions::{
             ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, FunctionCallExpr,
-            MemberAccessExpr, NumberExpr, PostfixExpr, PrefixExpr, StringExpr,
-            StructInstantiationExpr, SymbolExpr, TupleLiteralExpr, TypeExpr,
+            MemberAccessExpr, PostfixExpr, PrefixExpr, StructInstantiationExpr, SymbolExpr,
+            TupleLiteralExpr, TypeExpr,
         },
     },
     fatal_at,
@@ -71,15 +71,13 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
 
     match token.kind {
         TokenKind::Number => Ok(parser.expr(
-            ExprKind::Number(NumberExpr {
-                value: value.parse::<i32>()?,
-            }),
+            ExprKind::Literal(Literal::Integer(value.parse::<i64>()?)),
             span,
         )),
         TokenKind::StringLiteral => Ok(parser.expr(
-            ExprKind::String(StringExpr {
-                value: process_string(&value, span, token.module_id).into(),
-            }),
+            ExprKind::Literal(Literal::String(
+                process_string(&value, span, token.module_id).into_boxed_str(),
+            )),
             span,
         )),
         TokenKind::Identifier => Ok(parser.expr(

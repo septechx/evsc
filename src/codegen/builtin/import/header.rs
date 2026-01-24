@@ -13,7 +13,7 @@ use crate::{
         compiler::{self, CompilationContext},
         pointer::SmartValue,
     },
-    span::{ModuleId, Span},
+    span::{PackageId, Span},
 };
 use std::fs;
 
@@ -86,7 +86,7 @@ pub fn compile_header<'ctx>(
                     is_public: true,
                     is_extern: true,
                 }),
-                id: NodeId(i),
+                id: NodeId(i as u32),
                 span,
                 attributes: Box::new([]),
             };
@@ -95,7 +95,10 @@ pub fn compile_header<'ctx>(
         }
     }
 
-    let ast = Ast(ast.into_boxed_slice());
+    let ast = Ast {
+        name: (&module_name).to_string().into_boxed_str(),
+        items: ast.into_boxed_slice(),
+    };
 
     let module_id = crate::SOURCE_MAPS.with(|sm| {
         let mut maps = sm.borrow_mut();
@@ -107,7 +110,7 @@ pub fn compile_header<'ctx>(
         context,
         module,
         builder,
-        &ast.0,
+        &ast.items,
         &mut mod_compilation_context,
     )?;
 
@@ -188,7 +191,7 @@ fn map_c_type(ty: &str) -> &str {
     }
 }
 
-fn convert_clang_location(location: SourceLocation) -> (Span, ModuleId) {
+fn convert_clang_location(location: SourceLocation) -> (Span, PackageId) {
     let loc = location.get_file_location();
     let clang_file = loc.file.expect("file location has no file").get_path();
     let file_path = clang_file.clone();
@@ -198,7 +201,7 @@ fn convert_clang_location(location: SourceLocation) -> (Span, ModuleId) {
         if let Ok(content) = fs::read_to_string(&file_path) {
             maps.add_source(content, file_path)
         } else {
-            ModuleId(0)
+            PackageId(0)
         }
     });
 

@@ -1,7 +1,8 @@
 use std::{collections::HashMap, hash::Hash};
 
 use crate::ast::{
-    Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind, expressions::*, statements::*, types::*,
+    Ast, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*, statements::*,
+    types::*,
 };
 
 pub trait Visitor {
@@ -54,7 +55,7 @@ impl<K: Eq + Hash, V: Visitable> Visitable for HashMap<K, V> {
 
 impl Visitable for Ast {
     fn visit(&mut self, visitor: &mut impl Visitor) {
-        for stmt in &mut self.0 {
+        for stmt in &mut self.items {
             stmt.visit(visitor);
         }
     }
@@ -172,8 +173,7 @@ impl Visitable for Expr {
         visitor.visit_expr(self);
 
         match &mut self.kind {
-            ExprKind::Number(n) => n.visit(visitor),
-            ExprKind::String(s) => s.visit(visitor),
+            ExprKind::Literal(l) => l.visit(visitor),
             ExprKind::Symbol(s) => s.visit(visitor),
             ExprKind::Binary(b) => b.visit(visitor),
             ExprKind::Postfix(p) => p.visit(visitor),
@@ -190,17 +190,13 @@ impl Visitable for Expr {
     }
 }
 
-impl Visitable for NumberExpr {
-    fn visit(&mut self, _visitor: &mut impl Visitor) {
-        // Unit
-    }
-}
-impl Visitable for StringExpr {
-    fn visit(&mut self, _visitor: &mut impl Visitor) {
-        // Unit
-    }
-}
 impl Visitable for SymbolExpr {
+    fn visit(&mut self, _visitor: &mut impl Visitor) {
+        // Unit
+    }
+}
+
+impl Visitable for Literal {
     fn visit(&mut self, _visitor: &mut impl Visitor) {
         // Unit
     }
@@ -345,7 +341,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Ident, ImportTree, ImportTreeKind, NodeId, Path},
-        span::{ModuleId, Span},
+        span::{PackageId, Span},
     };
     use std::collections::HashMap;
 
@@ -437,8 +433,7 @@ mod tests {
             *self.expr_counts.entry("Expr").or_insert(0) += 1;
 
             let kind_name = match &expr.kind {
-                ExprKind::Number(_) => "NumberExpr",
-                ExprKind::String(_) => "StringExpr",
+                ExprKind::Literal(_) => "Literal",
                 ExprKind::Symbol(_) => "SymbolExpr",
                 ExprKind::Binary(_) => "BinaryExpr",
                 ExprKind::Postfix(_) => "PostfixExpr",
@@ -489,7 +484,7 @@ mod tests {
             kind,
             value: "".to_string().into_boxed_str(),
             span: dummy_span(),
-            module_id: ModuleId(0),
+            module_id: PackageId(0),
         }
     }
 
@@ -521,7 +516,7 @@ mod tests {
 
     fn dummy_expr_number(value: i32) -> Expr {
         Expr {
-            kind: ExprKind::Number(NumberExpr { value }),
+            kind: ExprKind::Literal(Literal::Integer(value as i64)),
             id: NodeId(0),
             span: dummy_span(),
         }
@@ -567,9 +562,7 @@ mod tests {
     #[test]
     fn test_string_expr_visited_once() {
         let mut expr = Expr {
-            kind: ExprKind::String(StringExpr {
-                value: "hello".to_string().into_boxed_str(),
-            }),
+            kind: ExprKind::Literal(Literal::String("hello".to_string().into_boxed_str())),
             id: NodeId(0),
             span: dummy_span(),
         };
@@ -1284,110 +1277,113 @@ mod tests {
 
     #[test]
     fn test_comprehensive_all_statement_types() {
-        let mut ast = Ast(Box::new([
-            Stmt {
-                kind: StmtKind::Import(ImportStmt {
-                    tree: ImportTree {
-                        prefix: Path {
+        let mut ast = Ast {
+            name: "test".into(),
+            items: Box::new([
+                Stmt {
+                    kind: StmtKind::Import(ImportStmt {
+                        tree: ImportTree {
+                            prefix: Path {
+                                span: dummy_span(),
+                                segments: Box::new([dummy_ident("std")]),
+                            },
+                            kind: ImportTreeKind::Simple(None),
                             span: dummy_span(),
-                            segments: Box::new([dummy_ident("std")]),
                         },
-                        kind: ImportTreeKind::Simple(None),
-                        span: dummy_span(),
-                    },
-                }),
-                id: NodeId(0),
-                span: dummy_span(),
-                attributes: Box::new([]),
-            },
-            Stmt {
-                kind: StmtKind::StructDecl(StructDeclStmt {
-                    name: dummy_ident("Foo"),
-                    properties: vec![StructProperty {
-                        name: dummy_ident("x"),
-                        type_: dummy_type_symbol("i32"),
-                        is_public: false,
-                    }],
-                    methods: vec![StructMethod {
-                        is_static: false,
-                        is_public: false,
-                        fn_decl: FnDeclStmt {
-                            name: dummy_ident("method"),
-                            arguments: vec![],
-                            body: vec![dummy_stmt_expr(dummy_expr_number(1))],
-                            return_type: dummy_type_never(),
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                    attributes: Box::new([]),
+                },
+                Stmt {
+                    kind: StmtKind::StructDecl(StructDeclStmt {
+                        name: dummy_ident("Foo"),
+                        properties: vec![StructProperty {
+                            name: dummy_ident("x"),
+                            type_: dummy_type_symbol("i32"),
                             is_public: false,
-                            is_extern: false,
-                        },
-                    }],
-                    is_public: false,
-                }),
-                id: NodeId(0),
-                span: dummy_span(),
-                attributes: Box::new([]),
-            },
-            Stmt {
-                kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
-                    name: dummy_ident("Bar"),
-                    methods: vec![InterfaceMethod {
-                        fn_decl: FnDeclStmt {
-                            name: dummy_ident("method"),
-                            arguments: vec![],
-                            body: vec![],
-                            return_type: dummy_type_never(),
+                        }],
+                        methods: vec![StructMethod {
+                            is_static: false,
                             is_public: false,
-                            is_extern: false,
-                        },
-                    }],
-                    is_public: false,
-                }),
-                id: NodeId(0),
-                span: dummy_span(),
-                attributes: Box::new([]),
-            },
-            Stmt {
-                kind: StmtKind::FnDecl(FnDeclStmt {
-                    name: dummy_ident("main"),
-                    arguments: vec![],
-                    body: vec![
-                        Stmt {
-                            kind: StmtKind::VarDecl(VarDeclStmt {
-                                variable_name: dummy_ident("a"),
-                                is_constant: false,
+                            fn_decl: FnDeclStmt {
+                                name: dummy_ident("method"),
+                                arguments: vec![],
+                                body: vec![dummy_stmt_expr(dummy_expr_number(1))],
+                                return_type: dummy_type_never(),
                                 is_public: false,
-                                assigned_value: Some(dummy_expr_number(1)),
-                                type_: dummy_type_infer(),
-                                is_static: false,
-                            }),
-                            id: NodeId(0),
-                            span: dummy_span(),
-                            attributes: Box::new([]),
-                        },
-                        Stmt {
-                            kind: StmtKind::Block(BlockStmt {
-                                body: vec![Stmt {
-                                    kind: StmtKind::Return(ReturnStmt {
-                                        value: Some(dummy_expr_number(2)),
-                                    }),
-                                    id: NodeId(0),
-                                    span: dummy_span(),
-                                    attributes: Box::new([]),
-                                }],
-                            }),
-                            id: NodeId(0),
-                            span: dummy_span(),
-                            attributes: Box::new([]),
-                        },
-                    ],
-                    return_type: dummy_type_symbol("isize"),
-                    is_public: false,
-                    is_extern: false,
-                }),
-                id: NodeId(0),
-                span: dummy_span(),
-                attributes: Box::new([]),
-            },
-        ]));
+                                is_extern: false,
+                            },
+                        }],
+                        is_public: false,
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                    attributes: Box::new([]),
+                },
+                Stmt {
+                    kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
+                        name: dummy_ident("Bar"),
+                        methods: vec![InterfaceMethod {
+                            fn_decl: FnDeclStmt {
+                                name: dummy_ident("method"),
+                                arguments: vec![],
+                                body: vec![],
+                                return_type: dummy_type_never(),
+                                is_public: false,
+                                is_extern: false,
+                            },
+                        }],
+                        is_public: false,
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                    attributes: Box::new([]),
+                },
+                Stmt {
+                    kind: StmtKind::FnDecl(FnDeclStmt {
+                        name: dummy_ident("main"),
+                        arguments: vec![],
+                        body: vec![
+                            Stmt {
+                                kind: StmtKind::VarDecl(VarDeclStmt {
+                                    variable_name: dummy_ident("a"),
+                                    is_constant: false,
+                                    is_public: false,
+                                    assigned_value: Some(dummy_expr_number(1)),
+                                    type_: dummy_type_infer(),
+                                    is_static: false,
+                                }),
+                                id: NodeId(0),
+                                span: dummy_span(),
+                                attributes: Box::new([]),
+                            },
+                            Stmt {
+                                kind: StmtKind::Block(BlockStmt {
+                                    body: vec![Stmt {
+                                        kind: StmtKind::Return(ReturnStmt {
+                                            value: Some(dummy_expr_number(2)),
+                                        }),
+                                        id: NodeId(0),
+                                        span: dummy_span(),
+                                        attributes: Box::new([]),
+                                    }],
+                                }),
+                                id: NodeId(0),
+                                span: dummy_span(),
+                                attributes: Box::new([]),
+                            },
+                        ],
+                        return_type: dummy_type_symbol("isize"),
+                        is_public: false,
+                        is_extern: false,
+                    }),
+                    id: NodeId(0),
+                    span: dummy_span(),
+                    attributes: Box::new([]),
+                },
+            ]),
+        };
 
         let mut visitor = NodeCounterVisitor::new();
         ast.visit(&mut visitor);

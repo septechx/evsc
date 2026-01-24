@@ -11,7 +11,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expr, ExprKind, Type, TypeKind, types::SliceType},
+    ast::{Expr, ExprKind, Literal, Type, TypeKind, types::SliceType},
     codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
@@ -30,34 +30,37 @@ pub fn compile_expression_to_value<'a, 'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<SmartValue<'ctx>> {
     Ok(match &expr.kind {
-        ExprKind::Number(n) => SmartValue::from_value(
-            compile_arch_size_type(context)
-                .const_int(n.value as u64, false)
-                .as_basic_value_enum(),
-        ),
-        ExprKind::String(s) => {
-            let string_val = context.const_string(s.value.as_bytes(), false);
-            let global = module.add_global(string_val.get_type(), None, "str");
-            global.set_initializer(&string_val);
-            global.set_constant(true);
-            global.set_linkage(Linkage::Private);
+        ExprKind::Literal(lit) => match lit {
+            Literal::Integer(i) => SmartValue::from_value(
+                compile_arch_size_type(context)
+                    .const_int(*i as u64, false)
+                    .as_basic_value_enum(),
+            ),
+            Literal::String(s) => {
+                let string_val = context.const_string(s.as_bytes(), false);
+                let global = module.add_global(string_val.get_type(), None, "str");
+                global.set_initializer(&string_val);
+                global.set_constant(true);
+                global.set_linkage(Linkage::Private);
 
-            let slice_ty = get_builtin(context, compilation_context, Builtin::Slice)?.llvm_type;
+                let slice_ty = get_builtin(context, compilation_context, Builtin::Slice)?.llvm_type;
 
-            let slice_val = slice_ty.get_undef();
+                let slice_val = slice_ty.get_undef();
 
-            let ptr_val = builder.build_pointer_cast(
-                global.as_pointer_value(),
-                context.ptr_type(AddressSpace::default()),
-                "string_ptr",
-            )?;
-            let len_val = compile_arch_size_type(context).const_int(s.value.len() as u64, false);
+                let ptr_val = builder.build_pointer_cast(
+                    global.as_pointer_value(),
+                    context.ptr_type(AddressSpace::default()),
+                    "string_ptr",
+                )?;
+                let len_val = compile_arch_size_type(context).const_int(s.len() as u64, false);
 
-            let slice_val = builder.build_insert_value(slice_val, ptr_val, 0, "slice_ptr")?;
-            let slice_val = builder.build_insert_value(slice_val, len_val, 1, "slice_len")?;
+                let slice_val = builder.build_insert_value(slice_val, ptr_val, 0, "slice_ptr")?;
+                let slice_val = builder.build_insert_value(slice_val, len_val, 1, "slice_len")?;
 
-            SmartValue::from_value(slice_val.as_basic_value_enum())
-        }
+                SmartValue::from_value(slice_val.as_basic_value_enum())
+            }
+            _ => unimplemented!(),
+        },
         // Returns a pointer
         ExprKind::Symbol(sym) => {
             let entry = compilation_context

@@ -3,7 +3,8 @@ use std::fmt::Write;
 use colored::Colorize;
 
 use crate::ast::{
-    Expr, ExprKind, ImportTree, ImportTreeKind, Stmt, StmtKind, Type, TypeKind, statements::*,
+    Expr, ExprKind, ImportTree, ImportTreeKind, Literal, Stmt, StmtKind, Type, TypeKind,
+    statements::*,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -83,7 +84,7 @@ fn punct_with_color(s: &str, color: bool) -> String {
     }
 }
 
-fn node_id_with_color(n: usize, color: bool) -> String {
+fn node_id_with_color(n: u32, color: bool) -> String {
     let s = format!("#{}", n);
     if color { s.dimmed().to_string() } else { s }
 }
@@ -510,22 +511,19 @@ fn write_interface_method(
 fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::Result {
     let id = expr.id.0;
     match &expr.kind {
-        ExprKind::Number(num) => {
+        ExprKind::Literal(lit) => {
             write!(
                 out,
                 "{} {}: {}",
-                "Number".with_color(ctx.color),
+                "Literal".with_color(ctx.color),
                 node_id_with_color(id, ctx.color),
-                number_with_color(&num.value.to_string(), ctx.color)
-            )?;
-        }
-        ExprKind::String(s) => {
-            write!(
-                out,
-                "{} {}: {}",
-                "String".with_color(ctx.color),
-                node_id_with_color(id, ctx.color),
-                string_with_color(&s.value, ctx.color)
+                match lit {
+                    Literal::Integer(i) => number_with_color(&i.to_string(), ctx.color),
+                    Literal::Float(f) => number_with_color(&f.to_string(), ctx.color),
+                    Literal::String(s) => string_with_color(s, ctx.color),
+                    Literal::Char(c) => string_with_color(&c.to_string(), ctx.color),
+                    Literal::Bool(b) => string_with_color(&b.to_string(), ctx.color),
+                }
             )?;
         }
         ExprKind::Symbol(s) => {
@@ -844,9 +842,6 @@ fn write_import_tree(
 
 impl ExprKind {
     pub fn is_leaf(&self) -> bool {
-        matches!(
-            self,
-            ExprKind::Number(_) | ExprKind::String(_) | ExprKind::Symbol(_)
-        )
+        matches!(self, ExprKind::Literal(_) | ExprKind::Symbol(_))
     }
 }

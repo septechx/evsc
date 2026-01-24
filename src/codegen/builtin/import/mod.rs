@@ -10,7 +10,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expr, ExprKind},
+    ast::{Expr, ExprKind, Literal},
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::{
@@ -50,7 +50,13 @@ impl BuiltinFunction for ImportBuiltin {
         }
 
         let module_name = match &fn_expr.arguments[0].kind {
-            ExprKind::String(sym) => sym.value.clone(),
+            ExprKind::Literal(sym) => {
+                if let Literal::String(s) = sym {
+                    s.clone()
+                } else {
+                    bail!("Expected string literal as argument to @import");
+                }
+            }
             _ => bail!("Expected string literal as argument to @import"),
         };
 
@@ -107,7 +113,7 @@ fn compile_oxi_module<'ctx>(
     };
 
     let (tokens, module_id) = tokenize(file, &module_path)?;
-    let ast = parse(tokens)?;
+    let ast = parse(tokens, &module_name)?;
 
     let mut mod_compilation_context = CompilationContext::new(module_path, module_id);
 
@@ -115,7 +121,7 @@ fn compile_oxi_module<'ctx>(
         context,
         module,
         builder,
-        &ast.0,
+        &ast.items,
         &mut mod_compilation_context,
     )?;
     // Compile module

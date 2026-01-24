@@ -96,7 +96,7 @@ fn build_file<T: Linker>(file_path: PathBuf, cli: &Cli) -> Result<()> {
     let (tokens, module_id) = tokenize(source_text, &file_path)?;
     check_for_errors();
 
-    let ast = parse(tokens)?;
+    let ast = parse(tokens, &file_path.file_stem().unwrap().to_str().unwrap())?;
     check_for_errors();
 
     if cli.print_ast {

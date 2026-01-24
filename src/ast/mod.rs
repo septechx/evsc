@@ -13,13 +13,16 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Ast(pub Box<[Stmt]>);
+pub struct Ast {
+    pub name: Box<str>,
+    pub items: Box<[Stmt]>,
+}
 
 impl Ast {
     pub fn display(&self, color: bool) -> Result<String, std::fmt::Error> {
         let ctx = DisplayContext::new(color);
         let mut output = String::new();
-        for (i, stmt) in self.0.iter().enumerate() {
+        for (i, stmt) in self.items.iter().enumerate() {
             if i > 0 {
                 output.push('\n');
             }
@@ -30,7 +33,7 @@ impl Ast {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Copy)]
-pub struct NodeId(pub usize);
+pub struct NodeId(pub u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
@@ -68,8 +71,7 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
-    Number(NumberExpr),
-    String(StringExpr),
+    Literal(Literal),
     Symbol(SymbolExpr),
     Binary(BinaryExpr),
     Postfix(PostfixExpr),
@@ -82,6 +84,15 @@ pub enum ExprKind {
     Type(TypeExpr),
     As(AsExpr),
     TupleLiteral(TupleLiteralExpr),
+}
+
+#[derive(Debug, Clone)]
+pub enum Literal {
+    Integer(i64),
+    Float(f64),
+    String(Box<str>),
+    Char(char),
+    Bool(bool),
 }
 
 #[derive(Debug, Clone)]

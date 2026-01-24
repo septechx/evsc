@@ -7,11 +7,11 @@ use anyhow::Result;
 
 use crate::{
     fatal_at_with_info,
-    span::{ModuleId, Span},
+    span::{PackageId, Span},
     utils::get_root,
 };
 
-pub fn resolve_std_lib(requester_span: Span, requeter_mod_id: ModuleId) -> Result<PathBuf> {
+pub fn resolve_std_lib(requester_span: Span, requeter_mod_id: PackageId) -> Result<PathBuf> {
     let env_var = env::var("OXI_LIB_PATH");
     if let Ok(env_var) = env_var {
         return Ok(Path::new(&env_var).join("std/lib.oxi"));

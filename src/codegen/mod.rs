@@ -40,7 +40,7 @@ use crate::{
         emmiter::emit_to_file,
         runtime::generate_c_runtime_integration,
     },
-    span::ModuleId,
+    span::PackageId,
 };
 
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub struct CompileOptions<'a, T: Linker> {
     pub source_dir: &'a Path,
     pub output_file: &'a Path,
     pub source_file: &'a Path,
-    pub module_id: ModuleId,
+    pub module_id: PackageId,
     pub emit: &'a EmitType,
     pub backend_options: &'a BackendOptions,
     pub pie: bool,
@@ -74,7 +74,7 @@ pub fn compile<T: Linker>(ast: Ast, opts: &CompileOptions<T>) -> Result<()> {
     let mut cc = CompilationContext::new(opts.source_dir.join(opts.module_name), opts.module_id);
 
     let init_fn = setup_module(&context, &module, &builder)?;
-    compile_stmts(&context, &module, &builder, &ast.0, &mut cc)?;
+    compile_stmts(&context, &module, &builder, &ast.items, &mut cc)?;
     emit_global_ctors(&context, &module, &builder, init_fn)?;
 
     check_for_errors();

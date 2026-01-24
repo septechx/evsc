@@ -436,9 +436,17 @@ pub fn parse_fn_decl_stmt(
 
 pub fn parse_return_stmt(
     parser: &mut Parser,
-    _attributes: &[Attribute],
+    attributes: &[Attribute],
     _modifiers: &[Modifier],
 ) -> Result<Stmt> {
+    if !attributes.is_empty() {
+        error_at!(
+            attributes[0].span,
+            parser.current_token().module_id,
+            "Attribute not allowed here"
+        )?;
+    }
+
     let return_token = parser.advance();
 
     let value = if parser.current_token().kind != TokenKind::Semicolon {

@@ -8,11 +8,10 @@ mod types;
 mod utils;
 
 use crate::{
-    ast::{Ast, Attribute, Expr, ExprKind, Ident, NodeId, Stmt, StmtKind, Type, TypeKind},
+    ast::{Ast, Ident, Stmt},
     fatal_at,
     lexer::token::{Token, TokenKind, TokenStream},
     parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
-    span::Span,
 };
 
 use anyhow::Result;
@@ -21,7 +20,6 @@ use std::convert::TryInto;
 pub struct Parser {
     tokens: Box<[Token]>,
     pos: usize,
-    next_id: NodeId,
 }
 
 impl Parser {
@@ -29,39 +27,7 @@ impl Parser {
         Parser {
             tokens: tokens.into_boxed_slice(),
             pos: 0,
-            next_id: NodeId(0),
         }
-    }
-
-    pub fn stmt(&mut self, kind: StmtKind, span: Span, attributes: Box<[Attribute]>) -> Stmt {
-        Stmt {
-            id: self.next_id(),
-            kind,
-            span,
-            attributes,
-        }
-    }
-
-    pub fn expr(&mut self, kind: ExprKind, span: Span) -> Expr {
-        Expr {
-            id: self.next_id(),
-            kind,
-            span,
-        }
-    }
-
-    pub fn type_(&mut self, kind: TypeKind, span: Span) -> Type {
-        Type {
-            id: self.next_id(),
-            kind,
-            span,
-        }
-    }
-
-    pub fn next_id(&mut self) -> NodeId {
-        let id = self.next_id;
-        self.next_id = NodeId(self.next_id.0 + 1);
-        id
     }
 
     pub fn tokens(&self) -> &[Token] {

@@ -32,9 +32,6 @@ impl Ast {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Copy)]
-pub struct NodeId(pub u32);
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
     pub name: Ident,
@@ -45,7 +42,6 @@ pub struct Attribute {
 #[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
-    pub id: NodeId,
     pub span: Span,
     pub attributes: Box<[Attribute]>,
 }
@@ -64,7 +60,6 @@ pub enum StmtKind {
 #[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
-    pub id: NodeId,
     pub span: Span,
 }
 
@@ -98,7 +93,6 @@ pub enum Literal {
 #[derive(Debug, Clone)]
 pub struct Type {
     pub kind: TypeKind,
-    pub id: NodeId,
     pub span: Span,
 }
 
@@ -156,7 +150,7 @@ pub enum ImportTreeKind {
     ///             ^^^^^^^^^^
     /// ```
     Nested {
-        items: Box<[(ImportTree, NodeId)]>,
+        items: Box<[ImportTree]>,
         span: Span,
     },
     /// `import prefix::*`

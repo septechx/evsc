@@ -71,7 +71,10 @@ fn parse_symbol_type(parser: &mut Parser) -> Result<Type> {
     let ident = parser.expect_identifier()?;
     let span = ident.span;
 
-    Ok(parser.type_(TypeKind::Symbol(SymbolType { name: ident }), span))
+    Ok(Type {
+        kind: TypeKind::Symbol(SymbolType { name: ident }),
+        span,
+    })
 }
 
 fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {
@@ -79,12 +82,12 @@ fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
     let end_span = underlying.span;
 
-    Ok(parser.type_(
-        TypeKind::Pointer(PointerType {
+    Ok(Type {
+        kind: TypeKind::Pointer(PointerType {
             underlying: Box::new(underlying),
         }),
-        Span::new(start_token.span.start(), end_span.end()),
-    ))
+        span: Span::new(start_token.span.start(), end_span.end()),
+    })
 }
 
 fn parse_array_type(parser: &mut Parser) -> Result<Type> {
@@ -98,25 +101,25 @@ fn parse_array_type(parser: &mut Parser) -> Result<Type> {
             let underlying = parse_type(parser, BP::DefaultBp)?;
             let end_span = underlying.span;
 
-            Ok(parser.type_(
-                TypeKind::FixedArray(FixedArrayType {
+            Ok(Type {
+                kind: TypeKind::FixedArray(FixedArrayType {
                     length,
                     underlying: Box::new(underlying),
                 }),
-                Span::new(start_token.span.start(), end_span.end()),
-            ))
+                span: Span::new(start_token.span.start(), end_span.end()),
+            })
         }
         T::CloseBracket => {
             parser.advance();
             let underlying = parse_type(parser, BP::DefaultBp)?;
             let end_span = underlying.span;
 
-            Ok(parser.type_(
-                TypeKind::Slice(SliceType {
+            Ok(Type {
+                kind: TypeKind::Slice(SliceType {
                     underlying: Box::new(underlying),
                 }),
-                Span::new(start_token.span.start(), end_span.end()),
-            ))
+                span: Span::new(start_token.span.start(), end_span.end()),
+            })
         }
         _ => Err(anyhow!(
             format!(
@@ -181,12 +184,12 @@ fn parse_mut_type(parser: &mut Parser) -> Result<Type> {
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
     let end_span = underlying.span;
 
-    Ok(parser.type_(
-        TypeKind::Mut(MutType {
+    Ok(Type {
+        kind: TypeKind::Mut(MutType {
             underlying: Box::new(underlying),
         }),
-        Span::new(start_token.span.start(), end_span.end()),
-    ))
+        span: Span::new(start_token.span.start(), end_span.end()),
+    })
 }
 
 fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
@@ -211,19 +214,19 @@ fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
         let return_type = parse_type(parser, BindingPower::DefaultBp)?;
         let end_span = return_type.span;
 
-        Ok(parser.type_(
-            TypeKind::Function(FunctionType {
+        Ok(Type {
+            kind: TypeKind::Function(FunctionType {
                 parameters: types.into_boxed_slice(),
                 return_type: Box::new(return_type),
             }),
-            Span::new(start_token.span.start(), end_span.end()),
-        ))
+            span: Span::new(start_token.span.start(), end_span.end()),
+        })
     } else {
-        Ok(parser.type_(
-            TypeKind::Tuple(TupleType {
+        Ok(Type {
+            kind: TypeKind::Tuple(TupleType {
                 elements: types.into_boxed_slice(),
             }),
-            Span::new(start_token.span.start(), close_token.span.end()),
-        ))
+            span: Span::new(start_token.span.start(), close_token.span.end()),
+        })
     }
 }

@@ -392,12 +392,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 )?
             };
 
-            // TODO: This is a temporary hack to get an id and span for a built-in type
+            // TODO: This is a temporary hack to get a span for a built-in type
             let slice_ty = Type {
                 kind: TypeKind::Slice(SliceType {
                     underlying: Box::new(ar_expr.underlying.clone()),
                 }),
-                id: expr.id,
                 span: expr.span,
             };
 

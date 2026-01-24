@@ -2,8 +2,7 @@ use anyhow::Result;
 
 use crate::{
     ast::{
-        Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, NodeId, Stmt, StmtKind, Type,
-        TypeKind,
+        Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, Stmt, StmtKind, Type, TypeKind,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
             ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
@@ -67,14 +66,14 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         }
 
         let span = expression.span;
-        Ok(parser.stmt(
-            StmtKind::Expression(ExpressionStmt {
+        Ok(Stmt {
+            kind: StmtKind::Expression(ExpressionStmt {
                 expression,
                 has_semicolon,
             }),
+            attributes: Box::new([]),
             span,
-            Box::new([]),
-        ))
+        })
     }
 }
 
@@ -92,10 +91,10 @@ pub fn parse_var_decl_statement(
     }
 
     let var_token = parser.advance();
-    let mut type_: Type = parser.type_(
-        TypeKind::Infer,
-        Span::new(var_token.span.end(), var_token.span.end()),
-    );
+    let mut type_ = Type {
+        kind: TypeKind::Infer,
+        span: Span::new(var_token.span.end(), var_token.span.end()),
+    };
     let mut assigned_value: Option<Expr> = None;
 
     let is_static = var_token.kind == TokenKind::Static;
@@ -156,8 +155,8 @@ pub fn parse_var_decl_statement(
         )?;
     }
 
-    Ok(parser.stmt(
-        StmtKind::VarDecl(VarDeclStmt {
+    Ok(Stmt {
+        kind: StmtKind::VarDecl(VarDeclStmt {
             type_,
             is_constant,
             is_static,
@@ -165,9 +164,9 @@ pub fn parse_var_decl_statement(
             variable_name,
             assigned_value,
         }),
+        attributes: Box::new([]),
         span,
-        Box::new([]),
-    ))
+    })
 }
 
 pub fn parse_struct_decl_stmt(
@@ -276,16 +275,16 @@ pub fn parse_struct_decl_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
 
-    Ok(parser.stmt(
-        StmtKind::StructDecl(StructDeclStmt {
+    Ok(Stmt {
+        kind: StmtKind::StructDecl(StructDeclStmt {
             properties: properties.into_boxed_slice(),
             methods: methods.into_boxed_slice(),
             name,
             is_public,
         }),
+        attributes: attributes.into(),
         span,
-        attributes.into(),
-    ))
+    })
 }
 
 pub fn parse_interface_decl_stmt(
@@ -330,15 +329,15 @@ pub fn parse_interface_decl_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
 
-    Ok(parser.stmt(
-        StmtKind::InterfaceDecl(InterfaceDeclStmt {
+    Ok(Stmt {
+        kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
             methods: methods.into_boxed_slice(),
             name,
             is_public,
         }),
+        attributes: attributes.into(),
         span,
-        attributes.into(),
-    ))
+    })
 }
 
 pub fn parse_fn_decl_stmt(
@@ -421,8 +420,8 @@ pub fn parse_fn_decl_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
 
-    Ok(parser.stmt(
-        StmtKind::FnDecl(FnDeclStmt {
+    Ok(Stmt {
+        kind: StmtKind::FnDecl(FnDeclStmt {
             arguments: arguments.into_boxed_slice(),
             body,
             name,
@@ -430,9 +429,9 @@ pub fn parse_fn_decl_stmt(
             is_public: pub_mod.is_some(),
             is_extern: extern_mod.is_some(),
         }),
+        attributes: attributes.into(),
         span,
-        attributes.into(),
-    ))
+    })
 }
 
 pub fn parse_return_stmt(
@@ -452,7 +451,11 @@ pub fn parse_return_stmt(
 
     let span = Span::new(return_token.span.start(), end_span.end());
 
-    Ok(parser.stmt(StmtKind::Return(ReturnStmt { value }), span, Box::new([])))
+    Ok(Stmt {
+        kind: StmtKind::Return(ReturnStmt { value }),
+        attributes: Box::new([]),
+        span,
+    })
 }
 
 pub fn parse_import_stmt(
@@ -473,11 +476,11 @@ pub fn parse_import_stmt(
     let end_span = parser.expect(TokenKind::Semicolon)?.span;
 
     let span = Span::new(start_span.start(), end_span.end());
-    Ok(parser.stmt(
-        StmtKind::Import(ImportStmt { tree }),
+    Ok(Stmt {
+        kind: StmtKind::Import(ImportStmt { tree }),
+        attributes: attributes.into(),
         span,
-        attributes.into(),
-    ))
+    })
 }
 
 fn parse_import_tree(parser: &mut Parser) -> Result<ImportTree> {
@@ -502,16 +505,13 @@ fn parse_import_tree(parser: &mut Parser) -> Result<ImportTree> {
     Ok(ImportTree { prefix, kind, span })
 }
 
-fn parse_import_tree_list(parser: &mut Parser) -> Result<Box<[(ImportTree, NodeId)]>> {
+fn parse_import_tree_list(parser: &mut Parser) -> Result<Box<[ImportTree]>> {
     let mut items = vec![];
 
     parser.expect(TokenKind::OpenCurly)?;
 
     loop {
-        let tree = parse_import_tree(parser)?;
-        let id = parser.next_id();
-
-        items.push((tree, id));
+        items.push(parse_import_tree(parser)?);
 
         if parser.peek().kind != TokenKind::CloseCurly
             && parser.current_token().kind == TokenKind::Comma

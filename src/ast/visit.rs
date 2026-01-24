@@ -344,7 +344,7 @@ impl Visitable for TupleType {
 mod tests {
     use super::*;
     use crate::{
-        ast::{Ident, ImportTree, ImportTreeKind, NodeId, Path},
+        ast::{Ident, ImportTree, ImportTreeKind, Path},
         span::{ModuleId, Span},
     };
     use std::collections::HashMap;
@@ -497,7 +497,6 @@ mod tests {
             kind: TypeKind::Symbol(SymbolType {
                 name: dummy_ident(name),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         }
     }
@@ -505,7 +504,6 @@ mod tests {
     fn dummy_type_infer() -> Type {
         Type {
             kind: TypeKind::Infer,
-            id: NodeId(0),
             span: dummy_span(),
         }
     }
@@ -513,7 +511,6 @@ mod tests {
     fn dummy_type_never() -> Type {
         Type {
             kind: TypeKind::Never,
-            id: NodeId(0),
             span: dummy_span(),
         }
     }
@@ -521,7 +518,6 @@ mod tests {
     fn dummy_expr_number(value: i32) -> Expr {
         Expr {
             kind: ExprKind::Number(NumberExpr { value }),
-            id: NodeId(0),
             span: dummy_span(),
         }
     }
@@ -531,7 +527,6 @@ mod tests {
             kind: ExprKind::Symbol(SymbolExpr {
                 value: dummy_ident(name),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         }
     }
@@ -541,7 +536,6 @@ mod tests {
             kind: ExprKind::Block(BlockExpr {
                 body: body.into_boxed_slice(),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         }
     }
@@ -552,7 +546,6 @@ mod tests {
                 expression: expr,
                 has_semicolon: true,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         }
@@ -573,7 +566,6 @@ mod tests {
             kind: ExprKind::String(StringExpr {
                 value: "hello".to_string().into_boxed_str(),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -599,7 +591,6 @@ mod tests {
                 operator: dummy_token(crate::lexer::token::TokenKind::Plus),
                 right: Box::new(dummy_expr_number(2)),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -616,7 +607,6 @@ mod tests {
                 left: Box::new(dummy_expr_symbol("x")),
                 operator: dummy_token(crate::lexer::token::TokenKind::Plus),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -633,7 +623,6 @@ mod tests {
                 operator: dummy_token(crate::lexer::token::TokenKind::NotEquals),
                 right: Box::new(dummy_expr_symbol("x")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -651,7 +640,6 @@ mod tests {
                 operator: dummy_token(crate::lexer::token::TokenKind::Equals),
                 value: Box::new(dummy_expr_number(1)),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -669,7 +657,6 @@ mod tests {
                 name: dummy_ident("Foo"),
                 properties: HashMap::from([(dummy_ident("a"), dummy_expr_number(1))]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -690,7 +677,6 @@ mod tests {
                     (dummy_ident("c"), dummy_expr_number(3)),
                 ]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -711,7 +697,6 @@ mod tests {
                     dummy_expr_number(3),
                 ]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -730,7 +715,6 @@ mod tests {
                 callee: Box::new(dummy_expr_symbol("foo")),
                 arguments: Box::new([dummy_expr_number(1), dummy_expr_number(2)]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -748,7 +732,6 @@ mod tests {
                 base: Box::new(dummy_expr_symbol("obj")),
                 member: dummy_ident("field"),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -764,7 +747,6 @@ mod tests {
             kind: ExprKind::Type(TypeExpr {
                 underlying: dummy_type_symbol("i32"),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -782,7 +764,6 @@ mod tests {
                 expr: Box::new(dummy_expr_number(1)),
                 ty: dummy_type_symbol("i32"),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -804,7 +785,6 @@ mod tests {
                     dummy_expr_number(3),
                 ]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -858,7 +838,6 @@ mod tests {
                 type_: dummy_type_symbol("i32"),
                 is_static: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -883,7 +862,6 @@ mod tests {
                 type_: dummy_type_symbol("i32"),
                 is_static: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -904,7 +882,6 @@ mod tests {
                 methods: Box::new([]),
                 is_public: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -935,7 +912,6 @@ mod tests {
                 methods: Box::new([]),
                 is_public: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -961,7 +937,6 @@ mod tests {
                         arguments: Box::new([]),
                         body: Some(Expr {
                             kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
-                            id: NodeId(0),
                             span: dummy_span(),
                         }),
                         return_type: dummy_type_never(),
@@ -972,7 +947,6 @@ mod tests {
                 .into_boxed_slice(),
                 is_public: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -1002,7 +976,6 @@ mod tests {
                 .into_boxed_slice(),
                 is_public: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -1034,14 +1007,12 @@ mod tests {
                     kind: ExprKind::Block(BlockExpr {
                         body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
                     }),
-                    id: NodeId(0),
                     span: dummy_span(),
                 }),
                 return_type: dummy_type_symbol("void"),
                 is_public: false,
                 is_extern: false,
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -1063,7 +1034,6 @@ mod tests {
             kind: StmtKind::Return(ReturnStmt {
                 value: Some(dummy_expr_number(1)),
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -1079,7 +1049,6 @@ mod tests {
     fn test_return_stmt_no_value() {
         let mut stmt = Stmt {
             kind: StmtKind::Return(ReturnStmt { value: None }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -1102,7 +1071,6 @@ mod tests {
                     span: dummy_span(),
                 },
             }),
-            id: NodeId(0),
             span: dummy_span(),
             attributes: Box::new([]),
         };
@@ -1145,7 +1113,6 @@ mod tests {
             kind: TypeKind::Pointer(PointerType {
                 underlying: Box::new(dummy_type_symbol("i32")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -1161,7 +1128,6 @@ mod tests {
             kind: TypeKind::Slice(SliceType {
                 underlying: Box::new(dummy_type_symbol("i32")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -1178,7 +1144,6 @@ mod tests {
                 length: 10,
                 underlying: Box::new(dummy_type_symbol("i32")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -1194,7 +1159,6 @@ mod tests {
             kind: TypeKind::Mut(MutType {
                 underlying: Box::new(dummy_type_symbol("i32")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -1211,7 +1175,6 @@ mod tests {
                 parameters: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
                 return_type: Box::new(dummy_type_symbol("void")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -1227,7 +1190,6 @@ mod tests {
             kind: TypeKind::Tuple(TupleType {
                 elements: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
@@ -1259,13 +1221,11 @@ mod tests {
                                             ),
                                             right: Box::new(dummy_expr_number(4)),
                                         }),
-                                        id: NodeId(0),
                                         span: dummy_span(),
                                     },
                                 ),
                             ]),
                         }),
-                        id: NodeId(0),
                         span: dummy_span(),
                     },
                     Expr {
@@ -1275,16 +1235,13 @@ mod tests {
                                 kind: TypeKind::Pointer(PointerType {
                                     underlying: Box::new(dummy_type_symbol("i32")),
                                 }),
-                                id: NodeId(0),
                                 span: dummy_span(),
                             },
                         }),
-                        id: NodeId(0),
                         span: dummy_span(),
                     },
                 ]),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
 
@@ -1315,7 +1272,6 @@ mod tests {
                         span: dummy_span(),
                     },
                 }),
-                id: NodeId(0),
                 span: dummy_span(),
                 attributes: Box::new([]),
             },
@@ -1339,7 +1295,6 @@ mod tests {
                                     body: vec![dummy_stmt_expr(dummy_expr_number(1))]
                                         .into_boxed_slice(),
                                 }),
-                                id: NodeId(0),
                                 span: dummy_span(),
                             }),
                             return_type: dummy_type_never(),
@@ -1350,7 +1305,6 @@ mod tests {
                     .into_boxed_slice(),
                     is_public: false,
                 }),
-                id: NodeId(0),
                 span: dummy_span(),
                 attributes: Box::new([]),
             },
@@ -1370,7 +1324,6 @@ mod tests {
                     .into_boxed_slice(),
                     is_public: false,
                 }),
-                id: NodeId(0),
                 span: dummy_span(),
                 attributes: Box::new([]),
             },
@@ -1390,7 +1343,6 @@ mod tests {
                                         type_: dummy_type_infer(),
                                         is_static: false,
                                     }),
-                                    id: NodeId(0),
                                     span: dummy_span(),
                                     attributes: Box::new([]),
                                 },
@@ -1402,32 +1354,27 @@ mod tests {
                                                     kind: StmtKind::Return(ReturnStmt {
                                                         value: Some(dummy_expr_number(2)),
                                                     }),
-                                                    id: NodeId(0),
                                                     span: dummy_span(),
                                                     attributes: Box::new([]),
                                                 }]
                                                 .into_boxed_slice(),
                                             }),
-                                            id: NodeId(0),
                                             span: dummy_span(),
                                         },
                                         has_semicolon: true,
                                     }),
-                                    id: NodeId(0),
                                     span: dummy_span(),
                                     attributes: Box::new([]),
                                 },
                             ]
                             .into_boxed_slice(),
                         }),
-                        id: NodeId(0),
                         span: dummy_span(),
                     }),
                     return_type: dummy_type_symbol("isize"),
                     is_public: false,
                     is_extern: false,
                 }),
-                id: NodeId(0),
                 span: dummy_span(),
                 attributes: Box::new([]),
             },
@@ -1459,18 +1406,15 @@ mod tests {
                                 kind: TypeKind::Mut(MutType {
                                     underlying: Box::new(dummy_type_symbol("i32")),
                                 }),
-                                id: NodeId(0),
                                 span: dummy_span(),
                             }),
                         }),
-                        id: NodeId(0),
                         span: dummy_span(),
                     },
                     Type {
                         kind: TypeKind::Slice(SliceType {
                             underlying: Box::new(dummy_type_symbol("u8")),
                         }),
-                        id: NodeId(0),
                         span: dummy_span(),
                     },
                     Type {
@@ -1478,7 +1422,6 @@ mod tests {
                             length: 10,
                             underlying: Box::new(dummy_type_symbol("bool")),
                         }),
-                        id: NodeId(0),
                         span: dummy_span(),
                     },
                 ]),
@@ -1490,11 +1433,9 @@ mod tests {
                             dummy_type_symbol("void"),
                         ]),
                     }),
-                    id: NodeId(0),
                     span: dummy_span(),
                 }),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
 
@@ -1527,7 +1468,6 @@ mod tests {
                                 operator: dummy_token(crate::lexer::token::TokenKind::Plus),
                                 right: Box::new(dummy_expr_symbol("b")),
                             }),
-                            id: NodeId(0),
                             span: dummy_span(),
                         }),
                         operator: dummy_token(crate::lexer::token::TokenKind::Star),
@@ -1537,17 +1477,14 @@ mod tests {
                                 operator: dummy_token(crate::lexer::token::TokenKind::Slash),
                                 right: Box::new(dummy_expr_symbol("d")),
                             }),
-                            id: NodeId(0),
                             span: dummy_span(),
                         }),
                     }),
-                    id: NodeId(0),
                     span: dummy_span(),
                 }),
                 operator: dummy_token(crate::lexer::token::TokenKind::Dash),
                 right: Box::new(dummy_expr_symbol("e")),
             }),
-            id: NodeId(0),
             span: dummy_span(),
         };
 

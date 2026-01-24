@@ -11,6 +11,7 @@ use crate::{
 
 mod interner;
 mod lower;
+mod resolve;
 
 pub fn lower_ast(asts: Vec<Ast>) -> HirCrate {
     let mut ctx = LoweringContext::new();

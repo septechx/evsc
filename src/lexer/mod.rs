@@ -14,7 +14,7 @@ use anyhow::Result;
 use parking_lot::Once;
 use regex::Regex;
 
-type TokenHandler = Box<dyn Fn(&str, Span) -> Result<Option<Token>> + Send + Sync>;
+type TokenHandler = Box<dyn Fn(&str, Span, ModuleId) -> Result<Option<Token>> + Send + Sync>;
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
@@ -71,8 +71,7 @@ impl Lexer {
                         current_pos as u32,
                         (current_pos + matched_text.len()) as u32,
                     );
-                    if let Some(mut token) = (handler.handler)(matched_text, span)? {
-                        token.module_id = module_id;
+                    if let Some(token) = (handler.handler)(matched_text, span, module_id)? {
                         tokens.push(token);
                     }
                     match_len = matched_text.len();
@@ -115,62 +114,62 @@ pub fn tokenize(file: String, path: &Path) -> Result<(TokenStream, ModuleId)> {
 }
 
 fn default_handler(tok: TokenKind) -> TokenHandler {
-    Box::new(move |value, span| {
+    Box::new(move |value, span, module_id| {
         Ok(Some(Token {
             kind: tok,
             span,
-            module_id: ModuleId(0),
+            module_id,
             value: value.into(),
         }))
     })
 }
 
 fn number_handler() -> TokenHandler {
-    Box::new(|val, span| {
+    Box::new(|val, span, module_id| {
         Ok(Some(Token {
             kind: TokenKind::Number,
             span,
-            module_id: ModuleId(0),
+            module_id,
             value: val.into(),
         }))
     })
 }
 
 fn skip_handler() -> TokenHandler {
-    Box::new(|_, _| Ok(None))
+    Box::new(|_, _, _| Ok(None))
 }
 
 fn string_literal_handler() -> TokenHandler {
-    Box::new(|val, span| {
+    Box::new(|val, span, module_id| {
         let inner = &val[1..val.len() - 1];
         Ok(Some(Token {
             kind: TokenKind::StringLiteral,
             span,
-            module_id: ModuleId(0),
+            module_id,
             value: inner.into(),
         }))
     })
 }
 
 fn char_literal_handler() -> TokenHandler {
-    Box::new(|val, span| {
+    Box::new(|val, span, module_id| {
         let inner = &val[1..val.len() - 1];
         Ok(Some(Token {
             kind: TokenKind::CharLiteral,
             span,
-            module_id: ModuleId(0),
+            module_id,
             value: inner.into(),
         }))
     })
 }
 
 fn identifier_handler() -> TokenHandler {
-    Box::new(|val, span| {
+    Box::new(|val, span, module_id| {
         let tok = lookup_reserved(val).unwrap_or(TokenKind::Identifier);
         Ok(Some(Token {
             kind: tok,
             span,
-            module_id: ModuleId(0),
+            module_id,
             value: val.into(),
         }))
     })

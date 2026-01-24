@@ -132,6 +132,6 @@ define_tokens! {
         ColonColon => "::",
         Dollar => "$"
     ],
-    literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number"],
+    literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number", CharLiteral => "character literal"],
     special: [Eof => "<eof>", Illegal => "<illegal>"]
 }

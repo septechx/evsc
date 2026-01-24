@@ -152,6 +152,18 @@ fn string_literal_handler() -> TokenHandler {
     })
 }
 
+fn char_literal_handler() -> TokenHandler {
+    Box::new(|val, span| {
+        let inner = &val[1..val.len() - 1];
+        Ok(Some(Token {
+            kind: TokenKind::CharLiteral,
+            span,
+            module_id: PackageId(0),
+            value: inner.into(),
+        }))
+    })
+}
+
 fn identifier_handler() -> TokenHandler {
     Box::new(|val, span| {
         let tok = lookup_reserved(val).unwrap_or(TokenKind::Identifier);
@@ -213,6 +225,7 @@ fn initialize_regexes() {
             regex_handler!(r"^%=", def T::PercentEquals),
             // Lit & Ident
             regex_handler!(r#"^"[^"]*""#, string_literal_handler()),
+            regex_handler!(r"^'[^']'", char_literal_handler()),
             regex_handler!(r"^[0-9]+(\.[0-9]+)?", number_handler()),
             regex_handler!(r"^[@]?[a-zA-Z_][a-zA-Z0-9_]*", identifier_handler()),
             // Single-char

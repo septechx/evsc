@@ -433,7 +433,15 @@ mod tests {
             *self.expr_counts.entry("Expr").or_insert(0) += 1;
 
             let kind_name = match &expr.kind {
-                ExprKind::Literal(_) => "Literal",
+                ExprKind::Literal(l) => {
+                    *self.expr_counts.entry("Literal").or_insert(0) += 1;
+                    match l {
+                        Literal::Integer(_) | Literal::Float(_) => "NumberExpr",
+                        Literal::String(_) => "StringExpr",
+                        Literal::Char(_) => "CharExpr",
+                        Literal::Bool(_) => "BoolExpr",
+                    }
+                }
                 ExprKind::Symbol(_) => "SymbolExpr",
                 ExprKind::Binary(_) => "BinaryExpr",
                 ExprKind::Postfix(_) => "PostfixExpr",
@@ -560,6 +568,20 @@ mod tests {
     }
 
     #[test]
+    fn test_float_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Literal(Literal::Float(3.14)),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "Literal", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
+    }
+
+    #[test]
     fn test_string_expr_visited_once() {
         let mut expr = Expr {
             kind: ExprKind::Literal(Literal::String("hello".to_string().into_boxed_str())),
@@ -579,6 +601,34 @@ mod tests {
         expr.visit(&mut visitor);
         visitor.assert_visited("expr", "Expr", 1);
         visitor.assert_visited("expr", "SymbolExpr", 1);
+    }
+
+    #[test]
+    fn test_bool_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Literal(Literal::Bool(true)),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "Literal", 1);
+        visitor.assert_visited("expr", "BoolExpr", 1);
+    }
+
+    #[test]
+    fn test_char_expr_visited_once() {
+        let mut expr = Expr {
+            kind: ExprKind::Literal(Literal::Char('a')),
+            id: NodeId(0),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "Literal", 1);
+        visitor.assert_visited("expr", "CharExpr", 1);
     }
 
     #[test]

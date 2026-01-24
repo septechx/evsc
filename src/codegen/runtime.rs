@@ -75,18 +75,27 @@ fn create_exit_syscall<'ctx>(
     builder: &Builder<'ctx>,
     exit_code: BasicValueEnum<'ctx>,
 ) -> Result<()> {
-    let (asm, exit_ty) = if is_64() {
+    let (asm, exit_ty, target_int_ty) = if is_64() {
         let exit_ty = context
             .void_type()
             .fn_type(&[context.i64_type().into()], false);
         let asm = "mov rdi, $0\nmov rax, 60\nsyscall".to_string();
-        (asm, exit_ty)
+        (asm, exit_ty, context.i64_type())
     } else {
         let exit_ty = context
             .void_type()
             .fn_type(&[context.i32_type().into()], false);
         let asm = "mov ebx, $0\nmov eax, 60\nint 0x80".to_string();
-        (asm, exit_ty)
+        (asm, exit_ty, context.i32_type())
+    };
+
+    let exit_code_int = exit_code.into_int_value();
+    let extended_exit_code = if exit_code_int.get_type().get_bit_width() < target_int_ty.get_bit_width() {
+        builder.build_int_z_extend(exit_code_int, target_int_ty, "extended_exit_code")?
+    } else if exit_code_int.get_type().get_bit_width() > target_int_ty.get_bit_width() {
+        builder.build_int_truncate(exit_code_int, target_int_ty, "truncated_exit_code")?
+    } else {
+        exit_code_int
     };
 
     let inline = context.create_inline_asm(
@@ -98,7 +107,7 @@ fn create_exit_syscall<'ctx>(
         Some(InlineAsmDialect::Intel),
         false,
     );
-    builder.build_indirect_call(exit_ty, inline, &[exit_code.into()], "exit_call")?;
+    builder.build_indirect_call(exit_ty, inline, &[extended_exit_code.into()], "exit_call")?;
 
     builder.build_unreachable()?;
 

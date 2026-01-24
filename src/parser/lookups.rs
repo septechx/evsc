@@ -215,6 +215,9 @@ pub fn create_token_lookups() {
         nud(T::Number, parse_primary_expr, &mut nud_lu);
         nud(T::StringLiteral, parse_primary_expr, &mut nud_lu);
         nud(T::Identifier, parse_primary_expr, &mut nud_lu);
+        nud(T::True, parse_primary_expr, &mut nud_lu);
+        nud(T::False, parse_primary_expr, &mut nud_lu);
+        nud(T::CharLiteral, parse_primary_expr, &mut nud_lu);
         nud(T::OpenParen, parse_parenthesis_expr, &mut nud_lu);
         nud(T::Dash, parse_prefix_expr, &mut nud_lu);
         nud(T::Reference, parse_prefix_expr, &mut nud_lu);

@@ -156,7 +156,7 @@ impl Drop for Test {
             return;
         }
 
-        let ast = match parse(tokens) {
+        let ast = match parse(tokens, "main") {
             Ok(a) => a,
             Err(e) => {
                 if self.should_compile == Some(false) {
@@ -287,4 +287,3 @@ pub fn it(f: impl FnOnce(&mut Test)) {
     let mut test = Test::new();
     f(&mut test);
 }
-

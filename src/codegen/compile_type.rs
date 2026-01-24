@@ -58,6 +58,7 @@ pub fn compile_type<'ctx>(
             "f32" => context.f32_type().as_basic_type_enum(),
             "f64" => context.f64_type().as_basic_type_enum(),
             "f128" => context.f128_type().as_basic_type_enum(),
+            "bool" => context.bool_type().as_basic_type_enum(),
             "usize" | "isize" => compile_arch_size_type(context).as_basic_type_enum(),
             tyname => unimplemented!("{tyname}"),
         },

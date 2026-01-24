@@ -70,14 +70,27 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
     let span = token.span;
 
     match token.kind {
-        TokenKind::Number => Ok(parser.expr(
-            ExprKind::Literal(Literal::Integer(value.parse::<i64>()?)),
-            span,
-        )),
+        TokenKind::Number => {
+            if value.contains('.') {
+                Ok(parser.expr(
+                    ExprKind::Literal(Literal::Float(value.parse::<f64>()?)),
+                    span,
+                ))
+            } else {
+                Ok(parser.expr(
+                    ExprKind::Literal(Literal::Integer(value.parse::<i64>()?)),
+                    span,
+                ))
+            }
+        }
         TokenKind::StringLiteral => Ok(parser.expr(
             ExprKind::Literal(Literal::String(
                 process_string(&value, span, token.module_id).into_boxed_str(),
             )),
+            span,
+        )),
+        TokenKind::CharLiteral => Ok(parser.expr(
+            ExprKind::Literal(Literal::Char(value.chars().next().unwrap())),
             span,
         )),
         TokenKind::Identifier => Ok(parser.expr(
@@ -86,6 +99,8 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
             }),
             span,
         )),
+        TokenKind::True => Ok(parser.expr(ExprKind::Literal(Literal::Bool(true)), span)),
+        TokenKind::False => Ok(parser.expr(ExprKind::Literal(Literal::Bool(false)), span)),
         _ => unreachable!(),
     }
 }

@@ -36,6 +36,24 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .const_int(*i as u64, false)
                     .as_basic_value_enum(),
             ),
+            Literal::Float(f) => SmartValue::from_value(
+                context
+                    .f64_type()
+                    .const_float(*f)
+                    .as_basic_value_enum(),
+            ),
+            Literal::Bool(b) => SmartValue::from_value(
+                context
+                    .bool_type()
+                    .const_int(*b as u64, false)
+                    .as_basic_value_enum(),
+            ),
+            Literal::Char(c) => SmartValue::from_value(
+                context
+                    .i8_type()
+                    .const_int(*c as u64, false)
+                    .as_basic_value_enum(),
+            ),
             Literal::String(s) => {
                 let string_val = context.const_string(s.as_bytes(), false);
                 let global = module.add_global(string_val.get_type(), None, "str");
@@ -59,7 +77,6 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
                 SmartValue::from_value(slice_val.as_basic_value_enum())
             }
-            _ => unimplemented!(),
         },
         // Returns a pointer
         ExprKind::Symbol(sym) => {
@@ -93,6 +110,11 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     builder.build_store(ptr, right.value)?;
 
                     SmartValue::from_pointer(ptr.as_basic_value_enum(), right.value.get_type())
+                }
+                TokenKind::Dash => {
+                    let right_val = right.unwrap(builder)?.into_int_value();
+                    let neg = builder.build_int_neg(right_val, "negtmp")?;
+                    SmartValue::from_value(neg.as_basic_value_enum())
                 }
                 _ => unimplemented!(),
             }

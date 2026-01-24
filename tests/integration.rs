@@ -361,3 +361,92 @@ fn main_function_return_void() {
         });
     })
 }
+
+#[test]
+fn integer_literals() {
+    it(|t| {
+        t.add_source(
+            r#"
+            fn main() i32 {
+                let a: i32 = 10;
+                let b: i32 = -5;
+                return a + b;
+            }
+            "#,
+        )
+        .execute(|res| {
+            res.exit_code(5);
+        });
+    });
+}
+
+#[test]
+fn boolean_literals() {
+    it(|t| {
+        t.add_source(
+            r#"
+            fn main() bool {
+                let a: bool = true;
+                return a;
+            }
+            "#,
+        )
+        .execute(|res| {
+            res.exit_code(1);
+        });
+    });
+}
+
+#[test]
+fn char_literals() {
+    it(|t| {
+        t.add_source(
+            r#"
+            fn main() u8 {
+                let a: u8 = 'a';
+                return a;
+            }
+            "#,
+        )
+        .execute(|res| {
+            res.exit_code(97);
+        });
+    });
+}
+
+#[test]
+fn string_literals() {
+    it(|t| {
+        t.add_source(
+            r#"
+            fn main() isize {
+                let s: []u8 = "hello";
+                return s.len;
+            }
+            "#,
+        )
+        .execute(|res| {
+            res.exit_code(5);
+        });
+    });
+}
+
+#[test]
+fn float_literals() {
+    it(|t| {
+        t.add_source(
+            r#"
+            fn main() i32 {
+                let a: f64 = 1.5;
+                let b: f64 = 2.5;
+                // We don't have float comparison yet, so we just check if it compiles 
+                // and return a dummy value
+                return 1;
+            }
+            "#,
+        )
+        .execute(|res| {
+            res.exit_code(1);
+        });
+    });
+}

@@ -119,6 +119,7 @@ define_tokens! {
         Slash => "/",
         Percent => "%",
         Reference => "&",
+        Xor => "^",
         DotDot => "..",
         EqualsEquals => "==",
         NotEquals => "!=",
@@ -130,7 +131,9 @@ define_tokens! {
         Or => "||",
         Pipe => "|>",
         ColonColon => "::",
-        Dollar => "$"
+        Dollar => "$",
+        ShiftLeft => "<<",
+        ShiftRight => ">>",
     ],
     literals: [Identifier => "identifier", StringLiteral => "string literal", Number => "number", CharLiteral => "character literal"],
     special: [Eof => "<eof>", Illegal => "<illegal>"]

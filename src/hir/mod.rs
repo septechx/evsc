@@ -6,6 +6,7 @@ use crate::{
         interner::{Interner, Symbol},
         lower::LoweringContext,
     },
+    lexer::token::TokenKind,
 };
 
 mod interner;
@@ -144,6 +145,11 @@ pub enum HirExpr {
     Block {
         stmts: Vec<StmtId>,
     },
+    Binary {
+        left: ExprId,
+        op: BinOp,
+        right: ExprId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -163,4 +169,57 @@ pub enum HirType {
     Error,
     Builtin(String),
     Adt(DefId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinOp {
+    // Math
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    Shl,
+    Shr,
+    BitAnd,
+    BitOr,
+    BitXor,
+    // Comparisons
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    // Logical
+    And,
+    Or,
+}
+
+impl From<TokenKind> for BinOp {
+    fn from(value: TokenKind) -> Self {
+        use BinOp as B;
+        use TokenKind as T;
+        match value {
+            T::Plus => B::Add,
+            T::Dash => B::Sub,
+            T::Star => B::Mul,
+            T::Slash => B::Div,
+            T::Percent => B::Rem,
+            T::ShiftLeft => B::Shl,
+            T::ShiftRight => B::Shr,
+            T::Reference => B::BitAnd,
+            T::Bar => B::BitOr,
+            T::Xor => B::BitXor,
+            T::EqualsEquals => B::Eq,
+            T::NotEquals => B::Ne,
+            T::Less => B::Lt,
+            T::LessEquals => B::Le,
+            T::More => B::Gt,
+            T::MoreEquals => B::Ge,
+            T::And => B::And,
+            T::Or => B::Or,
+            _ => panic!("Cannot convert token {} to BinOp", value),
+        }
+    }
 }

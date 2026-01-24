@@ -387,6 +387,16 @@ impl LoweringContext {
                 self.local_stack.pop();
                 self.alloc_expr(HirExpr::Block { stmts: stmt_ids })
             }
+            ExprKind::Binary(b) => {
+                let left_id = self.lower_expr(*b.left);
+                let right_id = self.lower_expr(*b.right);
+                let op = b.operator.kind.into();
+                self.alloc_expr(HirExpr::Binary {
+                    left: left_id,
+                    op,
+                    right: right_id,
+                })
+            }
             _ => todo!("Lowering of {:?} not implemented", expr.kind),
         }
     }

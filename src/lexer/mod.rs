@@ -223,6 +223,8 @@ fn initialize_regexes() {
             regex_handler!(r"^\*=", def T::StarEquals),
             regex_handler!(r"^/=", def T::SlashEquals),
             regex_handler!(r"^%=", def T::PercentEquals),
+            regex_handler!(r"<<", def T::ShiftLeft),
+            regex_handler!(r">>", def T::ShiftRight),
             // Lit & Ident
             regex_handler!(r#"^"[^"]*""#, string_literal_handler()),
             regex_handler!(r"^'[^']'", char_literal_handler()),
@@ -231,6 +233,7 @@ fn initialize_regexes() {
             // Single-char
             regex_handler!(r"^;", def T::Semicolon),
             regex_handler!(r"^&", def T::Reference),
+            regex_handler!(r"^\^", def T::Xor),
             regex_handler!(r"^\+", def T::Plus),
             regex_handler!(r"^\-", def T::Dash),
             regex_handler!(r"^\*", def T::Star),

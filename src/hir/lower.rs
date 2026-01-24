@@ -12,6 +12,16 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResolutionStatus {
+    /// Successfully resolved and applied to the module
+    Resolved,
+    /// Failed permanently
+    Failed,
+    /// Temporary failure (might succeed in later pass)
+    RetryLater,
+}
+
 struct PendingImport {
     module_idx: usize,
     import_stmt: ImportStmt,
@@ -131,25 +141,18 @@ impl LoweringContext {
                 let pi = &pending[i];
                 // try resolve; if resolved we remove from pending and set progress = true
                 match self.try_resolve_import(pi.module_idx, &pi.import_stmt) {
-                    Ok(resolved) => {
-                        // resolved == true -> we applied the import (and possible re-export)
-                        if resolved {
-                            // remove pending[i] by swapping with last and popping
-                            pending.swap_remove(i);
-                            progress = true;
-                            // do NOT increment i: we swapped a new element into i
-                            continue;
-                        } else {
-                            // resolved==false means this import is already satisfied / no-op (shouldn't happen)
-                            pending.swap_remove(i);
-                            progress = true;
-                            continue;
-                        }
+                    ResolutionStatus::Resolved => {
+                        pending.swap_remove(i);
+                        progress = true;
+                        continue;
                     }
-                    Err(_) => {
+                    ResolutionStatus::Failed => {
+                        pending.swap_remove(i);
+                        progress = true;
+                        continue;
+                    }
+                    ResolutionStatus::RetryLater => {
                         // cannot resolve yet: keep item for next pass
-                        // Err(true) indicates resolution might succeed in later pass
-                        // just advance to next pending import
                         i += 1;
                         continue;
                     }
@@ -160,7 +163,6 @@ impl LoweringContext {
         // anything left unresolved -> emit diagnostics
         if !pending.is_empty() {
             for pi in pending {
-                // produce a helpful diagnostic using the import text
                 let segments: Vec<String> = pi
                     .import_stmt
                     .tree
@@ -474,7 +476,7 @@ impl LoweringContext {
         None
     }
 
-    fn try_resolve_import(&mut self, mid: usize, im: &ImportStmt) -> Result<bool, bool> {
+    fn try_resolve_import(&mut self, mid: usize, im: &ImportStmt) -> ResolutionStatus {
         match &im.tree.kind {
             ImportTreeKind::Simple(rename_opt) => {
                 let segments = &im.tree.prefix.segments;
@@ -483,7 +485,7 @@ impl LoweringContext {
                         "Empty import in module {}",
                         self.krate.modules[mid].name
                     ));
-                    return Err(false);
+                    return ResolutionStatus::Failed;
                 }
 
                 let desired_local_name = match rename_opt {
@@ -499,7 +501,7 @@ impl LoweringContext {
                         "Import name collision: `{}` in module `{}`",
                         desired_local_name, self.krate.modules[mid].name
                     ));
-                    return Ok(false);
+                    return ResolutionStatus::Failed;
                 }
 
                 if segments.len() == 1 {
@@ -519,7 +521,7 @@ impl LoweringContext {
                                 "Cannot import `{}` as it is not marked as public in module `{}`",
                                 name, self.krate.modules[def_mod_idx].name
                             ));
-                            return Ok(false);
+                            return ResolutionStatus::Failed;
                         }
 
                         self.krate.modules[mid]
@@ -543,9 +545,9 @@ impl LoweringContext {
                             }
                         }
 
-                        Ok(true)
+                        ResolutionStatus::Resolved
                     } else {
-                        Err(true)
+                        ResolutionStatus::RetryLater
                     }
                 } else {
                     let module_name = &segments[0].value;
@@ -569,7 +571,7 @@ impl LoweringContext {
                                     "Cannot import `{}` from module `{}` as it is not marked as public",
                                     symbol_name, module_name
                                 ));
-                                return Ok(false);
+                                return ResolutionStatus::Failed;
                             }
 
                             let local_name = match rename_opt {
@@ -584,15 +586,15 @@ impl LoweringContext {
                                     .insert(local_sym, ExportEntry { def, public: true });
                             }
 
-                            Ok(true)
+                            ResolutionStatus::Resolved
                         } else {
-                            Err(true)
+                            ResolutionStatus::RetryLater
                         }
                     } else {
                         self.krate
                             .diagnostics
                             .push(format!("Module {} not found for import", module_name));
-                        Ok(false)
+                        ResolutionStatus::Failed
                     }
                 }
             }
@@ -600,7 +602,7 @@ impl LoweringContext {
                 self.krate
                     .diagnostics
                     .push("Unsupported import tree (only simple imports supported)".to_string());
-                Ok(false)
+                ResolutionStatus::Failed
             }
         }
     }

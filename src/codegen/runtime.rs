@@ -90,13 +90,14 @@ fn create_exit_syscall<'ctx>(
     };
 
     let exit_code_int = exit_code.into_int_value();
-    let extended_exit_code = if exit_code_int.get_type().get_bit_width() < target_int_ty.get_bit_width() {
-        builder.build_int_z_extend(exit_code_int, target_int_ty, "extended_exit_code")?
-    } else if exit_code_int.get_type().get_bit_width() > target_int_ty.get_bit_width() {
-        builder.build_int_truncate(exit_code_int, target_int_ty, "truncated_exit_code")?
-    } else {
-        exit_code_int
-    };
+    let extended_exit_code =
+        if exit_code_int.get_type().get_bit_width() < target_int_ty.get_bit_width() {
+            builder.build_int_z_extend(exit_code_int, target_int_ty, "extended_exit_code")?
+        } else if exit_code_int.get_type().get_bit_width() > target_int_ty.get_bit_width() {
+            builder.build_int_truncate(exit_code_int, target_int_ty, "truncated_exit_code")?
+        } else {
+            exit_code_int
+        };
 
     let inline = context.create_inline_asm(
         exit_ty,

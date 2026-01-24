@@ -344,10 +344,9 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
     let end_span = close_token.span;
 
     if expressions.len() == 1 && !has_comma {
-        Ok(Expr {
-            kind: expressions[0].kind.clone(),
-            span: Span::new(start_token.span.start(), end_span.end()),
-        })
+        let mut expr = expressions.pop().unwrap();
+        expr.span = Span::new(start_token.span.start(), end_span.end());
+        Ok(expr)
     } else {
         Ok(Expr {
             kind: ExprKind::TupleLiteral(TupleLiteralExpr {

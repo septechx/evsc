@@ -74,4 +74,5 @@ pub struct ReturnStmt {
 #[derive(Debug, Clone)]
 pub struct ImportStmt {
     pub tree: ImportTree,
+    pub is_public: bool,
 }

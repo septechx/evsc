@@ -479,13 +479,7 @@ pub fn parse_import_stmt(
     attributes: &[Attribute],
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
-    if !modifiers.is_empty() {
-        error_at!(
-            modifiers[0].span,
-            parser.current_token().module_id,
-            "Modifier not allowed here"
-        )?;
-    }
+    let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
     let start_span = parser.expect(TokenKind::Import)?.span;
     let tree = parse_import_tree(parser)?;
@@ -493,7 +487,10 @@ pub fn parse_import_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
     Ok(Stmt {
-        kind: StmtKind::Import(ImportStmt { tree }),
+        kind: StmtKind::Import(ImportStmt {
+            tree,
+            is_public: pub_mod.is_some(),
+        }),
         attributes: attributes.into(),
         span,
     })

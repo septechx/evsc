@@ -81,15 +81,15 @@ pub struct HirCrate {
 #[derive(Debug, Clone)]
 pub struct ModuleInfo {
     pub name: String,
-    pub exports: HashMap<Symbol, DefId>,
+    pub exports: HashMap<Symbol, ExportEntry>,
     pub items: Vec<DefId>,
-    pub imports: Vec<ImportEntry>,
+    pub imports: HashMap<Symbol, DefId>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ImportEntry {
-    pub name: Symbol,
+pub struct ExportEntry {
     pub def: DefId,
+    pub public: bool,
 }
 
 #[derive(Debug, Clone)]

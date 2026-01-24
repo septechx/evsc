@@ -6,7 +6,7 @@ use crate::{
         statements::{FnDeclStmt, StructDeclStmt, VarDeclStmt},
     },
     hir::{
-        Def, DefId, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, ImportEntry, LocalId,
+        Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, LocalId,
         ModuleId, ModuleInfo, StmtId, Struct, TypeId, Variable,
         interner::{Interner, Symbol},
     },
@@ -51,7 +51,7 @@ impl LoweringContext {
                 name: ast.name.to_string(),
                 exports: HashMap::new(),
                 items: Vec::new(),
-                imports: Vec::new(),
+                imports: HashMap::new(),
             };
             self.krate.modules.push(modinfo);
         }
@@ -63,22 +63,37 @@ impl LoweringContext {
                     StmtKind::FnDecl(f) => {
                         let sym = self.krate.interner.intern(&f.name.value);
                         let defid = self.alloc_def_placeholder();
-                        // TODO: Check for visibility
-                        self.krate.modules[mid].exports.insert(sym, defid);
+                        self.krate.modules[mid].exports.insert(
+                            sym,
+                            ExportEntry {
+                                def: defid,
+                                public: f.is_public,
+                            },
+                        );
                         self.krate.modules[mid].items.push(defid);
                     }
                     StmtKind::StructDecl(s) => {
                         let sym = self.krate.interner.intern(&s.name.value);
                         let defid = self.alloc_def_placeholder();
-                        // TODO: Check for visibility
-                        self.krate.modules[mid].exports.insert(sym, defid);
+                        self.krate.modules[mid].exports.insert(
+                            sym,
+                            ExportEntry {
+                                def: defid,
+                                public: s.is_public,
+                            },
+                        );
                         self.krate.modules[mid].items.push(defid);
                     }
                     StmtKind::VarDecl(v) => {
                         let sym = self.krate.interner.intern(&v.variable_name.value);
                         let defid = self.alloc_def_placeholder();
-                        // TODO: Check for visibility
-                        self.krate.modules[mid].exports.insert(sym, defid);
+                        self.krate.modules[mid].exports.insert(
+                            sym,
+                            ExportEntry {
+                                def: defid,
+                                public: v.is_public,
+                            },
+                        );
                         self.krate.modules[mid].items.push(defid);
                     }
                     StmtKind::Import(_) => {} // Processed in lowering pass 2
@@ -105,24 +120,28 @@ impl LoweringContext {
                             if segments.len() == 1 {
                                 // Import a top-level `name`
                                 let name = &segments[0].value;
-                                let mut found_def: Option<DefId> = None;
+                                let mut found_def: Option<(DefId, bool)> = None;
                                 for modinfo in &self.krate.modules {
                                     let sym = self.krate.interner.intern(name);
-                                    if let Some(defid) = modinfo.exports.get(&sym) {
-                                        found_def = Some(*defid);
+                                    if let Some(export) = modinfo.exports.get(&sym) {
+                                        found_def = Some((export.def, export.public));
                                         break;
                                     }
                                 }
-                                if let Some(defid) = found_def {
+
+                                if let Some((defid, public)) = found_def {
+                                    if !public {
+                                        self.krate.diagnostics.push(format!(
+                                            "Cannot import `{}` as it is not marked as public",
+                                            name
+                                        ));
+                                        continue;
+                                    }
                                     let local_name = match rename_opt {
                                         Some(ident) => self.krate.interner.intern(&ident.value),
                                         None => self.krate.interner.intern(name),
                                     };
-                                    self.krate.modules[mid].imports.push(ImportEntry {
-                                        name: local_name,
-                                        def: defid,
-                                    });
-                                    self.krate.modules[mid].exports.insert(local_name, defid);
+                                    self.krate.modules[mid].imports.insert(local_name, defid);
                                 } else {
                                     self.krate
                                         .diagnostics
@@ -132,6 +151,7 @@ impl LoweringContext {
                                 // Import a `module::Name`
                                 let module_name = &segments[0].value;
                                 let symbol_name = &segments[segments.len() - 1].value;
+
                                 let mut target_mod: Option<usize> = None;
                                 for (i, m) in self.krate.modules.iter().enumerate() {
                                     if m.name == module_name.to_string() {
@@ -139,20 +159,28 @@ impl LoweringContext {
                                         break;
                                     }
                                 }
+
                                 if let Some(tmid) = target_mod {
                                     let sym = self.krate.interner.intern(symbol_name);
-                                    if let Some(&defid) = self.krate.modules[tmid].exports.get(&sym)
-                                    {
-                                        let local_name = match rename_opt {
-                                            Some(ident) => self.krate.interner.intern(&ident.value),
-                                            None => self.krate.interner.intern(symbol_name),
-                                        };
-                                        self.krate.modules[mid].imports.push(ImportEntry {
-                                            name: local_name,
-                                            def: defid,
-                                        });
-                                        // TODO: Check for visibility
-                                        self.krate.modules[mid].exports.insert(local_name, defid);
+                                    let maybe_export = self.krate.modules[tmid]
+                                        .exports
+                                        .get(&sym)
+                                        .map(|e| (e.public, e.def));
+                                    if let Some((public, def)) = maybe_export {
+                                        if !public {
+                                            self.krate.diagnostics.push(format!(
+                                                "Cannot import `{}` from module `{}` as it is not marked as public",
+                                                symbol_name, module_name
+                                            ));
+                                        } else {
+                                            let local_name = match rename_opt {
+                                                Some(ident) => {
+                                                    self.krate.interner.intern(&ident.value)
+                                                }
+                                                None => self.krate.interner.intern(symbol_name),
+                                            };
+                                            self.krate.modules[mid].imports.insert(local_name, def);
+                                        }
                                     } else {
                                         self.krate.diagnostics.push(format!(
                                             "Symbol {} not found in module {}",
@@ -225,10 +253,7 @@ impl LoweringContext {
     fn lower_fn_decl(&mut self, f: FnDeclStmt) {
         let sym = self.krate.interner.intern(&f.name.value);
         let modid = self.current_module.expect("current module set");
-        let defid = *self.krate.modules[modid.0 as usize]
-            .exports
-            .get(&sym)
-            .expect("def must exist");
+        let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
         let params = f
             .arguments
@@ -273,10 +298,7 @@ impl LoweringContext {
     fn lower_struct_decl(&mut self, s: StructDeclStmt) {
         let sym = self.krate.interner.intern(&s.name.value);
         let modid = self.current_module.expect("current module set");
-        let defid = *self.krate.modules[modid.0 as usize]
-            .exports
-            .get(&sym)
-            .expect("def must exist");
+        let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
         let fields = s
             .properties
@@ -300,10 +322,7 @@ impl LoweringContext {
     fn lower_top_var_decl(&mut self, v: VarDeclStmt) {
         let sym = self.krate.interner.intern(&v.variable_name.value);
         let modid = self.current_module.expect("current module set");
-        let defid = *self.krate.modules[modid.0 as usize]
-            .exports
-            .get(&sym)
-            .expect("def must exist");
+        let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
         let ty = if let TypeKind::Infer = v.type_.kind {
             None
@@ -332,9 +351,8 @@ impl LoweringContext {
                     }
                 }
 
-                let modid = self.current_module.expect("current module set");
-                if let Some(defid) = self.krate.modules[modid.0 as usize].exports.get(&sym) {
-                    return self.alloc_expr(HirExpr::Global(*defid));
+                if let Some(defid) = self.lookup_in_current_module(sym) {
+                    return self.alloc_expr(HirExpr::Global(defid));
                 }
 
                 self.krate
@@ -353,8 +371,7 @@ impl LoweringContext {
             }
             ExprKind::StructInstantiation(si) => {
                 let def_sym = self.krate.interner.intern(&si.name.value);
-                let modid = self.current_module.expect("current module set");
-                if let Some(&defid) = self.krate.modules[modid.0 as usize].exports.get(&def_sym) {
+                if let Some(defid) = self.lookup_in_current_module(def_sym) {
                     let mut fields = Vec::with_capacity(si.properties.len());
                     for (ident, val) in si.properties.into_iter() {
                         let fsym = self.krate.interner.intern(&ident.value);
@@ -452,10 +469,8 @@ impl LoweringContext {
                 }
 
                 let sym = self.krate.interner.intern(&name);
-                if let Some(modid) = self.current_module
-                    && let Some(defid) = self.krate.modules[modid.0 as usize].exports.get(&sym)
-                {
-                    return self.alloc_type(HirType::Adt(*defid));
+                if let Some(defid) = self.lookup_in_current_module(sym) {
+                    return self.alloc_type(HirType::Adt(defid));
                 }
 
                 self.krate
@@ -465,5 +480,21 @@ impl LoweringContext {
             }
             _ => todo!("Lowering of {:?} not implemented", ty.kind),
         }
+    }
+
+    fn lookup_in_current_module(&self, sym: Symbol) -> Option<DefId> {
+        let modid = self.current_module?;
+        let module = &self.krate.modules[modid.0 as usize];
+
+        // Check local items before imports
+        if let Some(export_entry) = module.exports.get(&sym) {
+            return Some(export_entry.def);
+        }
+
+        if let Some(defid) = module.imports.get(&sym) {
+            return Some(*defid);
+        }
+
+        None
     }
 }

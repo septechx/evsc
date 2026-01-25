@@ -62,6 +62,7 @@ pub struct FunctionCallExpr {
 pub struct MemberAccessExpr {
     pub base: Box<Expr>,
     pub member: Ident,
+    pub operator: Token,
 }
 
 #[derive(Debug, Clone)]

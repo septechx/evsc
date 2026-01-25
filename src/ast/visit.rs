@@ -341,6 +341,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Ident, ImportTree, ImportTreeKind, Path},
+        lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
     use std::collections::HashMap;
@@ -486,8 +487,8 @@ mod tests {
         }
     }
 
-    fn dummy_token(kind: crate::lexer::token::TokenKind) -> crate::lexer::token::Token {
-        crate::lexer::token::Token {
+    fn dummy_token(kind: TokenKind) -> Token {
+        Token {
             kind,
             value: "".to_string().into_boxed_str(),
             span: dummy_span(),
@@ -628,7 +629,7 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::Binary(BinaryExpr {
                 left: Box::new(dummy_expr_number(1)),
-                operator: dummy_token(crate::lexer::token::TokenKind::Plus),
+                operator: dummy_token(TokenKind::Plus),
                 right: Box::new(dummy_expr_number(2)),
             }),
             span: dummy_span(),
@@ -645,7 +646,7 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::Postfix(PostfixExpr {
                 left: Box::new(dummy_expr_symbol("x")),
-                operator: dummy_token(crate::lexer::token::TokenKind::Plus),
+                operator: dummy_token(TokenKind::Plus),
             }),
             span: dummy_span(),
         };
@@ -660,7 +661,7 @@ mod tests {
     fn test_prefix_expr_visited_once() {
         let mut expr = Expr {
             kind: ExprKind::Prefix(PrefixExpr {
-                operator: dummy_token(crate::lexer::token::TokenKind::NotEquals),
+                operator: dummy_token(TokenKind::NotEquals),
                 right: Box::new(dummy_expr_symbol("x")),
             }),
             span: dummy_span(),
@@ -677,7 +678,7 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::Assignment(AssignmentExpr {
                 assigne: Box::new(dummy_expr_symbol("x")),
-                operator: dummy_token(crate::lexer::token::TokenKind::Equals),
+                operator: dummy_token(TokenKind::Equals),
                 value: Box::new(dummy_expr_number(1)),
             }),
             span: dummy_span(),
@@ -771,6 +772,7 @@ mod tests {
             kind: ExprKind::MemberAccess(MemberAccessExpr {
                 base: Box::new(dummy_expr_symbol("obj")),
                 member: dummy_ident("field"),
+                operator: dummy_token(TokenKind::Dot),
             }),
             span: dummy_span(),
         };
@@ -1257,9 +1259,7 @@ mod tests {
                                     Expr {
                                         kind: ExprKind::Binary(BinaryExpr {
                                             left: Box::new(dummy_expr_number(3)),
-                                            operator: dummy_token(
-                                                crate::lexer::token::TokenKind::Plus,
-                                            ),
+                                            operator: dummy_token(TokenKind::Plus),
                                             right: Box::new(dummy_expr_number(4)),
                                         }),
                                         span: dummy_span(),
@@ -1513,16 +1513,16 @@ mod tests {
                         left: Box::new(Expr {
                             kind: ExprKind::Binary(BinaryExpr {
                                 left: Box::new(dummy_expr_symbol("a")),
-                                operator: dummy_token(crate::lexer::token::TokenKind::Plus),
+                                operator: dummy_token(TokenKind::Plus),
                                 right: Box::new(dummy_expr_symbol("b")),
                             }),
                             span: dummy_span(),
                         }),
-                        operator: dummy_token(crate::lexer::token::TokenKind::Star),
+                        operator: dummy_token(TokenKind::Star),
                         right: Box::new(Expr {
                             kind: ExprKind::Binary(BinaryExpr {
                                 left: Box::new(dummy_expr_symbol("c")),
-                                operator: dummy_token(crate::lexer::token::TokenKind::Slash),
+                                operator: dummy_token(TokenKind::Slash),
                                 right: Box::new(dummy_expr_symbol("d")),
                             }),
                             span: dummy_span(),
@@ -1530,7 +1530,7 @@ mod tests {
                     }),
                     span: dummy_span(),
                 }),
-                operator: dummy_token(crate::lexer::token::TokenKind::Dash),
+                operator: dummy_token(TokenKind::Dash),
                 right: Box::new(dummy_expr_symbol("e")),
             }),
             span: dummy_span(),

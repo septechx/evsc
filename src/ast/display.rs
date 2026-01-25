@@ -645,6 +645,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
             writeln!(out)?;
             write!(
                 out,
+                "{}Operator: {}",
+                expr_ctx.indent_str(),
+                punct_with_color(&m.operator.value, ctx.color)
+            )?;
+            writeln!(out)?;
+            write!(
+                out,
                 "{}Member: \"{}\"",
                 expr_ctx.indent_str(),
                 m.member.value

@@ -260,6 +260,13 @@ pub fn create_token_lookups() {
             &mut bp_lu,
             &mut led_lu,
         );
+        led(
+            T::ColonColon,
+            BP::Member,
+            parse_member_access_expr,
+            &mut bp_lu,
+            &mut led_lu,
+        );
         nud(T::OpenBracket, parse_array_literal_expr, &mut nud_lu);
 
         // Statements

@@ -11,6 +11,7 @@ use crate::{
         interner::{Interner, Symbol},
         resolve::{PendingImport, ResolutionStatus},
     },
+    lexer::token::TokenKind,
 };
 
 pub struct LoweringContext {
@@ -429,7 +430,7 @@ impl LoweringContext {
                 Expr {
                     kind: ExprKind::MemberAccess(ma),
                     ..
-                } => {
+                } if ma.operator.kind == TokenKind::Dot => {
                     let base = self.lower_expr(*ma.base);
                     let method_sym = self.krate.interner.intern(&ma.member.value);
                     let args = fc
@@ -471,12 +472,39 @@ impl LoweringContext {
                 }
             }
             ExprKind::MemberAccess(ma) => {
-                let base = self.lower_expr(*ma.base);
-                let field_sym = self.krate.interner.intern(&ma.member.value);
-                self.alloc_expr(HirExpr::Field {
-                    base,
-                    field: field_sym,
-                })
+                if ma.operator.kind == TokenKind::ColonColon {
+                    let base_id = self.lower_expr(*ma.base);
+                    let member_sym = self.krate.interner.intern(&ma.member.value);
+
+                    if let HirExpr::Global(defid) = &self.krate.exprs[base_id.0 as usize] {
+                        let defid = *defid;
+                        let modid = self.current_module.expect("current module set");
+
+                        if let Some(methods) = self.krate.modules[modid.0 as usize]
+                            .struct_methods
+                            .get(&defid)
+                            && let Some(meta) = methods.get(&member_sym)
+                        {
+                            return self.alloc_expr(HirExpr::Global(meta.def));
+                        }
+
+                        // Also could be a module, but we don't have good module-as-value yet in HIR.
+                        // Assuming simple associated item access for now.
+                    }
+
+                    self.krate.diagnostics.push(format!(
+                        "Cannot resolve associated item `{}`",
+                        ma.member.value
+                    ));
+                    self.alloc_expr(HirExpr::Error)
+                } else {
+                    let base = self.lower_expr(*ma.base);
+                    let field_sym = self.krate.interner.intern(&ma.member.value);
+                    self.alloc_expr(HirExpr::Field {
+                        base,
+                        field: field_sym,
+                    })
+                }
             }
             ExprKind::Block(b) => {
                 self.local_stack.push(HashMap::new());

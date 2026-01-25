@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use crate::{
     ast::{
         Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind,
         statements::{FnDeclStmt, StructDeclStmt, VarDeclStmt},
     },
+    hashmap::FxHashMap,
     hir::{
         Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, LocalId,
         MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, TypeId, Variable,
@@ -17,7 +16,7 @@ use crate::{
 pub struct LoweringContext {
     pub krate: HirCrate,
     pub current_module: Option<ModuleId>,
-    local_stack: Vec<HashMap<Symbol, LocalId>>,
+    local_stack: Vec<FxHashMap<Symbol, LocalId>>,
     next_def: u32,
     next_expr: u32,
     next_type: u32,
@@ -51,10 +50,10 @@ impl LoweringContext {
         for ast in &asts {
             let modinfo = ModuleInfo {
                 name: ast.name.to_string(),
-                exports: HashMap::new(),
+                exports: FxHashMap::default(),
                 items: Vec::new(),
-                imports: HashMap::new(),
-                struct_methods: HashMap::new(),
+                imports: FxHashMap::default(),
+                struct_methods: FxHashMap::default(),
             };
             self.krate.modules.push(modinfo);
         }
@@ -93,7 +92,7 @@ impl LoweringContext {
                         );
                         self.krate.modules[mid].items.push(defid);
 
-                        let mut method_map = HashMap::new();
+                        let mut method_map = FxHashMap::default();
                         for method in s.methods.iter() {
                             let method_sym = self.krate.interner.intern(&method.fn_decl.name.value);
                             let method_defid = self.alloc_def_placeholder();
@@ -273,7 +272,7 @@ impl LoweringContext {
         self.krate.defs[defid.0 as usize] = Def::Function(func);
 
         if let Some(body) = f.body {
-            self.local_stack.push(HashMap::new());
+            self.local_stack.push(FxHashMap::default());
             let param_names: Vec<_> = match &self.krate.defs[defid.0 as usize] {
                 Def::Function(func) => func.params.iter().map(|(pname, _)| *pname).collect(),
                 _ => panic!("expected function"),
@@ -354,7 +353,7 @@ impl LoweringContext {
                 self.krate.defs[method_defid.0 as usize] = Def::Function(func);
 
                 if let Some(body) = method.fn_decl.body {
-                    self.local_stack.push(HashMap::new());
+                    self.local_stack.push(FxHashMap::default());
 
                     let param_names: Vec<Symbol> = match &self.krate.defs[method_defid.0 as usize] {
                         Def::Function(func) => {
@@ -507,7 +506,7 @@ impl LoweringContext {
                 }
             }
             ExprKind::Block(b) => {
-                self.local_stack.push(HashMap::new());
+                self.local_stack.push(FxHashMap::default());
                 let stmt_ids = b
                     .body
                     .into_iter()

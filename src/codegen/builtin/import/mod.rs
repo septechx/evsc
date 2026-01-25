@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, iter::Extend};
+use std::{fs, iter::Extend};
 
 use anyhow::{Result, bail};
 use inkwell::{
@@ -21,6 +21,7 @@ use crate::{
         pointer::SmartValue,
     },
     fatal,
+    hashmap::FxHashMap,
     lexer::tokenize,
     parser::parse,
 };
@@ -154,7 +155,7 @@ where
             .struct_defs
             .into_iter()
             .filter(|(_, def)| def.is_builtin)
-            .collect::<HashMap<_, _>>(),
+            .collect::<FxHashMap<_, _>>(),
     );
     // Transfer builtins
 
@@ -174,7 +175,7 @@ where
 
     let struct_ty = create_named_struct(context, &values, &module_name, false)?;
 
-    let mut field_indices: HashMap<Box<str>, u32> = HashMap::new();
+    let mut field_indices: FxHashMap<Box<str>, u32> = FxHashMap::default();
     for (i, (name, _ty)) in entries.iter().enumerate() {
         field_indices.insert(name.clone(), i as u32);
     }

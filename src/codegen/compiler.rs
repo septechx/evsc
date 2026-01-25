@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use inkwell::{
@@ -26,11 +23,12 @@ use crate::{
         inkwell_ext::add_global_constant,
         pointer::SmartValue,
     },
+    hashmap::{FxHashMap, FxHashSet},
     span::ModuleId,
 };
 
-pub type FunctionTable<'ctx> = HashMap<Box<str>, FunctionTableEntry<'ctx>>;
-pub type SymbolTable<'ctx> = HashMap<Box<str>, SymbolTableEntry<'ctx>>;
+pub type FunctionTable<'ctx> = FxHashMap<Box<str>, FunctionTableEntry<'ctx>>;
+pub type SymbolTable<'ctx> = FxHashMap<Box<str>, SymbolTableEntry<'ctx>>;
 
 #[derive(Clone, Debug)]
 pub struct FunctionTableEntry<'ctx> {
@@ -83,13 +81,13 @@ impl<'ctx> SymbolTableEntry<'ctx> {
 
 #[derive(Clone, Debug, Default)]
 pub struct TypeContext<'ctx> {
-    pub struct_defs: HashMap<Box<str>, StructDef<'ctx>>,
+    pub struct_defs: FxHashMap<Box<str>, StructDef<'ctx>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct StructDef<'ctx> {
     pub llvm_type: inkwell::types::StructType<'ctx>,
-    pub field_indices: HashMap<Box<str>, u32>,
+    pub field_indices: FxHashMap<Box<str>, u32>,
     pub is_builtin: bool,
 }
 
@@ -102,7 +100,7 @@ pub struct CompilationContext<'ctx> {
     /// Stores all type declarations (structs)
     pub type_context: TypeContext<'ctx>,
     /// Keeps track of all used builtins, currently unused
-    pub builtins: HashSet<Builtin>,
+    pub builtins: FxHashSet<Builtin>,
     pub module_path: PathBuf,
     pub module_id: ModuleId,
 }
@@ -110,10 +108,10 @@ pub struct CompilationContext<'ctx> {
 impl<'ctx> CompilationContext<'ctx> {
     pub fn new(path: PathBuf, module_id: ModuleId) -> Self {
         CompilationContext {
-            symbol_table: HashMap::new(),
-            function_table: HashMap::new(),
+            symbol_table: FxHashMap::default(),
+            function_table: FxHashMap::default(),
             type_context: TypeContext::default(),
-            builtins: HashSet::new(),
+            builtins: FxHashSet::default(),
             module_path: path,
             module_id,
         }
@@ -213,7 +211,7 @@ fn compile_function<'ctx>(
         return Ok(());
     }
 
-    let mut symbol_table: HashMap<Box<str>, SymbolTableEntry> = HashMap::new();
+    let mut symbol_table: FxHashMap<Box<str>, SymbolTableEntry> = FxHashMap::default();
 
     let entry_bb = context.append_basic_block(function, "entry");
     let builder = context.create_builder();
@@ -378,7 +376,7 @@ fn compile_struct_decl<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let mut field_types = Vec::new();
-    let mut field_indices = HashMap::new();
+    let mut field_indices = FxHashMap::default();
 
     for (index, property) in struct_decl.properties.iter().enumerate() {
         let field_ty = compile_type(context, &property.type_, compilation_context)?;

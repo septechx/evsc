@@ -1,8 +1,11 @@
-use std::{collections::HashMap, hash::Hash};
+use std::hash::Hash;
 
-use crate::ast::{
-    Ast, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*, statements::*,
-    types::*,
+use crate::{
+    ast::{
+        Ast, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
+        statements::*, types::*,
+    },
+    hashmap::FxHashMap,
 };
 
 pub trait Visitor {
@@ -45,7 +48,7 @@ impl<T: Visitable> Visitable for Box<[T]> {
     }
 }
 
-impl<K: Eq + Hash, V: Visitable> Visitable for HashMap<K, V> {
+impl<K: Eq + Hash, V: Visitable> Visitable for FxHashMap<K, V> {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         for (_, value) in self.iter_mut() {
             value.visit(visitor);

@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use parking_lot::Once;
-use std::{collections::HashMap, sync::OnceLock};
+use std::sync::OnceLock;
 
 use colored::Colorize;
 
@@ -11,6 +11,7 @@ use crate::{
             FixedArrayType, FunctionType, MutType, PointerType, SliceType, SymbolType, TupleType,
         },
     },
+    hashmap::FxHashMap,
     lexer::token::TokenKind::{self, self as T},
     parser::{
         Parser,
@@ -25,8 +26,8 @@ use crate::{
 type TypeNudHandler = fn(&mut Parser) -> Result<Type>;
 type TypeLedHandler = fn(&mut Parser, Type, BindingPower) -> Result<Type>;
 
-type TypeNudLookup = HashMap<TokenKind, TypeNudHandler>;
-type TypeLedLookup = HashMap<TokenKind, TypeLedHandler>;
+type TypeNudLookup = FxHashMap<TokenKind, TypeNudHandler>;
+type TypeLedLookup = FxHashMap<TokenKind, TypeLedHandler>;
 
 static INITIALIZE: Once = Once::new();
 pub static TYPE_BP_LU: OnceLock<BpLookup> = OnceLock::new();
@@ -51,9 +52,9 @@ fn type_nud(kind: TokenKind, nud_fn: TypeNudHandler, nud_lu: &mut TypeNudLookup)
 
 pub fn create_token_type_lookups() {
     INITIALIZE.call_once(|| {
-        let bp_lu = BpLookup::new();
-        let mut nud_lu = TypeNudLookup::new();
-        let led_lu = TypeLedLookup::new();
+        let bp_lu = BpLookup::default();
+        let mut nud_lu = TypeNudLookup::default();
+        let led_lu = TypeLedLookup::default();
 
         type_nud(T::Identifier, parse_symbol_type, &mut nud_lu);
         type_nud(T::OpenBracket, parse_array_type, &mut nud_lu);

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use crate::hashmap::FxHashMap;
 
 pub type Symbol = u32;
 
 #[derive(Debug, Default, Clone)]
 pub struct Interner {
-    map: HashMap<String, Symbol>,
+    map: FxHashMap<String, Symbol>,
     vec: Vec<String>,
 }
 

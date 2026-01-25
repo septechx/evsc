@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
-use crate::span::{ModuleId, Span};
+use crate::{hashmap::FxHashMap, span::{ModuleId, Span}};
 
 #[derive(Debug, Clone)]
 pub struct SourceMap {
@@ -75,7 +75,7 @@ impl SourceMap {
 
 #[derive(Debug, Clone, Default)]
 pub struct SourceMapManager {
-    source_maps: HashMap<ModuleId, SourceMap>,
+    source_maps: FxHashMap<ModuleId, SourceMap>,
     next_id: ModuleId,
 }
 

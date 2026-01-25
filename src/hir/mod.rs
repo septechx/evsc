@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::hashmap::FxHashMap;
 
 use crate::{
     ast::{Ast, Literal},
@@ -82,10 +82,10 @@ pub struct HirCrate {
 #[derive(Debug, Clone)]
 pub struct ModuleInfo {
     pub name: String,
-    pub exports: HashMap<Symbol, ExportEntry>,
+    pub exports: FxHashMap<Symbol, ExportEntry>,
     pub items: Vec<DefId>,
-    pub imports: HashMap<Symbol, DefId>,
-    pub struct_methods: HashMap<DefId, HashMap<Symbol, MethodMeta>>,
+    pub imports: FxHashMap<Symbol, DefId>,
+    pub struct_methods: FxHashMap<DefId, FxHashMap<Symbol, MethodMeta>>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-/// Creates a HashMap from the given field names.
+/// Creates a FxHashMap from the given field names.
 /// ```rust,ignore
 /// struct_fields!(a, b, c)
 /// ```
@@ -9,7 +9,7 @@ macro_rules! struct_fields {
         names.iter()
              .enumerate()
              .map(|(i, &s)| (s.into(), i as u32))
-             .collect::<std::collections::HashMap<Box<str>, u32>>()
+             .collect::<$crate::hashmap::FxHashMap<Box<str>, u32>>()
     }};
 }
 

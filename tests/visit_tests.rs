@@ -8,24 +8,24 @@ mod tests {
             visit::{Visitable, Visitor},
             *,
         },
+        hashmap::FxHashMap,
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use std::collections::HashMap;
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {
-        stmt_counts: HashMap<&'static str, usize>,
-        expr_counts: HashMap<&'static str, usize>,
-        type_counts: HashMap<&'static str, usize>,
+        stmt_counts: FxHashMap<&'static str, usize>,
+        expr_counts: FxHashMap<&'static str, usize>,
+        type_counts: FxHashMap<&'static str, usize>,
     }
 
     impl NodeCounterVisitor {
         pub fn new() -> Self {
             Self {
-                stmt_counts: HashMap::new(),
-                expr_counts: HashMap::new(),
-                type_counts: HashMap::new(),
+                stmt_counts: FxHashMap::default(),
+                expr_counts: FxHashMap::default(),
+                type_counts: FxHashMap::default(),
             }
         }
 
@@ -363,7 +363,9 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                 name: dummy_ident("Foo"),
-                properties: HashMap::from([(dummy_ident("a"), dummy_expr_number(1))]),
+                properties: [(dummy_ident("a"), dummy_expr_number(1))]
+                    .into_iter()
+                    .collect(),
             }),
             span: dummy_span(),
         };
@@ -379,11 +381,13 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                 name: dummy_ident("Foo"),
-                properties: HashMap::from([
+                properties: [
                     (dummy_ident("a"), dummy_expr_number(1)),
                     (dummy_ident("b"), dummy_expr_number(2)),
                     (dummy_ident("c"), dummy_expr_number(3)),
-                ]),
+                ]
+                .into_iter()
+                .collect(),
             }),
             span: dummy_span(),
         };
@@ -919,7 +923,7 @@ mod tests {
                     Expr {
                         kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                             name: dummy_ident("Bar"),
-                            properties: HashMap::from([
+                            properties: [
                                 (dummy_ident("x"), dummy_expr_number(2)),
                                 (
                                     dummy_ident("y"),
@@ -932,7 +936,9 @@ mod tests {
                                         span: dummy_span(),
                                     },
                                 ),
-                            ]),
+                            ]
+                            .into_iter()
+                            .collect(),
                         }),
                         span: dummy_span(),
                     },

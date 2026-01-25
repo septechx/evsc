@@ -1,12 +1,14 @@
 pub mod widgets;
 
 use std::{
-    collections::HashMap,
     fmt::{self, Display, Formatter},
 };
 
-use crate::{elog, elogln};
+use crate::{elog, elogln, hashmap::FxHashMap};
+
 use colored::Colorize;
+
+
 
 use crate::errors::widgets::Widget;
 
@@ -148,8 +150,8 @@ impl ErrorCollector {
         }
     }
 
-    pub fn error_counts(&self) -> HashMap<ErrorLevel, usize> {
-        let mut counts = HashMap::new();
+    pub fn error_counts(&self) -> FxHashMap<ErrorLevel, usize> {
+        let mut counts = FxHashMap::default();
         for error in &self.errors {
             *counts.entry(error.level).or_insert(0) += 1;
         }

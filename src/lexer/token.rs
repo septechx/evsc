@@ -64,9 +64,9 @@ macro_rules! define_tokens {
 
         pub fn lookup_reserved(ident: &str) -> Option<TokenKind> {
             use TokenKind as T;
-            static RESERVED_KEYWORDS: std::sync::OnceLock<std::collections::HashMap<Box<str>, TokenKind>> = std::sync::OnceLock::new();
+            static RESERVED_KEYWORDS: std::sync::OnceLock<crate::hashmap::FxHashMap<Box<str>, TokenKind>> = std::sync::OnceLock::new();
             let lu = RESERVED_KEYWORDS.get_or_init(|| {
-                let mut m = std::collections::HashMap::new();
+                let mut m = crate::hashmap::FxHashMap::default();
                 $(
                     m.insert(stringify!($reserved).to_lowercase().into_boxed_str(), T::$reserved);
                 )*

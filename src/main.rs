@@ -4,6 +4,7 @@ pub mod bindings;
 pub mod cli;
 pub mod codegen;
 pub mod errors;
+pub mod hashmap;
 pub mod hir;
 pub mod lexer;
 pub mod macros;

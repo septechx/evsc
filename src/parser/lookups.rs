@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::sync::OnceLock;
 
 use parking_lot::Once;
 
 use crate::{
     ast::{Attribute, Expr, Stmt},
+    hashmap::FxHashMap,
     lexer::token::TokenKind::{self, self as T},
     parser::{Parser, expr::*, modifiers::Modifier, stmt::*},
 };
@@ -30,10 +31,10 @@ type StmtHandler = fn(&mut Parser, &[Attribute], &[Modifier]) -> anyhow::Result<
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expr>;
 type LedHandler = fn(&mut Parser, Expr, BindingPower) -> anyhow::Result<Expr>;
 
-type StmtLookup = HashMap<TokenKind, StmtHandler>;
-type NudLookup = HashMap<TokenKind, NudHandler>;
-type LedLookup = HashMap<TokenKind, LedHandler>;
-pub type BpLookup = HashMap<TokenKind, BindingPower>;
+type StmtLookup = FxHashMap<TokenKind, StmtHandler>;
+type NudLookup = FxHashMap<TokenKind, NudHandler>;
+type LedLookup = FxHashMap<TokenKind, LedHandler>;
+pub type BpLookup = FxHashMap<TokenKind, BindingPower>;
 
 static INITIALIZE: Once = Once::new();
 pub static BP_LU: OnceLock<BpLookup> = OnceLock::new();
@@ -63,10 +64,10 @@ fn stmt(kind: TokenKind, stmt_fn: StmtHandler, bp_lu: &mut BpLookup, stmt_lu: &m
 
 pub fn create_token_lookups() {
     INITIALIZE.call_once(|| {
-        let mut bp_lu = BpLookup::new();
-        let mut nud_lu = NudLookup::new();
-        let mut led_lu = LedLookup::new();
-        let mut stmt_lu = StmtLookup::new();
+        let mut bp_lu = BpLookup::default();
+        let mut nud_lu = NudLookup::default();
+        let mut led_lu = LedLookup::default();
+        let mut stmt_lu = StmtLookup::default();
 
         // Assignment
         led(

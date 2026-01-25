@@ -1,8 +1,8 @@
 use crate::{
     ast::{Expr, Ident, Stmt, Type},
+    hashmap::FxHashMap,
     lexer::token::Token,
 };
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct BlockExpr {
@@ -43,7 +43,7 @@ pub struct AssignmentExpr {
 #[derive(Debug, Clone)]
 pub struct StructInstantiationExpr {
     pub name: Ident,
-    pub properties: HashMap<Ident, Expr>,
+    pub properties: FxHashMap<Ident, Expr>,
 }
 
 #[derive(Debug, Clone)]

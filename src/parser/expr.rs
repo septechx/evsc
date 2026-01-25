@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::convert::TryInto;
 
 use anyhow::{Result, bail};
@@ -13,6 +12,7 @@ use crate::{
         },
     },
     fatal_at,
+    hashmap::FxHashMap,
     lexer::token::TokenKind,
     parser::{
         Parser,
@@ -191,7 +191,7 @@ pub fn parse_struct_instantiation_expr(
 
     parser.expect(TokenKind::OpenCurly)?;
 
-    let mut properties: HashMap<Ident, Expr> = HashMap::new();
+    let mut properties: FxHashMap<Ident, Expr> = FxHashMap::default();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::{Result, anyhow, bail};
 use inkwell::{
     AddressSpace,
@@ -19,6 +17,7 @@ use crate::{
         compiler::{CompilationContext, compile_stmts},
         pointer::SmartValue,
     },
+    hashmap::FxHashMap,
     lexer::token::TokenKind,
     span::Span,
 };
@@ -312,7 +311,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .properties
                 .iter()
                 .map(|(ident, expr)| (ident.value.clone(), expr))
-                .collect::<HashMap<_, _>>();
+                .collect::<FxHashMap<_, _>>();
 
             // Field in instantiation but not in struct
             for field_name in expr.properties.keys() {

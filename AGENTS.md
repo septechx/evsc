@@ -1,6 +1,6 @@
 # Running the tests
 
-Either use `just test` or `env OXI_ROOT=$(pwd) cargo test`. Do not run the tests unless told to, you can run the lint instead.
+Either use `just test` or `env OXI_ROOT=$(pwd) cargo test`.
 
 # Running the lint
 

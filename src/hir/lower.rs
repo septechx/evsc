@@ -6,7 +6,7 @@ use crate::{
     hashmap::FxHashMap,
     hir::{
         Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, LocalId,
-        MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, TypeId, Variable,
+        MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, StructField, TypeId, Variable,
         interner::{Interner, Symbol},
         resolve::{PendingImport, ResolutionStatus},
     },
@@ -16,6 +16,7 @@ use crate::{
 pub struct LoweringContext {
     pub krate: HirCrate,
     pub current_module: Option<ModuleId>,
+    pub current_struct: Option<DefId>,
     local_stack: Vec<FxHashMap<Symbol, LocalId>>,
     next_def: u32,
     next_expr: u32,
@@ -37,6 +38,7 @@ impl LoweringContext {
                 diagnostics: Vec::new(),
             },
             current_module: None,
+            current_struct: None,
             local_stack: Vec::new(),
             next_def: 0,
             next_expr: 0,
@@ -54,6 +56,7 @@ impl LoweringContext {
                 items: Vec::new(),
                 imports: FxHashMap::default(),
                 struct_methods: FxHashMap::default(),
+                struct_fields: FxHashMap::default(),
             };
             self.krate.modules.push(modinfo);
         }
@@ -66,11 +69,12 @@ impl LoweringContext {
     fn collect_definitions(&mut self, asts: &[Ast]) {
         // PASS 1: Collect top-level definitions
         for (mid, ast) in asts.iter().enumerate() {
+            let modid = ModuleId(mid as u32);
             for stmt in ast.items.iter() {
                 match &stmt.kind {
                     StmtKind::FnDecl(f) => {
                         let sym = self.krate.interner.intern(&f.name.value);
-                        let defid = self.alloc_def_placeholder();
+                        let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
                             sym,
                             ExportEntry {
@@ -82,7 +86,7 @@ impl LoweringContext {
                     }
                     StmtKind::StructDecl(s) => {
                         let sym = self.krate.interner.intern(&s.name.value);
-                        let defid = self.alloc_def_placeholder();
+                        let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
                             sym,
                             ExportEntry {
@@ -95,7 +99,7 @@ impl LoweringContext {
                         let mut method_map = FxHashMap::default();
                         for method in s.methods.iter() {
                             let method_sym = self.krate.interner.intern(&method.fn_decl.name.value);
-                            let method_defid = self.alloc_def_placeholder();
+                            let method_defid = self.alloc_def_placeholder(modid);
                             method_map.insert(
                                 method_sym,
                                 MethodMeta {
@@ -108,10 +112,19 @@ impl LoweringContext {
                         self.krate.modules[mid]
                             .struct_methods
                             .insert(defid, method_map);
+
+                        let mut field_map = FxHashMap::default();
+                        for field in s.properties.iter() {
+                            let field_sym = self.krate.interner.intern(&field.name.value);
+                            field_map.insert(field_sym, field.is_public);
+                        }
+                        self.krate.modules[mid]
+                            .struct_fields
+                            .insert(defid, field_map);
                     }
                     StmtKind::VarDecl(v) => {
                         let sym = self.krate.interner.intern(&v.variable_name.value);
-                        let defid = self.alloc_def_placeholder();
+                        let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
                             sym,
                             ExportEntry {
@@ -208,10 +221,10 @@ impl LoweringContext {
         }
     }
 
-    fn alloc_def_placeholder(&mut self) -> DefId {
+    fn alloc_def_placeholder(&mut self, modid: ModuleId) -> DefId {
         let defid = DefId(self.next_def);
         self.next_def += 1;
-        self.krate.defs.push(Def::Placeholder(defid));
+        self.krate.defs.push(Def::Placeholder(defid, modid));
         defid
     }
 
@@ -297,11 +310,10 @@ impl LoweringContext {
         let fields = s
             .properties
             .into_iter()
-            .map(|p| {
-                (
-                    self.krate.interner.intern(&p.name.value),
-                    self.lower_type(p.type_),
-                )
+            .map(|p| StructField {
+                name: self.krate.interner.intern(&p.name.value),
+                ty: self.lower_type(p.type_),
+                public: p.is_public,
             })
             .collect();
 
@@ -312,6 +324,9 @@ impl LoweringContext {
             module: modid,
         };
         self.krate.defs[defid.0 as usize] = Def::Struct(st);
+
+        let prev_struct = self.current_struct;
+        self.current_struct = Some(defid);
 
         if let Some(methods_map) = self.krate.modules[modid.0 as usize]
             .struct_methods
@@ -382,6 +397,8 @@ impl LoweringContext {
                 }
             }
         }
+
+        self.current_struct = prev_struct;
     }
 
     fn lower_top_var_decl(&mut self, v: VarDeclStmt) {
@@ -477,13 +494,23 @@ impl LoweringContext {
 
                     if let HirExpr::Global(defid) = &self.krate.exprs[base_id.0 as usize] {
                         let defid = *defid;
-                        let modid = self.current_module.expect("current module set");
+                        let struct_mod = self.krate.defs[defid.0 as usize].module();
 
-                        if let Some(methods) = self.krate.modules[modid.0 as usize]
+                        if let Some(methods) = self.krate.modules[struct_mod.0 as usize]
                             .struct_methods
                             .get(&defid)
                             && let Some(meta) = methods.get(&member_sym)
                         {
+                            if !meta.public {
+                                let allowed = self.current_struct == Some(defid);
+
+                                if !allowed {
+                                    self.krate.diagnostics.push(format!(
+                                        "Cannot access private associated item `{}`",
+                                        ma.member.value
+                                    ));
+                                }
+                            }
                             return self.alloc_expr(HirExpr::Global(meta.def));
                         }
 

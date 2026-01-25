@@ -16,6 +16,9 @@ mod resolve;
 pub fn lower_ast(asts: Vec<Ast>) -> HirCrate {
     let mut ctx = LoweringContext::new();
     ctx.lower_crate(asts);
+    for diag in &ctx.krate.diagnostics {
+        crate::error!(diag.clone());
+    }
     ctx.krate
 }
 
@@ -86,6 +89,7 @@ pub struct ModuleInfo {
     pub items: Vec<DefId>,
     pub imports: FxHashMap<Symbol, DefId>,
     pub struct_methods: FxHashMap<DefId, FxHashMap<Symbol, MethodMeta>>,
+    pub struct_fields: FxHashMap<DefId, FxHashMap<Symbol, bool>>,
 }
 
 #[derive(Debug, Clone)]
@@ -96,10 +100,21 @@ pub struct ExportEntry {
 
 #[derive(Debug, Clone)]
 pub enum Def {
-    Placeholder(DefId),
+    Placeholder(DefId, ModuleId),
     Function(Function),
     Struct(Struct),
     Variable(Variable),
+}
+
+impl Def {
+    pub fn module(&self) -> ModuleId {
+        match self {
+            Def::Placeholder(_, m) => *m,
+            Def::Function(f) => f.module,
+            Def::Struct(s) => s.module,
+            Def::Variable(v) => v.module,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -115,9 +130,16 @@ pub struct Function {
 }
 
 #[derive(Debug, Clone)]
+pub struct StructField {
+    pub name: Symbol,
+    pub ty: TypeId,
+    pub public: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct Struct {
     pub name: Symbol,
-    pub fields: Vec<(Symbol, TypeId)>,
+    pub fields: Vec<StructField>,
     pub methods: Vec<(Symbol, DefId)>,
     pub module: ModuleId,
 }

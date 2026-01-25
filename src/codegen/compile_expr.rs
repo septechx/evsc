@@ -345,6 +345,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     compilation_context,
                 )?;
 
+                let val = val.unwrap(builder)?;
+
                 let field_ptr = builder.build_struct_gep(
                     struct_ty,
                     alloca,
@@ -353,7 +355,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 )?;
 
                 let field_type = struct_ty.get_field_type_at_index(*field_index).unwrap();
-                let store_val = cast_int_to_type(builder, val.value, field_type)?;
+                let store_val = cast_int_to_type(builder, val, field_type)?;
 
                 builder.build_store(field_ptr, store_val)?;
             }

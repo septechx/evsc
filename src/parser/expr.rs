@@ -199,8 +199,18 @@ pub fn parse_struct_instantiation_expr(
         }
 
         let property = parser.expect_identifier()?;
-        parser.expect(TokenKind::Colon)?;
-        let value = parse_expr(parser, BindingPower::Assignment)?;
+
+        let value = if parser.current_token().kind == TokenKind::Colon {
+            parser.expect(TokenKind::Colon)?;
+            parse_expr(parser, BindingPower::Assignment)?
+        } else {
+            Expr {
+                kind: ExprKind::Symbol(SymbolExpr {
+                    value: property.clone(),
+                }),
+                span: property.span,
+            }
+        };
 
         properties.insert(property, value);
 

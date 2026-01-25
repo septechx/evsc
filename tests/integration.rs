@@ -484,6 +484,34 @@ fn string_literals() {
 }
 
 #[test]
+fn struct_shorthand_initialization() {
+    it(|ctx| {
+        ctx.add_source(
+            r#"
+            struct Foo {
+                x: i32,
+                y: i32,
+            }
+
+            pub fn main() isize {
+                let x = 10;
+                let foo = Foo {
+                    x,
+                    y: 20,
+                };
+
+                return foo.x + foo.y;
+            }
+            "#,
+        )
+        .compiles(true)
+        .execute(|res| {
+            res.exit_code(30);
+        });
+    })
+}
+
+#[test]
 fn float_literals() {
     it(|t| {
         t.add_source(

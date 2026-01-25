@@ -215,15 +215,3 @@ macro_rules! fatal {
         unreachable!()
     }};
 }
-
-#[macro_export]
-macro_rules! warning_with_example {
-    ($msg:expr, $code:expr, $line:expr, $code_type:expr $(,)?) => {
-        $crate::ERRORS.with(|e| {
-            e.borrow_mut()
-                .add($crate::errors::builders::warning($msg).add_widget(
-                    $crate::errors::widgets::CodeExampleWidget::new($code, $line, $code_type),
-                ));
-        })
-    };
-}

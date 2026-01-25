@@ -9,8 +9,11 @@ use inkwell::{
 
 use crate::{
     codegen::arch::{compile_arch_size_type, is_64},
-    errors::widgets::CodeType,
-    fatal, warning_with_example,
+    errors::{
+        builders,
+        widgets::{CodeExampleWidget, CodeType, InfoWidget},
+    },
+    fatal,
 };
 
 pub fn generate_c_runtime_integration<'ctx>(
@@ -54,12 +57,20 @@ pub fn generate_c_runtime_integration<'ctx>(
 
         create_exit_syscall(context, builder, result_value)?;
     } else {
-        warning_with_example!(
-            "Main function not found",
-            "pub fn main() void {}",
-            1,
-            CodeType::Add
-        );
+        crate::ERRORS.with(|e| {
+            e.borrow_mut().add(
+                builders::warning("Main function not found")
+                    .add_widget(InfoWidget::from_raw(
+                        1,
+                        "You can add a main function like this".into(),
+                    ))
+                    .add_widget(CodeExampleWidget::new(
+                        "pub fn main() void {}",
+                        1,
+                        CodeType::Add,
+                    )),
+            )
+        });
 
         let exit_code = compile_arch_size_type(context)
             .const_zero()

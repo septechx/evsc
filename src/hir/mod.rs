@@ -85,6 +85,7 @@ pub struct ModuleInfo {
     pub exports: HashMap<Symbol, ExportEntry>,
     pub items: Vec<DefId>,
     pub imports: HashMap<Symbol, DefId>,
+    pub struct_methods: HashMap<DefId, HashMap<Symbol, MethodMeta>>,
 }
 
 #[derive(Debug, Clone)]
@@ -108,12 +109,16 @@ pub struct Function {
     pub ret: TypeId,
     pub body: Option<ExprId>,
     pub module: ModuleId,
+    // struct defid if this is a method
+    pub associated: Option<DefId>,
+    pub static_method: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Struct {
     pub name: Symbol,
     pub fields: Vec<(Symbol, TypeId)>,
+    pub methods: Vec<(Symbol, DefId)>,
     pub module: ModuleId,
 }
 
@@ -126,6 +131,13 @@ pub struct Variable {
 }
 
 #[derive(Debug, Clone)]
+pub struct MethodMeta {
+    pub def: DefId,
+    pub is_static: bool,
+    pub public: bool,
+}
+
+#[derive(Debug, Clone)]
 pub enum HirExpr {
     Error,
     Literal(Literal),
@@ -133,6 +145,11 @@ pub enum HirExpr {
     Global(DefId),
     Call {
         callee: ExprId,
+        args: Vec<ExprId>,
+    },
+    MethodCall {
+        base: ExprId,
+        method: Symbol,
         args: Vec<ExprId>,
     },
     Field {
@@ -170,6 +187,7 @@ pub enum HirType {
     Error,
     Builtin(String),
     Adt(DefId),
+    Pointer(TypeId, bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

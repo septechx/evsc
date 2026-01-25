@@ -7,7 +7,7 @@ use crate::{
     },
     hir::{
         Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, LocalId,
-        ModuleId, ModuleInfo, StmtId, Struct, TypeId, Variable,
+        MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, TypeId, Variable,
         interner::{Interner, Symbol},
         resolve::{PendingImport, ResolutionStatus},
     },
@@ -53,6 +53,7 @@ impl LoweringContext {
                 exports: HashMap::new(),
                 items: Vec::new(),
                 imports: HashMap::new(),
+                struct_methods: HashMap::new(),
             };
             self.krate.modules.push(modinfo);
         }
@@ -90,6 +91,23 @@ impl LoweringContext {
                             },
                         );
                         self.krate.modules[mid].items.push(defid);
+
+                        let mut method_map = HashMap::new();
+                        for method in s.methods.iter() {
+                            let method_sym = self.krate.interner.intern(&method.fn_decl.name.value);
+                            let method_defid = self.alloc_def_placeholder();
+                            method_map.insert(
+                                method_sym,
+                                MethodMeta {
+                                    def: method_defid,
+                                    is_static: method.is_static,
+                                    public: method.is_public,
+                                },
+                            );
+                        }
+                        self.krate.modules[mid]
+                            .struct_methods
+                            .insert(defid, method_map);
                     }
                     StmtKind::VarDecl(v) => {
                         let sym = self.krate.interner.intern(&v.variable_name.value);
@@ -248,6 +266,8 @@ impl LoweringContext {
             ret,
             body: None,
             module: modid,
+            associated: None,
+            static_method: false,
         };
         self.krate.defs[defid.0 as usize] = Def::Function(func);
 
@@ -288,9 +308,80 @@ impl LoweringContext {
         let st = Struct {
             name: sym,
             fields,
+            methods: Vec::with_capacity(s.methods.len()),
             module: modid,
         };
         self.krate.defs[defid.0 as usize] = Def::Struct(st);
+
+        if let Some(methods_map) = self.krate.modules[modid.0 as usize]
+            .struct_methods
+            .get(&defid)
+            .cloned()
+        {
+            for method in s.methods.into_iter() {
+                let method_sym = self.krate.interner.intern(&method.fn_decl.name.value);
+                let meta = methods_map
+                    .get(&method_sym)
+                    .expect("method placeholder must exist");
+
+                let method_defid = meta.def;
+
+                let params: Vec<(Symbol, TypeId)> = method
+                    .fn_decl
+                    .arguments
+                    .into_iter()
+                    .map(|p| {
+                        (
+                            self.krate.interner.intern(&p.name.value),
+                            self.lower_type(p.type_),
+                        )
+                    })
+                    .collect();
+
+                let ret = self.lower_type(method.fn_decl.return_type);
+
+                let func = Function {
+                    name: method_sym,
+                    params,
+                    ret,
+                    body: None,
+                    module: modid,
+                    associated: Some(defid),
+                    static_method: method.is_static,
+                };
+
+                self.krate.defs[method_defid.0 as usize] = Def::Function(func);
+
+                if let Some(body) = method.fn_decl.body {
+                    self.local_stack.push(HashMap::new());
+
+                    let param_names: Vec<Symbol> = match &self.krate.defs[method_defid.0 as usize] {
+                        Def::Function(func) => {
+                            func.params.iter().map(|(pname, _)| *pname).collect()
+                        }
+                        _ => panic!("method is a function"),
+                    };
+                    for pname in param_names {
+                        let local = self.alloc_local();
+                        self.local_stack.last_mut().unwrap().insert(pname, local);
+                    }
+
+                    let expr = self.lower_expr(body);
+
+                    if let Def::Function(func) = &mut self.krate.defs[method_defid.0 as usize] {
+                        func.body = Some(expr);
+                    }
+
+                    self.local_stack.pop();
+                }
+
+                if let Def::Struct(st) = &mut self.krate.defs[defid.0 as usize] {
+                    st.methods.push((method_sym, method_defid));
+                } else {
+                    panic!("struct defid must refer to Struct");
+                }
+            }
+        }
     }
 
     fn lower_top_var_decl(&mut self, v: VarDeclStmt) {
@@ -334,15 +425,34 @@ impl LoweringContext {
                     .push(format!("Unknown symbol {}", s.value.value));
                 self.alloc_expr(HirExpr::Error)
             }
-            ExprKind::FunctionCall(fc) => {
-                let callee = self.lower_expr(*fc.callee);
-                let args = fc
-                    .arguments
-                    .into_iter()
-                    .map(|a| self.lower_expr(a))
-                    .collect();
-                self.alloc_expr(HirExpr::Call { callee, args })
-            }
+            ExprKind::FunctionCall(fc) => match *fc.callee {
+                Expr {
+                    kind: ExprKind::MemberAccess(ma),
+                    ..
+                } => {
+                    let base = self.lower_expr(*ma.base);
+                    let method_sym = self.krate.interner.intern(&ma.member.value);
+                    let args = fc
+                        .arguments
+                        .into_iter()
+                        .map(|a| self.lower_expr(a))
+                        .collect();
+                    self.alloc_expr(HirExpr::MethodCall {
+                        base,
+                        method: method_sym,
+                        args,
+                    })
+                }
+                _ => {
+                    let callee = self.lower_expr(*fc.callee);
+                    let args = fc
+                        .arguments
+                        .into_iter()
+                        .map(|a| self.lower_expr(a))
+                        .collect();
+                    self.alloc_expr(HirExpr::Call { callee, args })
+                }
+            },
             ExprKind::StructInstantiation(si) => {
                 let def_sym = self.krate.interner.intern(&si.name.value);
                 if let Some(defid) = self.lookup_in_current_module(def_sym) {
@@ -451,6 +561,19 @@ impl LoweringContext {
                     .diagnostics
                     .push(format!("Unknown type: {}", name));
                 self.alloc_type(HirType::Error)
+            }
+            TypeKind::Pointer(p) => {
+                let inner = *p.underlying;
+
+                let (inner, mutable) = if let TypeKind::Mut(m) = inner.kind {
+                    (*m.underlying, true)
+                } else {
+                    (inner, false)
+                };
+
+                let tid = self.lower_type(inner);
+
+                self.alloc_type(HirType::Pointer(tid, mutable))
             }
             _ => todo!("Lowering of {:?} not implemented", ty.kind),
         }

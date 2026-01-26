@@ -2,16 +2,29 @@ use std::hash::Hash;
 
 use crate::{
     ast::{
-        expressions::*, statements::*, types::*, Ast, Expr, ExprKind, Literal, Stmt, StmtKind,
-        Type, TypeKind,
+        Ast, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
+        statements::*, types::*,
     },
     hashmap::FxHashMap,
 };
 
+pub enum VisitAction {
+    /// Descend into children
+    Continue,
+    /// Don't descend
+    SkipChildren,
+}
+
 pub trait Visitor {
-    fn visit_stmt(&mut self, stmt: &Stmt);
-    fn visit_expr(&mut self, expr: &Expr);
-    fn visit_type(&mut self, ty: &Type);
+    fn visit_stmt(&mut self, _stmt: &Stmt) -> VisitAction {
+        VisitAction::Continue
+    }
+    fn visit_expr(&mut self, _expr: &Expr) -> VisitAction {
+        VisitAction::Continue
+    }
+    fn visit_type(&mut self, _ty: &Type) -> VisitAction {
+        VisitAction::Continue
+    }
 }
 
 pub trait Visitable {
@@ -66,17 +79,18 @@ impl Visitable for Ast {
 
 impl Visitable for Stmt {
     fn visit(&self, visitor: &mut impl Visitor) {
-        visitor.visit_stmt(self);
-
-        match &self.kind {
-            StmtKind::Expression(expr_stmt) => expr_stmt.visit(visitor),
-            StmtKind::VarDecl(var) => var.visit(visitor),
-            StmtKind::StructDecl(s) => s.visit(visitor),
-            StmtKind::InterfaceDecl(i) => i.visit(visitor),
-            StmtKind::Impl(i) => i.visit(visitor),
-            StmtKind::FnDecl(f) => f.visit(visitor),
-            StmtKind::Return(r) => r.visit(visitor),
-            StmtKind::Import(i) => i.visit(visitor),
+        match visitor.visit_stmt(self) {
+            VisitAction::Continue => match &self.kind {
+                StmtKind::Expression(expr_stmt) => expr_stmt.visit(visitor),
+                StmtKind::VarDecl(var) => var.visit(visitor),
+                StmtKind::StructDecl(s) => s.visit(visitor),
+                StmtKind::InterfaceDecl(i) => i.visit(visitor),
+                StmtKind::Impl(i) => i.visit(visitor),
+                StmtKind::FnDecl(f) => f.visit(visitor),
+                StmtKind::Return(r) => r.visit(visitor),
+                StmtKind::Import(i) => i.visit(visitor),
+            },
+            VisitAction::SkipChildren => {}
         }
     }
 }
@@ -182,23 +196,24 @@ impl Visitable for ReturnStmt {
 
 impl Visitable for Expr {
     fn visit(&self, visitor: &mut impl Visitor) {
-        visitor.visit_expr(self);
-
-        match &self.kind {
-            ExprKind::Literal(l) => l.visit(visitor),
-            ExprKind::Block(block) => block.visit(visitor),
-            ExprKind::Symbol(s) => s.visit(visitor),
-            ExprKind::Binary(b) => b.visit(visitor),
-            ExprKind::Postfix(p) => p.visit(visitor),
-            ExprKind::Prefix(p) => p.visit(visitor),
-            ExprKind::Assignment(a) => a.visit(visitor),
-            ExprKind::StructInstantiation(s) => s.visit(visitor),
-            ExprKind::ArrayLiteral(a) => a.visit(visitor),
-            ExprKind::FunctionCall(f) => f.visit(visitor),
-            ExprKind::MemberAccess(m) => m.visit(visitor),
-            ExprKind::Type(t) => t.visit(visitor),
-            ExprKind::As(a) => a.visit(visitor),
-            ExprKind::TupleLiteral(t) => t.visit(visitor),
+        match visitor.visit_expr(self) {
+            VisitAction::Continue => match &self.kind {
+                ExprKind::Literal(l) => l.visit(visitor),
+                ExprKind::Block(block) => block.visit(visitor),
+                ExprKind::Symbol(s) => s.visit(visitor),
+                ExprKind::Binary(b) => b.visit(visitor),
+                ExprKind::Postfix(p) => p.visit(visitor),
+                ExprKind::Prefix(p) => p.visit(visitor),
+                ExprKind::Assignment(a) => a.visit(visitor),
+                ExprKind::StructInstantiation(s) => s.visit(visitor),
+                ExprKind::ArrayLiteral(a) => a.visit(visitor),
+                ExprKind::FunctionCall(f) => f.visit(visitor),
+                ExprKind::MemberAccess(m) => m.visit(visitor),
+                ExprKind::Type(t) => t.visit(visitor),
+                ExprKind::As(a) => a.visit(visitor),
+                ExprKind::TupleLiteral(t) => t.visit(visitor),
+            },
+            VisitAction::SkipChildren => {}
         }
     }
 }
@@ -281,27 +296,29 @@ impl Visitable for TupleLiteralExpr {
 
 impl Visitable for Type {
     fn visit(&self, visitor: &mut impl Visitor) {
-        visitor.visit_type(self);
-        match &self.kind {
-            TypeKind::Symbol(_) => {}
-            TypeKind::Pointer(p) => p.underlying.visit(visitor),
-            TypeKind::Slice(s) => s.underlying.visit(visitor),
-            TypeKind::FixedArray(f) => {
-                f.underlying.visit(visitor);
-            }
-            TypeKind::Function(ft) => {
-                ft.parameters.visit(visitor);
-                ft.return_type.visit(visitor);
-            }
-            TypeKind::Tuple(t) => {
-                t.elements.visit(visitor);
-            }
-            TypeKind::Infer => {
-                // Leaf
-            }
-            TypeKind::Never => {
-                // Leaf
-            }
+        match visitor.visit_type(self) {
+            VisitAction::Continue => match &self.kind {
+                TypeKind::Symbol(_) => {}
+                TypeKind::Pointer(p) => p.underlying.visit(visitor),
+                TypeKind::Slice(s) => s.underlying.visit(visitor),
+                TypeKind::FixedArray(f) => {
+                    f.underlying.visit(visitor);
+                }
+                TypeKind::Function(ft) => {
+                    ft.parameters.visit(visitor);
+                    ft.return_type.visit(visitor);
+                }
+                TypeKind::Tuple(t) => {
+                    t.elements.visit(visitor);
+                }
+                TypeKind::Infer => {
+                    // Leaf
+                }
+                TypeKind::Never => {
+                    // Leaf
+                }
+            },
+            VisitAction::SkipChildren => {}
         }
     }
 }

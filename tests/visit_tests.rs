@@ -5,7 +5,7 @@ mod tests {
             expressions::*,
             statements::*,
             types::*,
-            visit::{Visitable, Visitor},
+            visit::{VisitAction, Visitable, Visitor},
             *,
         },
         hashmap::FxHashMap,
@@ -71,7 +71,7 @@ mod tests {
     }
 
     impl Visitor for NodeCounterVisitor {
-        fn visit_stmt(&mut self, stmt: &Stmt) {
+        fn visit_stmt(&mut self, stmt: &Stmt) -> VisitAction {
             *self.stmt_counts.entry("Stmt").or_insert(0) += 1;
 
             let kind_name = match &stmt.kind {
@@ -85,9 +85,11 @@ mod tests {
                 StmtKind::Impl(_) => "ImplStmt",
             };
             *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
+
+            VisitAction::Continue
         }
 
-        fn visit_expr(&mut self, expr: &Expr) {
+        fn visit_expr(&mut self, expr: &Expr) -> VisitAction {
             *self.expr_counts.entry("Expr").or_insert(0) += 1;
 
             let kind_name = match &expr.kind {
@@ -115,9 +117,11 @@ mod tests {
                 ExprKind::TupleLiteral(_) => "TupleLiteralExpr",
             };
             *self.expr_counts.entry(kind_name).or_insert(0) += 1;
+
+            VisitAction::Continue
         }
 
-        fn visit_type(&mut self, ty: &Type) {
+        fn visit_type(&mut self, ty: &Type) -> VisitAction {
             *self.type_counts.entry("Type").or_insert(0) += 1;
 
             let kind_name = match &ty.kind {
@@ -131,6 +135,8 @@ mod tests {
                 TypeKind::Never => "Never",
             };
             *self.type_counts.entry(kind_name).or_insert(0) += 1;
+
+            VisitAction::Continue
         }
     }
 
@@ -1227,4 +1233,3 @@ mod tests {
         visitor.assert_visited("expr", "BlockExpr", 1);
     }
 }
-

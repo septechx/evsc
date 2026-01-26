@@ -1,8 +1,8 @@
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Ident, Stmt, StmtKind, Type, Visibility,
+        Ast, Expr, ExprKind, Ident, Stmt, StmtKind, Visibility,
         statements::FnDeclStmt,
-        visit::{Visitable, Visitor},
+        visit::{VisitAction, Visitable, Visitor},
     },
     error_at,
     errors::{
@@ -100,10 +100,22 @@ impl AstValidator {
 }
 
 impl Visitor for AstValidator {
-    fn visit_stmt(&mut self, stmt: &Stmt) {
+    fn visit_stmt(&mut self, stmt: &Stmt) -> VisitAction {
         match &stmt.kind {
             StmtKind::FnDecl(f) => {
                 self.validate_fn_decl(f);
+
+                VisitAction::SkipChildren
+            }
+            StmtKind::Impl(i) => {
+                let old_top_level = self.is_top_level;
+                self.is_top_level = false;
+                for method in i.items.iter() {
+                    self.validate_fn_decl(&method.fn_decl);
+                }
+                self.is_top_level = old_top_level;
+
+                VisitAction::SkipChildren
             }
             StmtKind::StructDecl(s) => {
                 self.check_duplicate_names(s.fields.iter().map(|f| &f.name), "struct fields");
@@ -118,6 +130,8 @@ impl Visitor for AstValidator {
                     self.validate_fn_decl(&method.fn_decl);
                 }
                 self.is_top_level = old_top_level;
+
+                VisitAction::SkipChildren
             }
             StmtKind::InterfaceDecl(i) => {
                 self.check_duplicate_names(
@@ -131,6 +145,8 @@ impl Visitor for AstValidator {
                     self.validate_fn_decl(&method.fn_decl);
                 }
                 self.is_top_level = old_top_level;
+
+                VisitAction::SkipChildren
             }
             StmtKind::Return(r) => {
                 if !self.in_function {
@@ -144,6 +160,8 @@ impl Visitor for AstValidator {
                 if let Some(val) = &r.value {
                     val.visit(self);
                 }
+
+                VisitAction::SkipChildren
             }
             StmtKind::VarDecl(v) => {
                 if !self.is_top_level && v.visibility == Visibility::Public {
@@ -157,15 +175,14 @@ impl Visitor for AstValidator {
                 if let Some(val) = &v.assigned_value {
                     val.visit(self);
                 }
+
+                VisitAction::SkipChildren
             }
-            StmtKind::Expression(e) => {
-                e.expression.visit(self);
-            }
-            _ => {}
+            _ => VisitAction::Continue,
         }
     }
 
-    fn visit_expr(&mut self, expr: &Expr) {
+    fn visit_expr(&mut self, expr: &Expr) -> VisitAction {
         match &expr.kind {
             ExprKind::StructInstantiation(s) => {
                 let mut seen = FxHashMap::default();
@@ -200,6 +217,8 @@ impl Visitor for AstValidator {
                     }
                     val.visit(self);
                 }
+
+                VisitAction::SkipChildren
             }
             ExprKind::Block(b) => {
                 let old_top_level = self.is_top_level;
@@ -208,12 +227,12 @@ impl Visitor for AstValidator {
                     stmt.visit(self);
                 }
                 self.is_top_level = old_top_level;
+
+                VisitAction::SkipChildren
             }
-            _ => {}
+            _ => VisitAction::Continue,
         }
     }
-
-    fn visit_type(&mut self, _ty: &Type) {}
 }
 
 pub fn validate_ast(ast: &Ast, module_id: ModuleId) {

@@ -2,6 +2,7 @@ pub mod display;
 pub mod expressions;
 pub mod statements;
 pub mod types;
+pub mod validate;
 pub mod visit;
 
 use anyhow::bail;

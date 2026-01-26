@@ -24,8 +24,8 @@ use anyhow::Result;
 use clap::Parser;
 
 use crate::{
-    cli::Cli, errors::ErrorCollector, hir::lower_ast, lexer::tokenize, parser::parse,
-    span::sourcemaps::SourceMapManager,
+    ast::validate::validate_ast, cli::Cli, errors::ErrorCollector, hir::lower_ast, lexer::tokenize,
+    parser::parse, span::sourcemaps::SourceMapManager,
 };
 
 pub static DEFAULT_ROOT: &str = "..";
@@ -73,10 +73,10 @@ fn build_file(cli: Cli) -> Result<()> {
             Ok(source_text) => source_text,
         };
 
-        let (tokens, _) = tokenize(source_text, &file_path)?;
+        let (tokens, module_id) = tokenize(source_text, &file_path)?;
         check_for_errors();
 
-        let ast = parse(
+        let mut ast = parse(
             tokens,
             file_path
                 .file_stem()
@@ -97,6 +97,8 @@ fn build_file(cli: Cli) -> Result<()> {
             colored::control::set_override(use_color);
             logln!("{}", ast.display(use_color)?);
         }
+
+        validate_ast(&mut ast, module_id);
 
         asts.push(ast);
     }

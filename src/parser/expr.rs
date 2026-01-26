@@ -91,7 +91,9 @@ pub fn parse_primary_expr(parser: &mut Parser) -> Result<Expr> {
             span,
         }),
         TokenKind::CharLiteral => Ok(Expr {
-            kind: ExprKind::Literal(Literal::Char(value.chars().next().unwrap())),
+            kind: ExprKind::Literal(Literal::Char(
+                value.chars().next().expect("value has a char"),
+            )),
             span,
         }),
         TokenKind::Identifier => Ok(Expr {
@@ -374,7 +376,7 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
     let end_span = close_token.span;
 
     if expressions.len() == 1 && !has_comma {
-        let mut expr = expressions.pop().unwrap();
+        let mut expr = expressions.pop().expect("expressions isn't empty");
         expr.span = Span::new(start_token.span.start(), end_span.end());
         Ok(expr)
     } else {

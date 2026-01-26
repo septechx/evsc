@@ -33,7 +33,11 @@ impl LoweringContext {
 
                 let desired_local_name = match rename_opt {
                     Some(ident) => ident.value.as_ref(),
-                    None => segments.last().unwrap().value.as_ref(),
+                    None => segments
+                        .last()
+                        .expect("segments isn't empty")
+                        .value
+                        .as_ref(),
                 };
                 let local_sym = self.krate.interner.intern(desired_local_name);
 

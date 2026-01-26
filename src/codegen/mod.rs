@@ -167,11 +167,15 @@ fn emit_global_ctors<'ctx>(
 ) -> Result<()> {
     if init_fn
         .get_last_basic_block()
-        .unwrap()
+        .expect("function has a block")
         .get_terminator()
         .is_none()
     {
-        builder.position_at_end(init_fn.get_last_basic_block().unwrap());
+        builder.position_at_end(
+            init_fn
+                .get_last_basic_block()
+                .expect("function has a block"),
+        );
         builder.build_return(None)?;
     }
 

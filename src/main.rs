@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_used)]
+
 pub mod ast;
 pub mod backend;
 pub mod bindings;
@@ -74,7 +76,14 @@ fn build_file(cli: Cli) -> Result<()> {
         let (tokens, _) = tokenize(source_text, &file_path)?;
         check_for_errors();
 
-        let ast = parse(tokens, file_path.file_stem().unwrap().to_str().unwrap())?;
+        let ast = parse(
+            tokens,
+            file_path
+                .file_stem()
+                .expect("file has stem")
+                .to_str()
+                .expect("name is valid UTF-8"),
+        )?;
         check_for_errors();
 
         if cli.print_ast {

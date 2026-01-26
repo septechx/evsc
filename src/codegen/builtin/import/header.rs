@@ -27,7 +27,7 @@ pub fn compile_header<'ctx>(
     let module_path = compilation_context
         .module_path
         .parent()
-        .unwrap()
+        .expect("moudule path has a parent")
         .join(module_name.clone());
 
     let clang = Clang::new().map_err(|err| anyhow!("clang: {err}"))?;

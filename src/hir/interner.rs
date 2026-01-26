@@ -19,7 +19,8 @@ impl Interner {
         }
         let idx = self.vec.len() as u32;
         self.vec.push(s.to_owned());
-        self.map.insert(self.vec.last().unwrap().clone(), idx);
+        self.map
+            .insert(self.vec.last().expect("string exists").clone(), idx);
         idx
     }
 

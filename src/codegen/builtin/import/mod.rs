@@ -97,7 +97,7 @@ fn compile_oxi_module<'ctx>(
         compilation_context
             .module_path
             .parent()
-            .unwrap()
+            .expect("module path has a parent")
             .join(&module_name)
     };
     // Resolve path

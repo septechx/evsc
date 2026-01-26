@@ -292,7 +292,10 @@ impl LoweringContext {
             };
             for pname in param_names {
                 let local = self.alloc_local();
-                self.local_stack.last_mut().unwrap().insert(pname, local);
+                self.local_stack
+                    .last_mut()
+                    .expect("local stack exists")
+                    .insert(pname, local);
             }
             let expr = self.lower_expr(body);
             if let Def::Function(func) = &mut self.krate.defs[defid.0 as usize] {
@@ -378,7 +381,10 @@ impl LoweringContext {
                     };
                     for pname in param_names {
                         let local = self.alloc_local();
-                        self.local_stack.last_mut().unwrap().insert(pname, local);
+                        self.local_stack
+                            .last_mut()
+                            .expect("local stack exists")
+                            .insert(pname, local);
                     }
 
                     let expr = self.lower_expr(body);

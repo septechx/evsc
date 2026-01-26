@@ -290,7 +290,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             {
                 SmartValue::from_pointer(
                     func.as_global_value().as_basic_value_enum(),
-                    func.get_type().get_return_type().unwrap(),
+                    func.get_type()
+                        .get_return_type()
+                        .expect("function isn't void"),
                 )
                 .with_fn_type(func.get_type())
             } else {
@@ -336,7 +338,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name.value))?;
 
             for (field_name, field_index) in &struct_def.field_indices {
-                let expr_val = properties.get(field_name.as_ref()).unwrap();
+                let expr_val = properties.get(field_name.as_ref()).expect("field exists");
                 let val = compile_expression_to_value(
                     context,
                     module,
@@ -354,7 +356,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     &format!("{field_name}_ptr"),
                 )?;
 
-                let field_type = struct_ty.get_field_type_at_index(*field_index).unwrap();
+                let field_type = struct_ty
+                    .get_field_type_at_index(*field_index)
+                    .expect("field exists");
                 let store_val = cast_int_to_type(builder, val, field_type)?;
 
                 builder.build_store(field_ptr, store_val)?;

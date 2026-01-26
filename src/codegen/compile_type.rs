@@ -46,8 +46,6 @@ pub fn compile_type<'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<BasicTypeEnum<'ctx>> {
     Ok(match &ty.kind {
-        // Skip mut as LLVM does not support it
-        TypeKind::Mut(inner) => compile_type(context, &inner.underlying, compilation_context)?,
         TypeKind::Symbol(sym) => match sym.name.value.as_ref() {
             "u8" | "i8" => context.i8_type().as_basic_type_enum(),
             "u16" | "i16" => context.i16_type().as_basic_type_enum(),

@@ -102,7 +102,6 @@ pub enum TypeKind {
     Pointer(PointerType),
     Slice(SliceType),
     FixedArray(FixedArrayType),
-    Mut(MutType),
     Function(FunctionType),
     Tuple(TupleType),
     Infer,

@@ -1,4 +1,4 @@
-use crate::ast::{Ident, Type};
+use crate::ast::{Ident, Mutability, Type};
 
 #[derive(Debug, Clone)]
 pub struct SymbolType {
@@ -8,6 +8,7 @@ pub struct SymbolType {
 #[derive(Debug, Clone)]
 pub struct PointerType {
     pub underlying: Box<Type>,
+    pub mutability: Mutability,
 }
 
 #[derive(Debug, Clone)]
@@ -18,11 +19,6 @@ pub struct SliceType {
 #[derive(Debug, Clone)]
 pub struct FixedArrayType {
     pub length: usize,
-    pub underlying: Box<Type>,
-}
-
-#[derive(Debug, Clone)]
-pub struct MutType {
     pub underlying: Box<Type>,
 }
 

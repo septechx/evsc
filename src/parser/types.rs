@@ -6,10 +6,8 @@ use colored::Colorize;
 
 use crate::{
     ast::{
-        Type, TypeKind,
-        types::{
-            FixedArrayType, FunctionType, MutType, PointerType, SliceType, SymbolType, TupleType,
-        },
+        Mutability, Type, TypeKind,
+        types::{FixedArrayType, FunctionType, PointerType, SliceType, SymbolType, TupleType},
     },
     hashmap::FxHashMap,
     lexer::token::TokenKind::{self, self as T},
@@ -58,7 +56,6 @@ pub fn create_token_type_lookups() {
 
         type_nud(T::Identifier, parse_symbol_type, &mut nud_lu);
         type_nud(T::OpenBracket, parse_array_type, &mut nud_lu);
-        type_nud(T::Mut, parse_mut_type, &mut nud_lu);
         type_nud(T::OpenParen, parse_parenthesis_type, &mut nud_lu);
         type_nud(T::Reference, parse_pointer_type, &mut nud_lu);
 
@@ -83,9 +80,22 @@ fn parse_pointer_type(parser: &mut Parser) -> Result<Type> {
     let underlying = parse_type(parser, BindingPower::DefaultBp)?;
     let end_span = underlying.span;
 
+    let mut is_mutable = false;
+    if parser.current_token().kind == TokenKind::Mut {
+        parser.advance();
+        is_mutable = true;
+    }
+
+    let mutability = if is_mutable {
+        Mutability::Mutable
+    } else {
+        Mutability::Constant
+    };
+
     Ok(Type {
         kind: TypeKind::Pointer(PointerType {
             underlying: Box::new(underlying),
+            mutability,
         }),
         span: Span::new(start_token.span.start(), end_span.end()),
     })
@@ -178,19 +188,6 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
     }
 
     Ok(left)
-}
-
-fn parse_mut_type(parser: &mut Parser) -> Result<Type> {
-    let start_token = parser.expect(TokenKind::Mut)?;
-    let underlying = parse_type(parser, BindingPower::DefaultBp)?;
-    let end_span = underlying.span;
-
-    Ok(Type {
-        kind: TypeKind::Mut(MutType {
-            underlying: Box::new(underlying),
-        }),
-        span: Span::new(start_token.span.start(), end_span.end()),
-    })
 }
 
 fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {

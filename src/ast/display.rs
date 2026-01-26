@@ -698,7 +698,11 @@ fn write_type(ty: &Type, ctx: &DisplayContext) -> String {
         TypeKind::Symbol(s) => type_with_color(&s.name.value, ctx.color),
         TypeKind::Pointer(p) => {
             let inner = write_type(p.underlying.as_ref(), ctx);
-            format!("&{}", inner)
+            if p.mutability == Mutability::Mutable {
+                format!("&mut {}", inner)
+            } else {
+                format!("&{}", inner)
+            }
         }
         TypeKind::Slice(s) => {
             let inner = write_type(s.underlying.as_ref(), ctx);
@@ -707,10 +711,6 @@ fn write_type(ty: &Type, ctx: &DisplayContext) -> String {
         TypeKind::FixedArray(f) => {
             let inner = write_type(f.underlying.as_ref(), ctx);
             format!("[{}]{}", f.length, inner)
-        }
-        TypeKind::Mut(m) => {
-            let inner = write_type(m.underlying.as_ref(), ctx);
-            format!("mut {}", inner)
         }
         TypeKind::Function(ft) => {
             let params: Vec<String> = ft.parameters.iter().map(|p| write_type(p, ctx)).collect();

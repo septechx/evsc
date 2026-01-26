@@ -13,10 +13,15 @@ use crate::{
     lexer::token::TokenKind,
 };
 
+const BUILTIN_TYPES: [&str; 15] = [
+    "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128", "f32", "f64", "f128",
+    "bool", "void",
+];
+
 pub struct LoweringContext {
     pub krate: HirCrate,
-    pub current_module: Option<ModuleId>,
-    pub current_struct: Option<DefId>,
+    current_module: Option<ModuleId>,
+    current_struct: Option<DefId>,
     local_stack: Vec<FxHashMap<Symbol, LocalId>>,
     next_def: u32,
     next_expr: u32,
@@ -604,11 +609,7 @@ impl LoweringContext {
             TypeKind::Symbol(s) => {
                 let name = s.name.value;
 
-                let builtin = [
-                    "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128", "f32",
-                    "f64", "f128", "bool", "void",
-                ];
-                if builtin.contains(&&*name) {
+                if BUILTIN_TYPES.contains(&name.as_ref()) {
                     return self.alloc_type(HirType::Builtin(name.into()));
                 }
 
@@ -624,16 +625,8 @@ impl LoweringContext {
             }
             TypeKind::Pointer(p) => {
                 let inner = *p.underlying;
-
-                let (inner, mutable) = if let TypeKind::Mut(m) = inner.kind {
-                    (*m.underlying, true)
-                } else {
-                    (inner, false)
-                };
-
                 let tid = self.lower_type(inner);
-
-                self.alloc_type(HirType::Pointer(tid, mutable))
+                self.alloc_type(HirType::Pointer(tid, p.mutability))
             }
             _ => todo!("Lowering of {:?} not implemented", ty.kind),
         }

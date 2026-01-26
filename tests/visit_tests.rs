@@ -133,7 +133,6 @@ mod tests {
                 TypeKind::Pointer(_) => "PointerType",
                 TypeKind::Slice(_) => "SliceType",
                 TypeKind::FixedArray(_) => "FixedArrayType",
-                TypeKind::Mut(_) => "MutType",
                 TypeKind::Function(_) => "FunctionType",
                 TypeKind::Tuple(_) => "TupleType",
                 TypeKind::Infer => "Infer",
@@ -826,6 +825,7 @@ mod tests {
         let mut ty = Type {
             kind: TypeKind::Pointer(PointerType {
                 underlying: Box::new(dummy_type_symbol("i32")),
+                mutability: Mutability::Constant,
             }),
             span: dummy_span(),
         };
@@ -864,21 +864,6 @@ mod tests {
         ty.visit(&mut visitor);
         visitor.assert_visited("type", "Type", 2);
         visitor.assert_visited("type", "FixedArrayType", 1);
-        visitor.assert_visited("type", "SymbolType", 1);
-    }
-
-    #[test]
-    fn test_mut_type() {
-        let mut ty = Type {
-            kind: TypeKind::Mut(MutType {
-                underlying: Box::new(dummy_type_symbol("i32")),
-            }),
-            span: dummy_span(),
-        };
-        let mut visitor = NodeCounterVisitor::new();
-        ty.visit(&mut visitor);
-        visitor.assert_visited("type", "Type", 2);
-        visitor.assert_visited("type", "MutType", 1);
         visitor.assert_visited("type", "SymbolType", 1);
     }
 
@@ -948,6 +933,7 @@ mod tests {
                             ty: Type {
                                 kind: TypeKind::Pointer(PointerType {
                                     underlying: Box::new(dummy_type_symbol("i32")),
+                                    mutability: Mutability::Constant,
                                 }),
                                 span: dummy_span(),
                             },
@@ -1123,12 +1109,8 @@ mod tests {
                 parameters: Box::new([
                     Type {
                         kind: TypeKind::Pointer(PointerType {
-                            underlying: Box::new(Type {
-                                kind: TypeKind::Mut(MutType {
-                                    underlying: Box::new(dummy_type_symbol("i32")),
-                                }),
-                                span: dummy_span(),
-                            }),
+                            underlying: Box::new(dummy_type_symbol("i32")),
+                            mutability: Mutability::Mutable,
                         }),
                         span: dummy_span(),
                     },
@@ -1164,10 +1146,9 @@ mod tests {
         ty.visit(&mut visitor);
 
         visitor.assert_all_visited(&[
-            ("type", "Type", 12),
+            ("type", "Type", 11),
             ("type", "FunctionType", 1),
             ("type", "PointerType", 1),
-            ("type", "MutType", 1),
             ("type", "SliceType", 1),
             ("type", "FixedArrayType", 1),
             ("type", "TupleType", 1),

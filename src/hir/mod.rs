@@ -1,4 +1,4 @@
-use crate::ast::Visibility;
+use crate::ast::{Mutability, Visibility};
 use crate::hashmap::FxHashMap;
 
 use crate::{
@@ -210,7 +210,7 @@ pub enum HirType {
     Error,
     Builtin(String),
     Adt(DefId),
-    Pointer(TypeId, bool),
+    Pointer(TypeId, Mutability),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

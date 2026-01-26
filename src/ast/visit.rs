@@ -279,7 +279,6 @@ impl Visitable for Type {
             TypeKind::FixedArray(f) => {
                 f.underlying.visit(visitor);
             }
-            TypeKind::Mut(m) => m.underlying.visit(visitor),
             TypeKind::Function(ft) => {
                 ft.parameters.visit(visitor);
                 ft.return_type.visit(visitor);
@@ -302,26 +301,25 @@ impl Visitable for SymbolType {
         // Leaf
     }
 }
+
 impl Visitable for PointerType {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         self.underlying.visit(visitor);
     }
 }
+
 impl Visitable for SliceType {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         self.underlying.visit(visitor);
     }
 }
+
 impl Visitable for FixedArrayType {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         self.underlying.visit(visitor);
     }
 }
-impl Visitable for MutType {
-    fn visit(&mut self, visitor: &mut impl Visitor) {
-        self.underlying.visit(visitor);
-    }
-}
+
 impl Visitable for FunctionType {
     fn visit(&mut self, visitor: &mut impl Visitor) {
         for p in &mut self.parameters {

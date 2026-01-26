@@ -10,7 +10,7 @@ pub enum ResolutionStatus {
     /// Failed permanently
     Failed,
     /// Temporary failure (might succeed in later pass)
-    RetryLater,
+    Pending,
 }
 
 pub struct PendingImport {
@@ -95,7 +95,7 @@ impl LoweringContext {
 
                         ResolutionStatus::Resolved
                     } else {
-                        ResolutionStatus::RetryLater
+                        ResolutionStatus::Pending
                     }
                 } else {
                     let module_name = &segments[0].value;
@@ -140,7 +140,7 @@ impl LoweringContext {
 
                             ResolutionStatus::Resolved
                         } else {
-                            ResolutionStatus::RetryLater
+                            ResolutionStatus::Pending
                         }
                     } else {
                         self.krate

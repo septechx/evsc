@@ -176,7 +176,7 @@ impl LoweringContext {
                         progress = true;
                         continue;
                     }
-                    ResolutionStatus::RetryLater => {
+                    ResolutionStatus::Pending => {
                         // cannot resolve yet: keep item for next pass
                         i += 1;
                         continue;

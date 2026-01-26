@@ -99,6 +99,7 @@ fn build_file(cli: Cli) -> Result<()> {
         }
 
         validate_ast(&ast, module_id);
+        check_for_errors();
 
         asts.push(ast);
     }

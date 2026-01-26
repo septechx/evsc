@@ -76,7 +76,7 @@ fn build_file(cli: Cli) -> Result<()> {
         let (tokens, module_id) = tokenize(source_text, &file_path)?;
         check_for_errors();
 
-        let mut ast = parse(
+        let ast = parse(
             tokens,
             file_path
                 .file_stem()
@@ -98,7 +98,7 @@ fn build_file(cli: Cli) -> Result<()> {
             logln!("{}", ast.display(use_color)?);
         }
 
-        validate_ast(&mut ast, module_id);
+        validate_ast(&ast, module_id);
 
         asts.push(ast);
     }

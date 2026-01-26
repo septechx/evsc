@@ -65,6 +65,7 @@ impl<T: Write> Widget<T> for CodeExampleWidget {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
 pub enum HighlightType {
+    Info,
     Warning,
     Error,
 }
@@ -152,6 +153,7 @@ impl<T: Write> Widget<T> for CodeWidget {
             match self.highlight_type {
                 HighlightType::Warning => underline.yellow().bold(),
                 HighlightType::Error => underline.red().bold(),
+                HighlightType::Info => underline.blue().bold(),
             }
         )?;
 

@@ -71,7 +71,7 @@ mod tests {
     }
 
     impl Visitor for NodeCounterVisitor {
-        fn visit_stmt(&mut self, stmt: &mut Stmt) {
+        fn visit_stmt(&mut self, stmt: &Stmt) {
             let kind_name = match &stmt.kind {
                 StmtKind::Expression(_) => "Stmt",
                 StmtKind::VarDecl(_) => "Stmt",
@@ -95,7 +95,7 @@ mod tests {
             *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
         }
 
-        fn visit_expr(&mut self, expr: &mut Expr) {
+        fn visit_expr(&mut self, expr: &Expr) {
             *self.expr_counts.entry("Expr").or_insert(0) += 1;
 
             let kind_name = match &expr.kind {
@@ -125,7 +125,7 @@ mod tests {
             *self.expr_counts.entry(kind_name).or_insert(0) += 1;
         }
 
-        fn visit_type(&mut self, ty: &mut Type) {
+        fn visit_type(&mut self, ty: &Type) {
             *self.type_counts.entry("Type").or_insert(0) += 1;
 
             let kind_name = match &ty.kind {
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_number_expr_visited_once() {
-        let mut expr = dummy_expr_number(42);
+        let expr = dummy_expr_number(42);
         let mut visitor = NodeCounterVisitor::new();
         expr.visit(&mut visitor);
         visitor.assert_visited("expr", "Expr", 1);
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_float_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Literal(Literal::Float(3.15)),
             span: dummy_span(),
         };
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_string_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Literal(Literal::String("hello".to_string().into_boxed_str())),
             span: dummy_span(),
         };
@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_symbol_expr_visited_once() {
-        let mut expr = dummy_expr_symbol("x");
+        let expr = dummy_expr_symbol("x");
         let mut visitor = NodeCounterVisitor::new();
         expr.visit(&mut visitor);
         visitor.assert_visited("expr", "Expr", 1);
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_bool_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Literal(Literal::Bool(true)),
             span: dummy_span(),
         };
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_char_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Literal(Literal::Char('a')),
             span: dummy_span(),
         };
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_binary_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Binary(BinaryExpr {
                 left: Box::new(dummy_expr_number(1)),
                 operator: dummy_token(TokenKind::Plus),
@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_postfix_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Postfix(PostfixExpr {
                 left: Box::new(dummy_expr_symbol("x")),
                 operator: dummy_token(TokenKind::Plus),
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_prefix_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Prefix(PrefixExpr {
                 operator: dummy_token(TokenKind::NotEquals),
                 right: Box::new(dummy_expr_symbol("x")),
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_assignment_expr_visited_once() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Assignment(AssignmentExpr {
                 assigne: Box::new(dummy_expr_symbol("x")),
                 operator: dummy_token(TokenKind::Equals),
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_struct_instantiation_expr_single_prop() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                 name: dummy_ident("Foo"),
                 fields: [(dummy_ident("a"), dummy_expr_number(1))]
@@ -377,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_struct_instantiation_expr_multiple_props() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                 name: dummy_ident("Foo"),
                 fields: [
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_array_literal_expr() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::ArrayLiteral(ArrayLiteralExpr {
                 underlying: dummy_type_symbol("i32"),
                 contents: Box::new([
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_function_call_expr() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::FunctionCall(FunctionCallExpr {
                 callee: Box::new(dummy_expr_symbol("foo")),
                 arguments: Box::new([dummy_expr_number(1), dummy_expr_number(2)]),
@@ -438,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_member_access_expr() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::MemberAccess(MemberAccessExpr {
                 base: Box::new(dummy_expr_symbol("obj")),
                 member: dummy_ident("field"),
@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_type_expr() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Type(TypeExpr {
                 underlying: dummy_type_symbol("i32"),
             }),
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_as_expr() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::As(AsExpr {
                 expr: Box::new(dummy_expr_number(1)),
                 ty: dummy_type_symbol("i32"),
@@ -489,7 +489,7 @@ mod tests {
 
     #[test]
     fn test_tuple_literal_expr() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::TupleLiteral(TupleLiteralExpr {
                 elements: Box::new([
                     dummy_expr_number(1),
@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_block_stmt_empty() {
-        let mut stmt = dummy_expr_block(vec![]);
+        let stmt = dummy_expr_block(vec![]);
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
         visitor.assert_visited("stmt", "Stmt", 0);
@@ -518,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_block_stmt_with_body() {
-        let mut stmt = dummy_expr_block(vec![dummy_stmt_expr(dummy_expr_number(1))]);
+        let stmt = dummy_expr_block(vec![dummy_stmt_expr(dummy_expr_number(1))]);
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
         visitor.assert_visited("stmt", "Stmt", 1);
@@ -530,7 +530,7 @@ mod tests {
 
     #[test]
     fn test_expression_stmt() {
-        let mut stmt = dummy_stmt_expr(dummy_expr_number(42));
+        let stmt = dummy_stmt_expr(dummy_expr_number(42));
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
         visitor.assert_visited("stmt", "Stmt", 1);
@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_var_decl_stmt_with_value() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::VarDecl(VarDeclStmt {
                 variable_name: dummy_ident("x"),
                 mutability: Mutability::Mutable,
@@ -565,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_var_decl_stmt_no_value() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::VarDecl(VarDeclStmt {
                 variable_name: dummy_ident("x"),
                 mutability: Mutability::Mutable,
@@ -587,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_struct_decl_stmt_empty() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
                 fields: Box::new([]),
@@ -605,7 +605,7 @@ mod tests {
 
     #[test]
     fn test_struct_decl_stmt_with_props() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
                 fields: vec![
@@ -637,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_struct_decl_stmt_with_methods() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
                 fields: Box::new([]),
@@ -672,7 +672,7 @@ mod tests {
 
     #[test]
     fn test_interface_decl_stmt() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
                 name: dummy_ident("Foo"),
                 methods: vec![InterfaceMethod {
@@ -701,35 +701,38 @@ mod tests {
 
     #[test]
     fn test_fn_decl_stmt() {
-        let mut stmt = Stmt {
-            kind: StmtKind::FnDecl(FnDeclStmt {
-                name: dummy_ident("foo"),
-                arguments: vec![
-                    FnArgument {
-                        name: dummy_ident("a"),
-                        ty: dummy_type_symbol("i32"),
-                    },
-                    FnArgument {
-                        name: dummy_ident("b"),
-                        ty: dummy_type_symbol("bool"),
-                    },
-                ]
-                .into_boxed_slice(),
-                body: Some(Expr {
-                    kind: ExprKind::Block(BlockExpr {
-                        body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
+        let ast = Ast {
+            name: "test".into(),
+            items: Box::new([Stmt {
+                kind: StmtKind::FnDecl(FnDeclStmt {
+                    name: dummy_ident("foo"),
+                    arguments: vec![
+                        FnArgument {
+                            name: dummy_ident("a"),
+                            ty: dummy_type_symbol("i32"),
+                        },
+                        FnArgument {
+                            name: dummy_ident("b"),
+                            ty: dummy_type_symbol("bool"),
+                        },
+                    ]
+                    .into_boxed_slice(),
+                    body: Some(Expr {
+                        kind: ExprKind::Block(BlockExpr {
+                            body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
+                        }),
+                        span: dummy_span(),
                     }),
-                    span: dummy_span(),
+                    return_type: dummy_type_symbol("void"),
+                    visibility: Visibility::Private,
+                    is_extern: false,
                 }),
-                return_type: dummy_type_symbol("void"),
-                visibility: Visibility::Private,
-                is_extern: false,
-            }),
-            span: dummy_span(),
-            attributes: Box::new([]),
+                span: dummy_span(),
+                attributes: Box::new([]),
+            }]),
         };
         let mut visitor = NodeCounterVisitor::new();
-        stmt.visit(&mut visitor);
+        ast.visit(&mut visitor);
         visitor.assert_visited("stmt", "Stmt", 2);
         visitor.assert_visited("stmt", "FnDeclStmt", 1);
         visitor.assert_visited("stmt", "ExpressionStmt", 1);
@@ -742,7 +745,7 @@ mod tests {
 
     #[test]
     fn test_return_stmt_with_value() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::Return(ReturnStmt {
                 value: Some(dummy_expr_number(1)),
             }),
@@ -759,7 +762,7 @@ mod tests {
 
     #[test]
     fn test_return_stmt_no_value() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::Return(ReturnStmt { value: None }),
             span: dummy_span(),
             attributes: Box::new([]),
@@ -772,7 +775,7 @@ mod tests {
 
     #[test]
     fn test_import_stmt() {
-        let mut stmt = Stmt {
+        let stmt = Stmt {
             kind: StmtKind::Import(ImportStmt {
                 tree: ImportTree {
                     prefix: Path {
@@ -795,7 +798,7 @@ mod tests {
 
     #[test]
     fn test_symbol_type() {
-        let mut ty = dummy_type_symbol("i32");
+        let ty = dummy_type_symbol("i32");
         let mut visitor = NodeCounterVisitor::new();
         ty.visit(&mut visitor);
         visitor.assert_visited("type", "Type", 1);
@@ -804,7 +807,7 @@ mod tests {
 
     #[test]
     fn test_infer_type() {
-        let mut ty = dummy_type_infer();
+        let ty = dummy_type_infer();
         let mut visitor = NodeCounterVisitor::new();
         ty.visit(&mut visitor);
         visitor.assert_visited("type", "Type", 1);
@@ -813,7 +816,7 @@ mod tests {
 
     #[test]
     fn test_never_type() {
-        let mut ty = dummy_type_never();
+        let ty = dummy_type_never();
         let mut visitor = NodeCounterVisitor::new();
         ty.visit(&mut visitor);
         visitor.assert_visited("type", "Type", 1);
@@ -822,7 +825,7 @@ mod tests {
 
     #[test]
     fn test_pointer_type() {
-        let mut ty = Type {
+        let ty = Type {
             kind: TypeKind::Pointer(PointerType {
                 underlying: Box::new(dummy_type_symbol("i32")),
                 mutability: Mutability::Constant,
@@ -838,7 +841,7 @@ mod tests {
 
     #[test]
     fn test_slice_type() {
-        let mut ty = Type {
+        let ty = Type {
             kind: TypeKind::Slice(SliceType {
                 underlying: Box::new(dummy_type_symbol("i32")),
             }),
@@ -853,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_fixed_array_type() {
-        let mut ty = Type {
+        let ty = Type {
             kind: TypeKind::FixedArray(FixedArrayType {
                 length: 10,
                 underlying: Box::new(dummy_type_symbol("i32")),
@@ -869,7 +872,7 @@ mod tests {
 
     #[test]
     fn test_function_type() {
-        let mut ty = Type {
+        let ty = Type {
             kind: TypeKind::Function(FunctionType {
                 parameters: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
                 return_type: Box::new(dummy_type_symbol("void")),
@@ -885,7 +888,7 @@ mod tests {
 
     #[test]
     fn test_tuple_type() {
-        let mut ty = Type {
+        let ty = Type {
             kind: TypeKind::Tuple(TupleType {
                 elements: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
             }),
@@ -900,7 +903,7 @@ mod tests {
 
     #[test]
     fn test_comprehensive_all_expression_types() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::FunctionCall(FunctionCallExpr {
                 callee: Box::new(dummy_expr_symbol("foo")),
                 arguments: Box::new([
@@ -960,7 +963,7 @@ mod tests {
 
     #[test]
     fn test_comprehensive_all_statement_types() {
-        let mut ast = Ast {
+        let ast = Ast {
             name: "test".into(),
             items: Box::new([
                 Stmt {
@@ -1104,7 +1107,7 @@ mod tests {
 
     #[test]
     fn test_comprehensive_all_type_types() {
-        let mut ty = Type {
+        let ty = Type {
             kind: TypeKind::Function(FunctionType {
                 parameters: Box::new([
                     Type {
@@ -1160,7 +1163,7 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_visits() {
-        let mut expr = Expr {
+        let expr = Expr {
             kind: ExprKind::Binary(BinaryExpr {
                 left: Box::new(Expr {
                     kind: ExprKind::Binary(BinaryExpr {

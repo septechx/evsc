@@ -40,7 +40,7 @@ impl AstValidator {
                             .add_widget(InfoWidget::new(
                                 first_span,
                                 self.module_id,
-                                format!("First definition of `{}` is here", ident.value),
+                                format!("First definition of `{}` here", ident.value),
                             )?)
                             .add_widget(LocationWidget::new(first_span, self.module_id)?)
                             .add_widget(CodeWidget::new(
@@ -185,10 +185,7 @@ impl Visitor for AstValidator {
                                     .add_widget(InfoWidget::new(
                                         first_span,
                                         self.module_id,
-                                        format!(
-                                            "First initialization of `{}` is here",
-                                            ident.value
-                                        ),
+                                        format!("First initialization of `{}` here", ident.value),
                                     )?)
                                     .add_widget(LocationWidget::new(first_span, self.module_id)?)
                                     .add_widget(CodeWidget::new(
@@ -244,4 +241,3 @@ pub fn validate_ast(ast: &Ast, module_id: ModuleId) {
 
     ast.visit(&mut validator);
 }
-

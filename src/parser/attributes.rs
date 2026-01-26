@@ -41,3 +41,19 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Box<[Attribute]>> {
 
     Ok(attributes.into_boxed_slice())
 }
+
+#[macro_export]
+macro_rules! no_attributes {
+    ($parser:expr, $modifiers:expr) => {{
+        let parser = $parser;
+        let attributes = $modifiers;
+
+        if !attributes.is_empty() {
+            error_at!(
+                attributes[0].span,
+                parser.current_token().module_id,
+                "Attribute not allowed here"
+            )?;
+        }
+    }};
+}

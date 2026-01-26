@@ -286,6 +286,7 @@ pub fn create_token_lookups() {
             &mut bp_lu,
             &mut stmt_lu,
         );
+        stmt(T::Impl, parse_impl_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Fn, parse_fn_decl_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Return, parse_return_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Import, parse_import_stmt, &mut bp_lu, &mut stmt_lu);

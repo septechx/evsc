@@ -2,8 +2,8 @@ use std::hash::Hash;
 
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
-        statements::*, types::*,
+        expressions::*, statements::*, types::*, Ast, Expr, ExprKind, Literal, Stmt, StmtKind,
+        Type, TypeKind,
     },
     hashmap::FxHashMap,
 };
@@ -73,6 +73,7 @@ impl Visitable for Stmt {
             StmtKind::VarDecl(var) => var.visit(visitor),
             StmtKind::StructDecl(s) => s.visit(visitor),
             StmtKind::InterfaceDecl(i) => i.visit(visitor),
+            StmtKind::Impl(i) => i.visit(visitor),
             StmtKind::FnDecl(f) => f.visit(visitor),
             StmtKind::Return(r) => r.visit(visitor),
             StmtKind::Import(i) => i.visit(visitor),
@@ -140,6 +141,15 @@ impl Visitable for InterfaceDeclStmt {
     fn visit(&self, visitor: &mut impl Visitor) {
         for m in &self.methods {
             m.visit(visitor);
+        }
+    }
+}
+
+impl Visitable for ImplStmt {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.self_ty.visit(visitor);
+        for item in &self.items {
+            item.visit(visitor);
         }
     }
 }

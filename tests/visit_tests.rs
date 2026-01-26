@@ -72,16 +72,7 @@ mod tests {
 
     impl Visitor for NodeCounterVisitor {
         fn visit_stmt(&mut self, stmt: &Stmt) {
-            let kind_name = match &stmt.kind {
-                StmtKind::Expression(_) => "Stmt",
-                StmtKind::VarDecl(_) => "Stmt",
-                StmtKind::StructDecl(_) => "Stmt",
-                StmtKind::InterfaceDecl(_) => "Stmt",
-                StmtKind::FnDecl(_) => "Stmt",
-                StmtKind::Return(_) => "Stmt",
-                StmtKind::Import(_) => "Stmt",
-            };
-            *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
+            *self.stmt_counts.entry("Stmt").or_insert(0) += 1;
 
             let kind_name = match &stmt.kind {
                 StmtKind::Expression(_) => "ExpressionStmt",
@@ -91,6 +82,7 @@ mod tests {
                 StmtKind::FnDecl(_) => "FnDeclStmt",
                 StmtKind::Return(_) => "ReturnStmt",
                 StmtKind::Import(_) => "ImportStmt",
+                StmtKind::Impl(_) => "ImplStmt",
             };
             *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
         }
@@ -1202,4 +1194,37 @@ mod tests {
             ("expr", "SymbolExpr", 5),
         ]);
     }
+
+    #[test]
+    fn test_impl_stmt() {
+        let stmt = Stmt {
+            kind: StmtKind::Impl(ImplStmt {
+                self_ty: dummy_type_symbol("Foo"),
+                interface: dummy_ident("Bar"),
+                items: vec![InterfaceMethod {
+                    fn_decl: FnDeclStmt {
+                        name: dummy_ident("bar"),
+                        arguments: Box::new([]),
+                        body: Some(Expr {
+                            kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
+                            span: dummy_span(),
+                        }),
+                        return_type: dummy_type_symbol("void"),
+                        is_extern: false,
+                        visibility: Visibility::Private,
+                    },
+                }]
+                .into_boxed_slice(),
+            }),
+            span: dummy_span(),
+            attributes: Box::new([]),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        stmt.visit(&mut visitor);
+        visitor.assert_visited("stmt", "Stmt", 1);
+        visitor.assert_visited("stmt", "ImplStmt", 1);
+        visitor.assert_visited("type", "SymbolType", 2);
+        visitor.assert_visited("expr", "BlockExpr", 1);
+    }
 }
+

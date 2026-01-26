@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
     ast::{
-        ExprKind, Stmt, StmtKind, Type,
         statements::{ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
+        ExprKind, Stmt, StmtKind, Type,
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -178,6 +178,7 @@ pub fn compile_stmts<'a, 'ctx>(
             }
             StmtKind::StructDecl(_) => (), // Structs are compiled during the first pass
             StmtKind::InterfaceDecl(_) => todo!(),
+            StmtKind::Impl(_) => todo!(),
             StmtKind::Import(_) => todo!(),
         }
     }

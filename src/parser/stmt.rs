@@ -5,12 +5,13 @@ use crate::{
         Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind, Type,
         TypeKind, Visibility,
         statements::{
-            ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
-            ReturnStmt, StructDeclStmt, StructField, StructMethod, VarDeclStmt,
+            ExpressionStmt, FnArgument, FnDeclStmt, ImplStmt, ImportStmt, InterfaceDeclStmt,
+            InterfaceMethod, ReturnStmt, StructDeclStmt, StructField, StructMethod, VarDeclStmt,
         },
     },
     error_at, get_modifiers,
     lexer::token::TokenKind,
+    no_attributes, no_modifiers,
     parser::{
         Parser,
         attributes::parse_attributes,
@@ -34,21 +35,8 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
     if let Some(stmt_fn) = stmt_fn {
         stmt_fn(parser, &attributes, &modifiers)
     } else {
-        if !attributes.is_empty() {
-            error_at!(
-                attributes[0].span,
-                parser.current_token().module_id,
-                "Attribute not allowed here"
-            )?;
-        }
-
-        if !modifiers.is_empty() {
-            error_at!(
-                modifiers[0].span,
-                parser.current_token().module_id,
-                "Modifier not allowed here"
-            )?;
-        }
+        no_attributes!(&parser, attributes);
+        no_modifiers!(&parser, modifiers);
 
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
 
@@ -83,13 +71,7 @@ pub fn parse_var_decl_statement(
     attributes: &[Attribute],
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
-    if !attributes.is_empty() {
-        error_at!(
-            attributes[0].span,
-            parser.current_token().module_id,
-            "Attribute not allowed here"
-        )?;
-    }
+    no_attributes!(&parser, attributes);
 
     let var_token = parser.advance();
     let mut type_ = Type {
@@ -323,11 +305,10 @@ pub fn parse_interface_decl_stmt(
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
     let interface_token = parser.expect(TokenKind::Interface)?;
-    let mut methods: Vec<InterfaceMethod> = Vec::new();
     let name = parser.expect_identifier()?;
 
+    let mut methods: Vec<InterfaceMethod> = Vec::new();
     parser.expect(TokenKind::OpenCurly)?;
-
     loop {
         if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
             break;
@@ -343,7 +324,6 @@ pub fn parse_interface_decl_stmt(
             unexpected_token(parser.current_token());
         }
     }
-
     let end_span = parser.expect(TokenKind::CloseCurly)?.span;
 
     let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
@@ -481,21 +461,8 @@ pub fn parse_return_stmt(
     attributes: &[Attribute],
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
-    if !attributes.is_empty() {
-        error_at!(
-            attributes[0].span,
-            parser.current_token().module_id,
-            "Attribute not allowed here"
-        )?;
-    }
-
-    if !modifiers.is_empty() {
-        error_at!(
-            modifiers[0].span,
-            parser.current_token().module_id,
-            "Modifier not allowed here"
-        )?;
-    }
+    no_attributes!(&parser, attributes);
+    no_modifiers!(&parser, modifiers);
 
     let return_token = parser.advance();
 
@@ -513,6 +480,47 @@ pub fn parse_return_stmt(
         kind: StmtKind::Return(ReturnStmt { value }),
         attributes: Box::new([]),
         span,
+    })
+}
+
+pub fn parse_impl_stmt(
+    parser: &mut Parser,
+    attributes: &[Attribute],
+    modifiers: &[Modifier],
+) -> Result<Stmt> {
+    no_attributes!(&parser, attributes);
+    no_modifiers!(&parser, modifiers);
+
+    let start_span = parser.expect(TokenKind::Impl)?.span;
+    let self_ty = parse_type(parser, BindingPower::DefaultBp)?;
+    parser.expect(TokenKind::Colon)?;
+    let interface = parser.expect_identifier()?;
+
+    let mut methods: Vec<InterfaceMethod> = Vec::new();
+    parser.expect(TokenKind::OpenCurly)?;
+    loop {
+        if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
+            break;
+        }
+
+        if parser.current_token().kind == TokenKind::Fn
+            && let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind
+        {
+            methods.push(InterfaceMethod { fn_decl });
+        } else {
+            unexpected_token(parser.current_token());
+        }
+    }
+    let end_span = parser.expect(TokenKind::CloseCurly)?.span;
+
+    Ok(Stmt {
+        kind: StmtKind::Impl(ImplStmt {
+            items: methods.into_boxed_slice(),
+            self_ty,
+            interface,
+        }),
+        attributes: Box::new([]),
+        span: Span::new(start_span.start(), end_span.end()),
     })
 }
 

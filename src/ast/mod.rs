@@ -53,6 +53,7 @@ pub enum StmtKind {
     VarDecl(VarDeclStmt),
     StructDecl(StructDeclStmt),
     InterfaceDecl(InterfaceDeclStmt),
+    Impl(ImplStmt),
     FnDecl(FnDeclStmt),
     Return(ReturnStmt),
     Import(ImportStmt),

@@ -227,7 +227,9 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 for prop in &struct_decl.fields {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_struct_property(out, prop, &body_ctx)?;
-                    writeln!(out)?;
+                    if idx > 0 {
+                        writeln!(out)?;
+                    }
                     idx += 1;
                 }
                 for method in &struct_decl.methods {
@@ -261,6 +263,26 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 writeln!(out, ":")?;
                 let body_ctx = ctx.indented();
                 for method in &interface_decl.methods {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_interface_method(out, method, &body_ctx)?;
+                }
+            }
+        }
+        StmtKind::Impl(impl_stmt) => {
+            write!(
+                out,
+                "{} {} {} {}",
+                "Impl".with_color(ctx.color),
+                write_type(&impl_stmt.self_ty, ctx),
+                punct_with_color(":", ctx.color),
+                impl_stmt.interface.value
+            )?;
+            if impl_stmt.items.is_empty() {
+                write!(out, ": (empty)")?;
+            } else {
+                writeln!(out, ":")?;
+                let body_ctx = ctx.indented();
+                for method in &impl_stmt.items {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_interface_method(out, method, &body_ctx)?;
                 }
@@ -395,7 +417,6 @@ fn write_struct_method(
             )?;
         }
     }
-    writeln!(out)?;
     write_fn_decl(out, &method.fn_decl, &sub_ctx)?;
     Ok(())
 }

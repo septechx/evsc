@@ -59,6 +59,22 @@ pub fn parse_modifiers(parser: &mut Parser) -> Box<[Modifier]> {
     modifiers.into_boxed_slice()
 }
 
+#[macro_export]
+macro_rules! no_modifiers {
+    ($parser:expr, $modifiers:expr) => {{
+        let parser = $parser;
+        let modifiers = $modifiers;
+
+        if !modifiers.is_empty() {
+            error_at!(
+                modifiers[0].span,
+                parser.current_token().module_id,
+                "Modifier not allowed here"
+            )?;
+        }
+    }};
+}
+
 /// Validates and extracts modifiers
 /// ```rust,ignore
 /// let (pub_mod, extern_mod) = get_modifiers!(parser, modifiers, [Pub, Extern]);

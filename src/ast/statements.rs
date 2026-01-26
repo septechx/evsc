@@ -39,6 +39,13 @@ pub struct StructDeclStmt {
 }
 
 #[derive(Debug, Clone)]
+pub struct ImplStmt {
+    pub self_ty: Type,
+    pub interface: Ident,
+    pub items: Box<[InterfaceMethod]>,
+}
+
+#[derive(Debug, Clone)]
 pub struct InterfaceMethod {
     pub fn_decl: FnDeclStmt,
 }

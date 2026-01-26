@@ -186,7 +186,7 @@ impl ImportTree {
                 .last()
                 .expect("empty prefix in a simple import")
                 .clone(),
-            _ => panic!("`UseTree::ident` can only be used on a simple import"),
+            _ => panic!("`ImportTree::ident` can only be used on a simple import"),
         }
     }
 }

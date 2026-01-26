@@ -6,7 +6,7 @@ use crate::{
         TypeKind, Visibility,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
-            ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
+            ReturnStmt, StructDeclStmt, StructField, StructMethod, VarDeclStmt,
         },
     },
     error_at, get_modifiers,
@@ -169,7 +169,7 @@ pub fn parse_var_decl_statement(
 
     Ok(Stmt {
         kind: StmtKind::VarDecl(VarDeclStmt {
-            type_,
+            ty: type_,
             is_static,
             variable_name,
             assigned_value,
@@ -187,7 +187,7 @@ pub fn parse_struct_decl_stmt(
     modifiers: &[Modifier],
 ) -> Result<Stmt> {
     let struct_token = parser.expect(TokenKind::Struct)?;
-    let mut properties: Vec<StructProperty> = Vec::new();
+    let mut properties: Vec<StructField> = Vec::new();
     let mut methods: Vec<StructMethod> = Vec::new();
     let name = parser.expect_identifier()?;
 
@@ -272,9 +272,9 @@ pub fn parse_struct_decl_stmt(
                 Visibility::Private
             };
 
-            properties.push(StructProperty {
+            properties.push(StructField {
                 name: property_name,
-                type_,
+                ty: type_,
                 visibility,
             });
 
@@ -307,7 +307,7 @@ pub fn parse_struct_decl_stmt(
 
     Ok(Stmt {
         kind: StmtKind::StructDecl(StructDeclStmt {
-            properties: properties.into_boxed_slice(),
+            fields: properties.into_boxed_slice(),
             methods: methods.into_boxed_slice(),
             name,
             visibility,
@@ -401,7 +401,7 @@ pub fn parse_fn_decl_stmt(
 
         arguments.push(FnArgument {
             name: arg_name,
-            type_,
+            ty: type_,
         });
 
         if parser.current_token().kind == TokenKind::Comma {

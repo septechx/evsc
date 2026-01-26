@@ -310,13 +310,13 @@ pub fn compile_expression_to_value<'a, 'ctx>(
             let struct_ty = struct_def.llvm_type;
 
             let properties = expr
-                .properties
+                .fields
                 .iter()
                 .map(|(ident, expr)| (ident.value.clone(), expr))
                 .collect::<FxHashMap<_, _>>();
 
             // Field in instantiation but not in struct
-            for field_name in expr.properties.keys() {
+            for field_name in expr.fields.keys() {
                 if !struct_def
                     .field_indices
                     .contains_key(field_name.value.as_ref())

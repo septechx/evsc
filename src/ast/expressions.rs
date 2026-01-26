@@ -43,7 +43,7 @@ pub struct AssignmentExpr {
 #[derive(Debug, Clone)]
 pub struct StructInstantiationExpr {
     pub name: Ident,
-    pub properties: FxHashMap<Ident, Expr>,
+    pub fields: FxHashMap<Ident, Expr>,
 }
 
 #[derive(Debug, Clone)]

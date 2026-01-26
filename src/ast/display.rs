@@ -187,7 +187,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 var_decl.variable_name.value,
                 punct_with_color("\"", ctx.color)
             )?;
-            write!(out, "{}", write_type(&var_decl.type_, ctx))?;
+            write!(out, "{}", write_type(&var_decl.ty, ctx))?;
             if let Some(value) = &var_decl.assigned_value {
                 write!(out, " =")?;
                 if value.kind.is_leaf() {
@@ -218,13 +218,13 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 struct_decl.name.value
             )?;
             write!(out, "{}", punct_with_color("\"", ctx.color))?;
-            if struct_decl.properties.is_empty() && struct_decl.methods.is_empty() {
+            if struct_decl.fields.is_empty() && struct_decl.methods.is_empty() {
                 write!(out, ": (empty)")?;
             } else {
                 writeln!(out, ":")?;
                 let body_ctx = ctx.indented();
                 let mut idx = 0;
-                for prop in &struct_decl.properties {
+                for prop in &struct_decl.fields {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_struct_property(out, prop, &body_ctx)?;
                     writeln!(out)?;
@@ -303,7 +303,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                             "{}FnArg \"{}\": {}",
                             arg_ctx.indent_str(),
                             arg.name.value,
-                            write_type(&arg.type_, &arg_ctx)
+                            write_type(&arg.ty, &arg_ctx)
                         )?;
                     }
                 }
@@ -332,7 +332,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
 
 fn write_struct_property(
     out: &mut String,
-    prop: &StructProperty,
+    prop: &StructField,
     ctx: &DisplayContext,
 ) -> std::fmt::Result {
     let mut modifiers = Vec::new();
@@ -347,7 +347,7 @@ fn write_struct_property(
         modifiers_with_color(&modifiers, ctx.color),
         prop.name.value
     )?;
-    write!(out, "{}", write_type(&prop.type_, ctx))?;
+    write!(out, "{}", write_type(&prop.ty, ctx))?;
     Ok(())
 }
 
@@ -391,7 +391,7 @@ fn write_struct_method(
                 "{}FnArg \"{}\": {}",
                 arg_ctx.indent_str(),
                 arg.name.value,
-                write_type(&arg.type_, &arg_ctx)
+                write_type(&arg.ty, &arg_ctx)
             )?;
         }
     }
@@ -458,7 +458,7 @@ fn write_interface_method(
                 "{}FnArg \"{}\": {}",
                 arg_ctx.indent_str(),
                 arg.name.value,
-                write_type(&arg.type_, &arg_ctx)
+                write_type(&arg.ty, &arg_ctx)
             )?;
         }
     }
@@ -579,12 +579,12 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
         ExprKind::StructInstantiation(s) => {
             write!(out, "{}", "StructInstantiation".with_color(ctx.color),)?;
             write!(out, " \"{}\"", s.name.value)?;
-            if s.properties.is_empty() {
+            if s.fields.is_empty() {
                 write!(out, ": (empty)")?;
             } else {
                 writeln!(out, ":")?;
                 let prop_ctx = ctx.indented();
-                for (i, (name, expr)) in s.properties.iter().enumerate() {
+                for (i, (name, expr)) in s.fields.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }

@@ -363,7 +363,7 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                 name: dummy_ident("Foo"),
-                properties: [(dummy_ident("a"), dummy_expr_number(1))]
+                fields: [(dummy_ident("a"), dummy_expr_number(1))]
                     .into_iter()
                     .collect(),
             }),
@@ -381,7 +381,7 @@ mod tests {
         let mut expr = Expr {
             kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                 name: dummy_ident("Foo"),
-                properties: [
+                fields: [
                     (dummy_ident("a"), dummy_expr_number(1)),
                     (dummy_ident("b"), dummy_expr_number(2)),
                     (dummy_ident("c"), dummy_expr_number(3)),
@@ -548,7 +548,7 @@ mod tests {
                 mutability: Mutability::Mutable,
                 visibility: Visibility::Private,
                 assigned_value: Some(dummy_expr_number(1)),
-                type_: dummy_type_symbol("i32"),
+                ty: dummy_type_symbol("i32"),
                 is_static: false,
             }),
             span: dummy_span(),
@@ -572,7 +572,7 @@ mod tests {
                 mutability: Mutability::Mutable,
                 visibility: Visibility::Private,
                 assigned_value: None,
-                type_: dummy_type_symbol("i32"),
+                ty: dummy_type_symbol("i32"),
                 is_static: false,
             }),
             span: dummy_span(),
@@ -591,7 +591,7 @@ mod tests {
         let mut stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                properties: Box::new([]),
+                fields: Box::new([]),
                 methods: Box::new([]),
                 visibility: Visibility::Private,
             }),
@@ -609,15 +609,15 @@ mod tests {
         let mut stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                properties: vec![
-                    StructProperty {
+                fields: vec![
+                    StructField {
                         name: dummy_ident("a"),
-                        type_: dummy_type_symbol("i32"),
+                        ty: dummy_type_symbol("i32"),
                         visibility: Visibility::Private,
                     },
-                    StructProperty {
+                    StructField {
                         name: dummy_ident("b"),
-                        type_: dummy_type_symbol("bool"),
+                        ty: dummy_type_symbol("bool"),
                         visibility: Visibility::Private,
                     },
                 ]
@@ -641,7 +641,7 @@ mod tests {
         let mut stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                properties: Box::new([]),
+                fields: Box::new([]),
                 methods: vec![StructMethod {
                     is_static: false,
                     visibility: Visibility::Private,
@@ -708,11 +708,11 @@ mod tests {
                 arguments: vec![
                     FnArgument {
                         name: dummy_ident("a"),
-                        type_: dummy_type_symbol("i32"),
+                        ty: dummy_type_symbol("i32"),
                     },
                     FnArgument {
                         name: dummy_ident("b"),
-                        type_: dummy_type_symbol("bool"),
+                        ty: dummy_type_symbol("bool"),
                     },
                 ]
                 .into_boxed_slice(),
@@ -923,7 +923,7 @@ mod tests {
                     Expr {
                         kind: ExprKind::StructInstantiation(StructInstantiationExpr {
                             name: dummy_ident("Bar"),
-                            properties: [
+                            fields: [
                                 (dummy_ident("x"), dummy_expr_number(2)),
                                 (
                                     dummy_ident("y"),
@@ -995,9 +995,9 @@ mod tests {
                 Stmt {
                     kind: StmtKind::StructDecl(StructDeclStmt {
                         name: dummy_ident("Foo"),
-                        properties: vec![StructProperty {
+                        fields: vec![StructField {
                             name: dummy_ident("x"),
-                            type_: dummy_type_symbol("i32"),
+                            ty: dummy_type_symbol("i32"),
                             visibility: Visibility::Private,
                         }]
                         .into_boxed_slice(),
@@ -1060,7 +1060,7 @@ mod tests {
                                             mutability: Mutability::Mutable,
                                             visibility: Visibility::Private,
                                             assigned_value: Some(dummy_expr_number(1)),
-                                            type_: dummy_type_infer(),
+                                            ty: dummy_type_infer(),
                                             is_static: false,
                                         }),
                                         span: dummy_span(),

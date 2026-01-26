@@ -114,7 +114,7 @@ impl LoweringContext {
                             .insert(defid, method_map);
 
                         let mut field_map = FxHashMap::default();
-                        for field in s.properties.iter() {
+                        for field in s.fields.iter() {
                             let field_sym = self.krate.interner.intern(&field.name.value);
                             field_map.insert(field_sym, field.visibility);
                         }
@@ -266,7 +266,7 @@ impl LoweringContext {
             .map(|p| {
                 (
                     self.krate.interner.intern(&p.name.value),
-                    self.lower_type(p.type_),
+                    self.lower_type(p.ty),
                 )
             })
             .collect();
@@ -311,11 +311,11 @@ impl LoweringContext {
         let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
         let fields = s
-            .properties
+            .fields
             .into_iter()
             .map(|p| StructField {
                 name: self.krate.interner.intern(&p.name.value),
-                ty: self.lower_type(p.type_),
+                ty: self.lower_type(p.ty),
                 visibility: p.visibility,
             })
             .collect();
@@ -351,7 +351,7 @@ impl LoweringContext {
                     .map(|p| {
                         (
                             self.krate.interner.intern(&p.name.value),
-                            self.lower_type(p.type_),
+                            self.lower_type(p.ty),
                         )
                     })
                     .collect();
@@ -412,10 +412,10 @@ impl LoweringContext {
         let modid = self.current_module.expect("current module set");
         let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
-        let ty = if let TypeKind::Infer = v.type_.kind {
+        let ty = if let TypeKind::Infer = v.ty.kind {
             None
         } else {
-            Some(self.lower_type(v.type_))
+            Some(self.lower_type(v.ty))
         };
         let init = v.assigned_value.map(|e| self.lower_expr(e));
         let var = Variable {
@@ -479,8 +479,8 @@ impl LoweringContext {
             ExprKind::StructInstantiation(si) => {
                 let def_sym = self.krate.interner.intern(&si.name.value);
                 if let Some(defid) = self.lookup_in_current_module(def_sym) {
-                    let mut fields = Vec::with_capacity(si.properties.len());
-                    for (ident, val) in si.properties.into_iter() {
+                    let mut fields = Vec::with_capacity(si.fields.len());
+                    for (ident, val) in si.fields.into_iter() {
                         let fsym = self.krate.interner.intern(&ident.value);
                         let v = self.lower_expr(val);
                         fields.push((fsym, v));
@@ -570,10 +570,10 @@ impl LoweringContext {
             }
             StmtKind::VarDecl(v) => {
                 let name = self.krate.interner.intern(&v.variable_name.value);
-                let ty = if let TypeKind::Infer = v.type_.kind {
+                let ty = if let TypeKind::Infer = v.ty.kind {
                     None
                 } else {
-                    Some(self.lower_type(v.type_))
+                    Some(self.lower_type(v.ty))
                 };
                 let init_expr = v.assigned_value.map(|e| self.lower_expr(e));
 

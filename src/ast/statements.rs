@@ -10,16 +10,16 @@ pub struct ExpressionStmt {
 pub struct VarDeclStmt {
     pub variable_name: Ident,
     pub assigned_value: Option<Expr>,
-    pub type_: Type,
+    pub ty: Type,
     pub is_static: bool,
     pub mutability: Mutability,
     pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone)]
-pub struct StructProperty {
+pub struct StructField {
     pub name: Ident,
-    pub type_: Type,
+    pub ty: Type,
     pub visibility: Visibility,
 }
 
@@ -33,7 +33,7 @@ pub struct StructMethod {
 #[derive(Debug, Clone)]
 pub struct StructDeclStmt {
     pub name: Ident,
-    pub properties: Box<[StructProperty]>,
+    pub fields: Box<[StructField]>,
     pub methods: Box<[StructMethod]>,
     pub visibility: Visibility,
 }
@@ -53,7 +53,7 @@ pub struct InterfaceDeclStmt {
 #[derive(Debug, Clone)]
 pub struct FnArgument {
     pub name: Ident,
-    pub type_: Type,
+    pub ty: Type,
 }
 
 #[derive(Debug, Clone)]

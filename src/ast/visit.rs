@@ -103,13 +103,13 @@ impl Visitable for VarDeclStmt {
         if let Some(val) = &mut self.assigned_value {
             val.visit(visitor);
         }
-        self.type_.visit(visitor);
+        self.ty.visit(visitor);
     }
 }
 
-impl Visitable for StructProperty {
+impl Visitable for StructField {
     fn visit(&mut self, visitor: &mut impl Visitor) {
-        self.type_.visit(visitor);
+        self.ty.visit(visitor);
     }
 }
 
@@ -121,7 +121,7 @@ impl Visitable for StructMethod {
 
 impl Visitable for StructDeclStmt {
     fn visit(&mut self, visitor: &mut impl Visitor) {
-        for p in &mut self.properties {
+        for p in &mut self.fields {
             p.visit(visitor);
         }
         for m in &mut self.methods {
@@ -146,7 +146,7 @@ impl Visitable for InterfaceDeclStmt {
 
 impl Visitable for FnArgument {
     fn visit(&mut self, visitor: &mut impl Visitor) {
-        self.type_.visit(visitor);
+        self.ty.visit(visitor);
     }
 }
 
@@ -229,7 +229,7 @@ impl Visitable for AssignmentExpr {
 }
 impl Visitable for StructInstantiationExpr {
     fn visit(&mut self, visitor: &mut impl Visitor) {
-        self.properties.visit(visitor);
+        self.fields.visit(visitor);
     }
 }
 impl Visitable for ArrayLiteralExpr {

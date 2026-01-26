@@ -51,7 +51,7 @@ pub fn compile_header<'ctx>(
                             value: format!("arg{}", i).into(),
                             span: arg.span,
                         },
-                        type_: arg,
+                        ty: arg,
                     })
                     .collect::<Box<[_]>>();
 

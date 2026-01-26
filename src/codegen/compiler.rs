@@ -129,11 +129,8 @@ pub fn compile_stmts<'a, 'ctx>(
     for stmt in stmts {
         match &stmt.kind {
             StmtKind::FnDecl(fn_decl) => {
-                let param_types: Vec<Type> = fn_decl
-                    .arguments
-                    .iter()
-                    .map(|arg| arg.type_.clone())
-                    .collect();
+                let param_types: Vec<Type> =
+                    fn_decl.arguments.iter().map(|arg| arg.ty.clone()).collect();
                 let fn_type = compile_function_type(
                     context,
                     &fn_decl.return_type,
@@ -382,8 +379,8 @@ fn compile_struct_decl<'ctx>(
     let mut field_types = Vec::new();
     let mut field_indices = FxHashMap::default();
 
-    for (index, property) in struct_decl.properties.iter().enumerate() {
-        let field_ty = compile_type(context, &property.type_, compilation_context)?;
+    for (index, property) in struct_decl.fields.iter().enumerate() {
+        let field_ty = compile_type(context, &property.ty, compilation_context)?;
         field_types.push(field_ty);
         field_indices.insert(property.name.value.clone(), index as u32);
     }
@@ -392,11 +389,7 @@ fn compile_struct_decl<'ctx>(
         let mut method = method.fn_decl.clone();
         method.name.value = format!("{}_{}", struct_decl.name.value, method.name.value).into();
 
-        let param_types: Vec<Type> = method
-            .arguments
-            .iter()
-            .map(|arg| arg.type_.clone())
-            .collect();
+        let param_types: Vec<Type> = method.arguments.iter().map(|arg| arg.ty.clone()).collect();
         let fn_type = compile_function_type(
             context,
             &method.return_type,

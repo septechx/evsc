@@ -227,7 +227,7 @@ pub fn parse_struct_instantiation_expr(
     Ok(Expr {
         kind: ExprKind::StructInstantiation(StructInstantiationExpr {
             name: struct_name,
-            properties,
+            fields: properties,
         }),
         span,
     })

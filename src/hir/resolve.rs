@@ -13,9 +13,9 @@ pub enum ResolutionStatus {
     Pending,
 }
 
-pub struct PendingImport {
+pub struct PendingImport<'a> {
     pub module_idx: usize,
-    pub import_stmt: ImportStmt,
+    pub import_stmt: &'a ImportStmt,
 }
 
 impl LoweringContext {

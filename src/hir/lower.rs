@@ -154,7 +154,7 @@ impl LoweringContext {
                 if let StmtKind::Import(im) = &stmt.kind {
                     pending.push(PendingImport {
                         module_idx: mid,
-                        import_stmt: im.clone(),
+                        import_stmt: im,
                     });
                 }
             }
@@ -170,7 +170,7 @@ impl LoweringContext {
             while i < pending.len() {
                 let pi = &pending[i];
                 // try resolve; if resolved we remove from pending and set progress = true
-                match self.try_resolve_import(pi.module_idx, &pi.import_stmt) {
+                match self.try_resolve_import(pi.module_idx, pi.import_stmt) {
                     ResolutionStatus::Resolved => {
                         pending.swap_remove(i);
                         progress = true;
@@ -260,10 +260,15 @@ impl LoweringContext {
         id
     }
 
-    fn lower_fn_decl(&mut self, f: FnDeclStmt) {
+    fn lower_fn_impl(
+        &mut self,
+        f: FnDeclStmt,
+        defid: DefId,
+        associated: Option<DefId>,
+        is_static: bool,
+    ) {
         let sym = self.krate.interner.intern(&f.name.value);
         let modid = self.current_module.expect("current module set");
-        let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
         let params = f
             .arguments
@@ -284,8 +289,8 @@ impl LoweringContext {
             ret,
             body: None,
             module: modid,
-            associated: None,
-            static_method: false,
+            associated,
+            static_method: is_static,
         };
         self.krate.defs[defid.0 as usize] = Def::Function(func);
 
@@ -308,6 +313,12 @@ impl LoweringContext {
             }
             self.local_stack.pop();
         }
+    }
+
+    fn lower_fn_decl(&mut self, f: FnDeclStmt) {
+        let sym = self.krate.interner.intern(&f.name.value);
+        let defid = self.lookup_in_current_module(sym).expect("def must exist");
+        self.lower_fn_impl(f, defid, None, false);
     }
 
     fn lower_struct_decl(&mut self, s: StructDeclStmt) {
@@ -349,57 +360,7 @@ impl LoweringContext {
 
                 let method_defid = meta.def;
 
-                let params: Vec<(Symbol, TypeId)> = method
-                    .fn_decl
-                    .arguments
-                    .into_iter()
-                    .map(|p| {
-                        (
-                            self.krate.interner.intern(&p.name.value),
-                            self.lower_type(p.ty),
-                        )
-                    })
-                    .collect();
-
-                let ret = self.lower_type(method.fn_decl.return_type);
-
-                let func = Function {
-                    name: method_sym,
-                    params,
-                    ret,
-                    body: None,
-                    module: modid,
-                    associated: Some(defid),
-                    static_method: method.is_static,
-                };
-
-                self.krate.defs[method_defid.0 as usize] = Def::Function(func);
-
-                if let Some(body) = method.fn_decl.body {
-                    self.local_stack.push(FxHashMap::default());
-
-                    let param_names: Vec<Symbol> = match &self.krate.defs[method_defid.0 as usize] {
-                        Def::Function(func) => {
-                            func.params.iter().map(|(pname, _)| *pname).collect()
-                        }
-                        _ => panic!("method is a function"),
-                    };
-                    for pname in param_names {
-                        let local = self.alloc_local();
-                        self.local_stack
-                            .last_mut()
-                            .expect("local stack exists")
-                            .insert(pname, local);
-                    }
-
-                    let expr = self.lower_expr(body);
-
-                    if let Def::Function(func) = &mut self.krate.defs[method_defid.0 as usize] {
-                        func.body = Some(expr);
-                    }
-
-                    self.local_stack.pop();
-                }
+                self.lower_fn_impl(method.fn_decl, method_defid, Some(defid), method.is_static);
 
                 if let Def::Struct(st) = &mut self.krate.defs[defid.0 as usize] {
                     st.methods.push((method_sym, method_defid));

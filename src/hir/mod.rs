@@ -91,6 +91,7 @@ pub struct ModuleInfo {
     pub imports: FxHashMap<Symbol, DefId>,
     pub struct_methods: FxHashMap<DefId, FxHashMap<Symbol, MethodMeta>>,
     pub struct_fields: FxHashMap<DefId, FxHashMap<Symbol, Visibility>>,
+    pub struct_impls: FxHashMap<DefId, Vec<DefId>>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,6 +105,7 @@ pub enum Def {
     Placeholder(DefId, ModuleId),
     Function(Function),
     Struct(Struct),
+    Interface(Interface),
     Variable(Variable),
 }
 
@@ -113,6 +115,7 @@ impl Def {
             Def::Placeholder(_, m) => *m,
             Def::Function(f) => f.module,
             Def::Struct(s) => s.module,
+            Def::Interface(i) => i.module,
             Def::Variable(v) => v.module,
         }
     }
@@ -143,6 +146,20 @@ pub struct Struct {
     pub fields: Vec<StructField>,
     pub methods: Vec<(Symbol, DefId)>,
     pub module: ModuleId,
+}
+
+#[derive(Debug, Clone)]
+pub struct Interface {
+    pub name: Symbol,
+    pub methods: Vec<InterfaceMethod>,
+    pub module: ModuleId,
+}
+
+#[derive(Debug, Clone)]
+pub struct InterfaceMethod {
+    pub name: Symbol,
+    pub params: Vec<TypeId>,
+    pub ret: TypeId,
 }
 
 #[derive(Debug, Clone)]

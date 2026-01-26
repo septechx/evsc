@@ -492,9 +492,9 @@ pub fn parse_impl_stmt(
     no_modifiers!(&parser, modifiers);
 
     let start_span = parser.expect(TokenKind::Impl)?.span;
-    let self_ty = parse_type(parser, BindingPower::DefaultBp)?;
-    parser.expect(TokenKind::Colon)?;
     let interface = parser.expect_identifier()?;
+    parser.expect(TokenKind::Colon)?;
+    let self_ty = parse_type(parser, BindingPower::DefaultBp)?;
 
     let mut methods: Vec<InterfaceMethod> = Vec::new();
     parser.expect(TokenKind::OpenCurly)?;

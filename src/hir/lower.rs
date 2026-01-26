@@ -1,12 +1,13 @@
 use crate::{
     ast::{
         Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind, Visibility,
-        statements::{FnDeclStmt, StructDeclStmt, VarDeclStmt},
+        statements::{FnDeclStmt, ImplStmt, InterfaceDeclStmt, StructDeclStmt, VarDeclStmt},
     },
     hashmap::FxHashMap,
     hir::{
-        Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, LocalId,
-        MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, StructField, TypeId, Variable,
+        Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, Interface,
+        InterfaceMethod, LocalId, MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, StructField,
+        TypeId, Variable,
         interner::{Interner, Symbol},
         resolve::{PendingImport, ResolutionStatus},
     },
@@ -62,6 +63,7 @@ impl LoweringContext {
                 imports: FxHashMap::default(),
                 struct_methods: FxHashMap::default(),
                 struct_fields: FxHashMap::default(),
+                struct_impls: FxHashMap::default(),
             };
             self.krate.modules.push(modinfo);
         }
@@ -127,6 +129,19 @@ impl LoweringContext {
                             .struct_fields
                             .insert(defid, field_map);
                     }
+                    StmtKind::InterfaceDecl(i) => {
+                        let sym = self.krate.interner.intern(&i.name.value);
+                        let defid = self.alloc_def_placeholder(modid);
+                        self.krate.modules[mid].exports.insert(
+                            sym,
+                            ExportEntry {
+                                def: defid,
+                                visibility: i.visibility,
+                            },
+                        );
+                        self.krate.modules[mid].items.push(defid);
+                    }
+                    StmtKind::Impl(_) => {} // Processed in lowering pass 3
                     StmtKind::VarDecl(v) => {
                         let sym = self.krate.interner.intern(&v.variable_name.value);
                         let defid = self.alloc_def_placeholder(modid);
@@ -218,6 +233,8 @@ impl LoweringContext {
                 match stmt.kind {
                     StmtKind::FnDecl(f) => self.lower_fn_decl(f),
                     StmtKind::StructDecl(s) => self.lower_struct_decl(s),
+                    StmtKind::InterfaceDecl(i) => self.lower_interface_decl(i),
+                    StmtKind::Impl(im) => self.lower_impl_stmt(im),
                     StmtKind::VarDecl(v) => self.lower_top_var_decl(v),
                     StmtKind::Import(_) => {} // Processed in lowering pass 2
                     _ => todo!("Lowering of {:?} not implemented (PASS 3)", stmt.kind),
@@ -371,6 +388,119 @@ impl LoweringContext {
         }
 
         self.current_struct = prev_struct;
+    }
+
+    fn lower_interface_decl(&mut self, i: InterfaceDeclStmt) {
+        let sym = self.krate.interner.intern(&i.name.value);
+        let modid = self.current_module.expect("current module set");
+        let defid = self
+            .lookup_in_current_module(sym)
+            .expect("interface def must exist");
+
+        let mut methods = Vec::with_capacity(i.methods.len());
+        for m in i.methods.into_iter() {
+            let method_name = self.krate.interner.intern(&m.fn_decl.name.value);
+
+            let param_tys = m
+                .fn_decl
+                .arguments
+                .into_iter()
+                .map(|arg| self.lower_type(arg.ty))
+                .collect::<Vec<_>>();
+
+            let ret_ty = self.lower_type(m.fn_decl.return_type);
+
+            methods.push(InterfaceMethod {
+                name: method_name,
+                params: param_tys,
+                ret: ret_ty,
+            })
+        }
+
+        let iface = Interface {
+            name: sym,
+            module: modid,
+            methods,
+        };
+        self.krate.defs[defid.0 as usize] = Def::Interface(iface);
+    }
+
+    fn lower_impl_stmt(&mut self, im: ImplStmt) {
+        let interface_sym = self.krate.interner.intern(&im.interface.value);
+        let interface_def = match self.lookup_in_current_module(interface_sym) {
+            Some(def) => def,
+            None => {
+                self.krate
+                    .diagnostics
+                    .push(format!("Unknown interface `{}`", im.interface.value));
+                return;
+            }
+        };
+
+        let self_defid = match im.self_ty.kind {
+            TypeKind::Symbol(s) => {
+                let sym = self.krate.interner.intern(&s.name.value);
+                match self.lookup_in_current_module(sym) {
+                    Some(def) => def,
+                    None => {
+                        self.krate
+                            .diagnostics
+                            .push(format!("Unknown type `{}` in impl", s.name.value));
+                        return;
+                    }
+                }
+            }
+            _ => {
+                self.krate
+                    .diagnostics
+                    .push("Impl target must be a named type".to_string());
+                return;
+            }
+        };
+
+        let struct_modid = self.krate.defs[self_defid.0 as usize].module();
+        match &self.krate.defs[self_defid.0 as usize] {
+            Def::Struct(_) => {}
+            _ => {
+                self.krate
+                    .diagnostics
+                    .push("Impl target is not a struct".to_string());
+                return;
+            }
+        }
+
+        for method in im.items.into_iter() {
+            let method_sym = self.krate.interner.intern(&method.fn_decl.name.value);
+            let method_defid =
+                self.alloc_def_placeholder(self.current_module.expect("current module set"));
+
+            self.lower_fn_impl(
+                method.fn_decl.clone(),
+                method_defid,
+                Some(self_defid),
+                false,
+            );
+
+            let method_map = &mut self.krate.modules[struct_modid.0 as usize]
+                .struct_methods
+                .entry(self_defid)
+                .or_default();
+
+            method_map.insert(
+                method_sym,
+                MethodMeta {
+                    def: method_defid,
+                    is_static: false,
+                    visibility: Visibility::Public,
+                },
+            );
+        }
+
+        self.krate.modules[struct_modid.0 as usize]
+            .struct_impls
+            .entry(self_defid)
+            .or_default()
+            .push(interface_def);
     }
 
     fn lower_top_var_decl(&mut self, v: VarDeclStmt) {

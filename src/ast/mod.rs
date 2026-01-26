@@ -129,6 +129,18 @@ impl TryFrom<Token> for Ident {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    Public,
+    Private,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mutability {
+    Constant,
+    Mutable,
+}
+
 #[derive(Debug, Clone)]
 pub struct Path {
     pub span: Span,

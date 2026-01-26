@@ -1,6 +1,6 @@
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind,
+        Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind, Visibility,
         statements::{FnDeclStmt, StructDeclStmt, VarDeclStmt},
     },
     hashmap::FxHashMap,
@@ -79,7 +79,7 @@ impl LoweringContext {
                             sym,
                             ExportEntry {
                                 def: defid,
-                                public: f.is_public,
+                                visibility: f.visibility,
                             },
                         );
                         self.krate.modules[mid].items.push(defid);
@@ -91,7 +91,7 @@ impl LoweringContext {
                             sym,
                             ExportEntry {
                                 def: defid,
-                                public: s.is_public,
+                                visibility: s.visibility,
                             },
                         );
                         self.krate.modules[mid].items.push(defid);
@@ -105,7 +105,7 @@ impl LoweringContext {
                                 MethodMeta {
                                     def: method_defid,
                                     is_static: method.is_static,
-                                    public: method.is_public,
+                                    visibility: method.visibility,
                                 },
                             );
                         }
@@ -116,7 +116,7 @@ impl LoweringContext {
                         let mut field_map = FxHashMap::default();
                         for field in s.properties.iter() {
                             let field_sym = self.krate.interner.intern(&field.name.value);
-                            field_map.insert(field_sym, field.is_public);
+                            field_map.insert(field_sym, field.visibility);
                         }
                         self.krate.modules[mid]
                             .struct_fields
@@ -129,7 +129,7 @@ impl LoweringContext {
                             sym,
                             ExportEntry {
                                 def: defid,
-                                public: v.is_public,
+                                visibility: v.visibility,
                             },
                         );
                         self.krate.modules[mid].items.push(defid);
@@ -313,7 +313,7 @@ impl LoweringContext {
             .map(|p| StructField {
                 name: self.krate.interner.intern(&p.name.value),
                 ty: self.lower_type(p.type_),
-                public: p.is_public,
+                visibility: p.visibility,
             })
             .collect();
 
@@ -501,7 +501,7 @@ impl LoweringContext {
                             .get(&defid)
                             && let Some(meta) = methods.get(&member_sym)
                         {
-                            if !meta.public {
+                            if meta.visibility == Visibility::Private {
                                 let allowed = self.current_struct == Some(defid);
 
                                 if !allowed {

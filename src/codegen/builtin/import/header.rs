@@ -4,7 +4,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 
 use crate::{
     ast::{
-        Ast, Ident, Stmt, StmtKind, Type, TypeKind,
+        Ast, Ident, Stmt, StmtKind, Type, TypeKind, Visibility,
         statements::{FnArgument, FnDeclStmt},
         types::SymbolType,
     },
@@ -64,8 +64,8 @@ pub fn compile_header<'ctx>(
                     arguments,
                     body: None,
                     return_type: ty.0,
-                    is_public: true,
                     is_extern: true,
+                    visibility: Visibility::Public,
                 }),
                 span,
                 attributes: Box::new([]),

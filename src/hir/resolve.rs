@@ -1,5 +1,5 @@
 use crate::{
-    ast::{ImportTreeKind, statements::ImportStmt},
+    ast::{ImportTreeKind, Visibility, statements::ImportStmt},
     hir::{ExportEntry, lower::LoweringContext},
 };
 
@@ -59,7 +59,7 @@ impl LoweringContext {
                     }
 
                     if let Some((def_mod_idx, export_entry)) = found {
-                        if def_mod_idx != mid && !export_entry.public {
+                        if def_mod_idx != mid && export_entry.visibility == Visibility::Private {
                             self.krate.diagnostics.push(format!(
                                 "Cannot import `{}` as it is not marked as public in module `{}`",
                                 name, self.krate.modules[def_mod_idx].name
@@ -71,8 +71,9 @@ impl LoweringContext {
                             .imports
                             .insert(local_sym, export_entry.def);
 
-                        if im.is_public {
-                            if def_mod_idx != mid && !export_entry.public {
+                        if im.visibility == Visibility::Public {
+                            if def_mod_idx != mid && export_entry.visibility == Visibility::Private
+                            {
                                 self.krate.diagnostics.push(format!(
                                     "Cannot re-export `{}` from `{}` because original is private",
                                     name, self.krate.modules[def_mod_idx].name
@@ -82,7 +83,7 @@ impl LoweringContext {
                                     local_sym,
                                     ExportEntry {
                                         def: export_entry.def,
-                                        public: true,
+                                        visibility: Visibility::Public,
                                     },
                                 );
                             }
@@ -107,9 +108,9 @@ impl LoweringContext {
                         let maybe_export = self.krate.modules[tmid]
                             .exports
                             .get(&sym)
-                            .map(|export| (export.def, export.public));
-                        if let Some((def, public)) = maybe_export {
-                            if tmid != mid && !public {
+                            .map(|export| (export.def, export.visibility));
+                        if let Some((def, visibility)) = maybe_export {
+                            if tmid != mid && visibility == Visibility::Private {
                                 self.krate.diagnostics.push(format!(
                                     "Cannot import `{}` from module `{}` as it is not marked as public",
                                     symbol_name, module_name
@@ -123,10 +124,14 @@ impl LoweringContext {
                             };
                             self.krate.modules[mid].imports.insert(local_name, def);
 
-                            if im.is_public {
-                                self.krate.modules[mid]
-                                    .exports
-                                    .insert(local_sym, ExportEntry { def, public: true });
+                            if im.visibility == Visibility::Public {
+                                self.krate.modules[mid].exports.insert(
+                                    local_sym,
+                                    ExportEntry {
+                                        def,
+                                        visibility: Visibility::Public,
+                                    },
+                                );
                             }
 
                             ResolutionStatus::Resolved

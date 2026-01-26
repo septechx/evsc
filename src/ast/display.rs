@@ -3,8 +3,8 @@ use std::fmt::Write;
 use colored::Colorize;
 
 use crate::ast::{
-    Expr, ExprKind, ImportTree, ImportTreeKind, Literal, Stmt, StmtKind, Type, TypeKind,
-    statements::*,
+    Expr, ExprKind, ImportTree, ImportTreeKind, Literal, Mutability, Stmt, StmtKind, Type,
+    TypeKind, Visibility, statements::*,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -168,10 +168,10 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
         }
         StmtKind::VarDecl(var_decl) => {
             let mut modifiers = Vec::new();
-            if var_decl.is_public {
+            if var_decl.visibility == Visibility::Public {
                 modifiers.push("pub");
             }
-            if !var_decl.is_constant {
+            if var_decl.mutability == Mutability::Mutable {
                 modifiers.push("mut");
             }
             if var_decl.is_static {
@@ -205,7 +205,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
         }
         StmtKind::StructDecl(struct_decl) => {
             let mut modifiers = Vec::new();
-            if struct_decl.is_public {
+            if struct_decl.visibility == Visibility::Public {
                 modifiers.push("pub");
             }
             let modifiers = format_modifiers(&modifiers);
@@ -242,7 +242,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
         }
         StmtKind::InterfaceDecl(interface_decl) => {
             let mut modifiers = Vec::new();
-            if interface_decl.is_public {
+            if interface_decl.visibility == Visibility::Public {
                 modifiers.push("pub");
             }
             let modifiers = format_modifiers(&modifiers);
@@ -268,7 +268,7 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
         }
         StmtKind::FnDecl(fn_decl) => {
             let mut modifiers = Vec::new();
-            if fn_decl.is_public {
+            if fn_decl.visibility == Visibility::Public {
                 modifiers.push("pub");
             }
             if fn_decl.is_extern {
@@ -336,7 +336,7 @@ fn write_struct_property(
     ctx: &DisplayContext,
 ) -> std::fmt::Result {
     let mut modifiers = Vec::new();
-    if prop.is_public {
+    if prop.visibility == Visibility::Public {
         modifiers.push("pub");
     }
     let modifiers = format_modifiers(&modifiers);
@@ -357,7 +357,7 @@ fn write_struct_method(
     ctx: &DisplayContext,
 ) -> std::fmt::Result {
     let mut modifiers = Vec::new();
-    if method.is_public {
+    if method.visibility == Visibility::Public {
         modifiers.push("pub");
     }
     if method.is_static {

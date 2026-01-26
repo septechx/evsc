@@ -2,7 +2,8 @@ use anyhow::Result;
 
 use crate::{
     ast::{
-        Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, Stmt, StmtKind, Type, TypeKind,
+        Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind, Type,
+        TypeKind, Visibility,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, ImportStmt, InterfaceDeclStmt, InterfaceMethod,
             ReturnStmt, StructDeclStmt, StructMethod, StructProperty, VarDeclStmt,
@@ -155,14 +156,25 @@ pub fn parse_var_decl_statement(
         )?;
     }
 
+    let mutability = if is_constant {
+        Mutability::Constant
+    } else {
+        Mutability::Mutable
+    };
+    let visibility = if is_public {
+        Visibility::Public
+    } else {
+        Visibility::Private
+    };
+
     Ok(Stmt {
         kind: StmtKind::VarDecl(VarDeclStmt {
             type_,
-            is_constant,
             is_static,
-            is_public,
             variable_name,
             assigned_value,
+            mutability,
+            visibility,
         }),
         attributes: Box::new([]),
         span,
@@ -196,16 +208,22 @@ pub fn parse_struct_decl_stmt(
             parser.advance();
         }
 
+        let visibility = if is_public {
+            Visibility::Public
+        } else {
+            Visibility::Private
+        };
+
         if parser.current_token().kind == TokenKind::Fn {
             if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind {
                 methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
                         is_extern: false,
-                        is_public,
+                        visibility,
                         ..fn_decl
                     },
                     is_static,
-                    is_public,
+                    visibility,
                 })
             };
             continue;
@@ -248,10 +266,16 @@ pub fn parse_struct_decl_stmt(
                 continue;
             }
 
+            let visibility = if is_public {
+                Visibility::Public
+            } else {
+                Visibility::Private
+            };
+
             properties.push(StructProperty {
                 name: property_name,
                 type_,
-                is_public,
+                visibility,
             });
 
             continue;
@@ -275,12 +299,18 @@ pub fn parse_struct_decl_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
 
+    let visibility = if is_public {
+        Visibility::Public
+    } else {
+        Visibility::Private
+    };
+
     Ok(Stmt {
         kind: StmtKind::StructDecl(StructDeclStmt {
             properties: properties.into_boxed_slice(),
             methods: methods.into_boxed_slice(),
             name,
-            is_public,
+            visibility,
         }),
         attributes: attributes.into(),
         span,
@@ -329,11 +359,17 @@ pub fn parse_interface_decl_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
 
+    let visibility = if is_public {
+        Visibility::Public
+    } else {
+        Visibility::Private
+    };
+
     Ok(Stmt {
         kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
             methods: methods.into_boxed_slice(),
             name,
-            is_public,
+            visibility,
         }),
         attributes: attributes.into(),
         span,
@@ -420,13 +456,19 @@ pub fn parse_fn_decl_stmt(
 
     let span = Span::new(start_span.start(), end_span.end());
 
+    let visibility = if pub_mod.is_some() {
+        Visibility::Public
+    } else {
+        Visibility::Private
+    };
+
     Ok(Stmt {
         kind: StmtKind::FnDecl(FnDeclStmt {
             arguments: arguments.into_boxed_slice(),
             body,
             name,
             return_type,
-            is_public: pub_mod.is_some(),
+            visibility,
             is_extern: extern_mod.is_some(),
         }),
         attributes: attributes.into(),
@@ -486,11 +528,15 @@ pub fn parse_import_stmt(
     let end_span = parser.expect(TokenKind::Semicolon)?.span;
 
     let span = Span::new(start_span.start(), end_span.end());
+
+    let visibility = if pub_mod.is_some() {
+        Visibility::Public
+    } else {
+        Visibility::Private
+    };
+
     Ok(Stmt {
-        kind: StmtKind::Import(ImportStmt {
-            tree,
-            is_public: pub_mod.is_some(),
-        }),
+        kind: StmtKind::Import(ImportStmt { tree, visibility }),
         attributes: attributes.into(),
         span,
     })

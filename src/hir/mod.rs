@@ -1,3 +1,4 @@
+use crate::ast::Visibility;
 use crate::hashmap::FxHashMap;
 
 use crate::{
@@ -89,13 +90,13 @@ pub struct ModuleInfo {
     pub items: Vec<DefId>,
     pub imports: FxHashMap<Symbol, DefId>,
     pub struct_methods: FxHashMap<DefId, FxHashMap<Symbol, MethodMeta>>,
-    pub struct_fields: FxHashMap<DefId, FxHashMap<Symbol, bool>>,
+    pub struct_fields: FxHashMap<DefId, FxHashMap<Symbol, Visibility>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ExportEntry {
     pub def: DefId,
-    pub public: bool,
+    pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone)]
@@ -133,7 +134,7 @@ pub struct Function {
 pub struct StructField {
     pub name: Symbol,
     pub ty: TypeId,
-    pub public: bool,
+    pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone)]
@@ -156,7 +157,7 @@ pub struct Variable {
 pub struct MethodMeta {
     pub def: DefId,
     pub is_static: bool,
-    pub public: bool,
+    pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone)]

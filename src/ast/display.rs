@@ -307,19 +307,19 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
             write!(out, " {} ", punct_with_color("->", ctx.color))?;
             write!(out, "{}", write_type(&fn_decl.return_type, ctx))?;
             write!(out, ":")?;
-            if fn_decl.arguments.is_empty() && fn_decl.body.is_none() {
+            if fn_decl.parameters.is_empty() && fn_decl.body.is_none() {
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
                 let sub_ctx = ctx.indented();
-                write!(out, "{}Arguments:", sub_ctx.indent_str())?;
-                if fn_decl.arguments.is_empty() {
+                write!(out, "{}Parameters:", sub_ctx.indent_str())?;
+                if fn_decl.parameters.is_empty() {
                     writeln!(out)?;
                     write!(out, "{}  (empty)", sub_ctx.indent_str())?;
                 } else {
                     writeln!(out)?;
                     let arg_ctx = sub_ctx.indented();
-                    for arg in &fn_decl.arguments {
+                    for arg in &fn_decl.parameters {
                         writeln!(
                             out,
                             "{}FnArg \"{}\": {}",
@@ -400,14 +400,14 @@ fn write_struct_method(
     writeln!(out, ":")?;
     let sub_ctx = ctx.indented();
     let indent = sub_ctx.indent_str();
-    write!(out, "{}Arguments:", indent,)?;
-    if method.fn_decl.arguments.is_empty() {
+    write!(out, "{}Parameters:", indent,)?;
+    if method.fn_decl.parameters.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;
     } else {
         writeln!(out)?;
         let arg_ctx = sub_ctx.indented();
-        for arg in &method.fn_decl.arguments {
+        for arg in &method.fn_decl.parameters {
             writeln!(
                 out,
                 "{}FnArg \"{}\": {}",
@@ -461,14 +461,14 @@ fn write_interface_method(
     writeln!(out, ":")?;
     let sub_ctx = ctx.indented();
     let indent = sub_ctx.indent_str();
-    write!(out, "{}Arguments:", indent,)?;
-    if method.fn_decl.arguments.is_empty() {
+    write!(out, "{}Parameters:", indent,)?;
+    if method.fn_decl.parameters.is_empty() {
         writeln!(out)?;
         write!(out, "{}  (empty)", indent)?;
     } else {
         writeln!(out)?;
         let arg_ctx = sub_ctx.indented();
-        for arg in &method.fn_decl.arguments {
+        for arg in &method.fn_decl.parameters {
             writeln!(
                 out,
                 "{}FnArg \"{}\": {}",
@@ -639,13 +639,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
             let expr_ctx = ctx.indented();
             write_expr_inline_or_nested(out, "Callee: ", &call.callee, &expr_ctx)?;
             writeln!(out)?;
-            write!(out, "{}Arguments:", expr_ctx.indent_str())?;
-            if call.arguments.is_empty() {
+            write!(out, "{}Parameters:", expr_ctx.indent_str())?;
+            if call.parameters.is_empty() {
                 write!(out, " (empty)")?;
             } else {
                 writeln!(out)?;
                 let child_ctx = expr_ctx.indented();
-                for (i, arg) in call.arguments.iter().enumerate() {
+                for (i, arg) in call.parameters.iter().enumerate() {
                     if i > 0 {
                         writeln!(out)?;
                     }

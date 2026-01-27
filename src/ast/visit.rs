@@ -184,7 +184,7 @@ impl Visitable for ImplStmt {
     }
 }
 
-impl Visitable for FnArgument {
+impl Visitable for FnParameter {
     fn visit(&self, visitor: &mut impl Visitor) {
         self.ty.visit(visitor);
     }
@@ -192,7 +192,7 @@ impl Visitable for FnArgument {
 
 impl Visitable for FnDeclStmt {
     fn visit(&self, visitor: &mut impl Visitor) {
-        for arg in &self.arguments {
+        for arg in &self.parameters {
             arg.visit(visitor);
         }
         if let Some(body) = &self.body {
@@ -282,7 +282,7 @@ impl Visitable for ArrayLiteralExpr {
 impl Visitable for FunctionCallExpr {
     fn visit(&self, visitor: &mut impl Visitor) {
         self.callee.visit(visitor);
-        self.arguments.visit(visitor);
+        self.parameters.visit(visitor);
     }
 }
 impl Visitable for MemberAccessExpr {

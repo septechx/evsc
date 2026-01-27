@@ -129,8 +129,11 @@ pub fn compile_stmts<'a, 'ctx>(
     for stmt in stmts {
         match &stmt.kind {
             StmtKind::FnDecl(fn_decl) => {
-                let param_types: Vec<Type> =
-                    fn_decl.arguments.iter().map(|arg| arg.ty.clone()).collect();
+                let param_types: Vec<Type> = fn_decl
+                    .parameters
+                    .iter()
+                    .map(|arg| arg.ty.clone())
+                    .collect();
                 let fn_type = compile_function_type(
                     context,
                     &fn_decl.return_type,
@@ -215,7 +218,7 @@ fn compile_function<'ctx>(
     let builder = context.create_builder();
     builder.position_at_end(entry_bb);
 
-    for (i, arg_decl) in fn_decl.arguments.iter().enumerate() {
+    for (i, arg_decl) in fn_decl.parameters.iter().enumerate() {
         if let Some(param) = function.get_nth_param(i as u32) {
             param.set_name(&arg_decl.name.value);
 
@@ -385,7 +388,7 @@ fn compile_struct_decl<'ctx>(
         let mut method = method.fn_decl.clone();
         method.name.value = format!("{}_{}", struct_decl.name.value, method.name.value).into();
 
-        let param_types: Vec<Type> = method.arguments.iter().map(|arg| arg.ty.clone()).collect();
+        let param_types: Vec<Type> = method.parameters.iter().map(|arg| arg.ty.clone()).collect();
         let fn_type = compile_function_type(
             context,
             &method.return_type,

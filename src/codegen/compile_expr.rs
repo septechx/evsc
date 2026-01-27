@@ -202,7 +202,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
             let mut arg_types: Vec<BasicMetadataTypeEnum> = Vec::new();
-            for (i, arg_expr) in fn_expr.arguments.iter().enumerate() {
+            for (i, arg_expr) in fn_expr.parameters.iter().enumerate() {
                 let arg_val = compile_expression_to_value(
                     context,
                     module,

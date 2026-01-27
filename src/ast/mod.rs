@@ -37,7 +37,7 @@ impl Ast {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
     pub name: Ident,
-    pub arguments: Option<ThinVec<Box<str>>>,
+    pub parameters: Option<ThinVec<Box<str>>>,
     pub span: Span,
 }
 

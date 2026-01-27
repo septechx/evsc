@@ -429,7 +429,7 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::FunctionCall(FunctionCallExpr {
                 callee: Box::new(dummy_expr_symbol("foo")),
-                arguments: thin_vec![dummy_expr_number(1), dummy_expr_number(2)],
+                parameters: thin_vec![dummy_expr_number(1), dummy_expr_number(2)],
             }),
             span: dummy_span(),
         };
@@ -650,7 +650,7 @@ mod tests {
                     visibility: Visibility::Private,
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: ThinVec::new(),
+                        parameters: ThinVec::new(),
                         body: dummy_fn_body(),
                         return_type: dummy_type_never(),
                         visibility: Visibility::Private,
@@ -678,7 +678,7 @@ mod tests {
                 methods: thin_vec![InterfaceMethod {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: ThinVec::new(),
+                        parameters: ThinVec::new(),
                         body: None,
                         return_type: dummy_type_never(),
                         visibility: Visibility::Private,
@@ -705,12 +705,12 @@ mod tests {
             items: thin_vec![Stmt {
                 kind: StmtKind::FnDecl(FnDeclStmt {
                     name: dummy_ident("foo"),
-                    arguments: thin_vec![
-                        FnArgument {
+                    parameters: thin_vec![
+                        FnParameter {
                             name: dummy_ident("a"),
                             ty: dummy_type_symbol("i32"),
                         },
-                        FnArgument {
+                        FnParameter {
                             name: dummy_ident("b"),
                             ty: dummy_type_symbol("bool"),
                         },
@@ -900,7 +900,7 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::FunctionCall(FunctionCallExpr {
                 callee: Box::new(dummy_expr_symbol("foo")),
-                arguments: thin_vec![
+                parameters: thin_vec![
                     dummy_expr_number(1),
                     Expr {
                         kind: ExprKind::StructInstantiation(StructInstantiationExpr {
@@ -988,7 +988,7 @@ mod tests {
                             visibility: Visibility::Private,
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
-                                arguments: ThinVec::new(),
+                                parameters: ThinVec::new(),
                                 body: Some(Block {
                                     body: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
                                 }),
@@ -1008,7 +1008,7 @@ mod tests {
                         methods: thin_vec![InterfaceMethod {
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
-                                arguments: ThinVec::new(),
+                                parameters: ThinVec::new(),
                                 body: dummy_fn_body(),
                                 return_type: dummy_type_never(),
                                 visibility: Visibility::Private,
@@ -1023,7 +1023,7 @@ mod tests {
                 Stmt {
                     kind: StmtKind::FnDecl(FnDeclStmt {
                         name: dummy_ident("main"),
-                        arguments: ThinVec::new(),
+                        parameters: ThinVec::new(),
                         body: Some(Block {
                             body: thin_vec![
                                 Stmt {
@@ -1193,7 +1193,7 @@ mod tests {
                 items: thin_vec![InterfaceMethod {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: ThinVec::new(),
+                        parameters: ThinVec::new(),
                         body: dummy_fn_body(),
                         return_type: dummy_type_symbol("void"),
                         is_extern: false,

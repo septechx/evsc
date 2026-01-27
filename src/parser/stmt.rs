@@ -6,7 +6,7 @@ use crate::{
         Attribute, Block, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind,
         Type, TypeKind, Visibility,
         statements::{
-            ExpressionStmt, FnArgument, FnDeclStmt, ImplStmt, ImportStmt, InterfaceDeclStmt,
+            ExpressionStmt, FnDeclStmt, FnParameter, ImplStmt, ImportStmt, InterfaceDeclStmt,
             InterfaceMethod, ReturnStmt, StructDeclStmt, StructField, StructMethod, VarDeclStmt,
         },
     },
@@ -371,7 +371,7 @@ pub fn parse_fn_decl_stmt(
     let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::OpenParen)?;
-    let mut arguments: ThinVec<FnArgument> = ThinVec::new();
+    let mut parameters: ThinVec<FnParameter> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
@@ -383,7 +383,7 @@ pub fn parse_fn_decl_stmt(
         parser.expect(TokenKind::Colon)?;
         let type_ = parse_type(parser, BindingPower::DefaultBp)?;
 
-        arguments.push(FnArgument {
+        parameters.push(FnParameter {
             name: arg_name,
             ty: type_,
         });
@@ -449,7 +449,7 @@ pub fn parse_fn_decl_stmt(
 
     Ok(Stmt {
         kind: StmtKind::FnDecl(FnDeclStmt {
-            arguments,
+            parameters,
             body,
             name,
             return_type,

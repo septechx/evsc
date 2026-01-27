@@ -57,7 +57,7 @@ pub struct ArrayLiteralExpr {
 #[derive(Debug, Clone)]
 pub struct FunctionCallExpr {
     pub callee: Box<Expr>,
-    pub arguments: ThinVec<Expr>,
+    pub parameters: ThinVec<Expr>,
 }
 
 #[derive(Debug, Clone)]

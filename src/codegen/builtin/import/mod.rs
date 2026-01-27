@@ -46,11 +46,11 @@ impl BuiltinFunction for ImportBuiltin {
         };
 
         // Resolve path
-        if fn_expr.arguments.len() != 1 {
+        if fn_expr.parameters.len() != 1 {
             bail!("Expected one argument to @import");
         }
 
-        let module_name = match &fn_expr.arguments[0].kind {
+        let module_name = match &fn_expr.parameters[0].kind {
             ExprKind::Literal(sym) => {
                 if let Literal::String(s) = sym {
                     s.clone()

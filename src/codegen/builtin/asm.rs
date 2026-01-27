@@ -19,7 +19,7 @@ use crate::{
 
 fn fail<'ctx>() -> Result<SmartValue<'ctx>> {
     Err(anyhow!(
-        "Invalid arguments to asm builtin, expected @asm(string, string, tuple) (First 2 arguments must be available at compile time)",
+        "Invalid parameters to asm builtin, expected @asm(string, string, tuple) (First 2 arguments must be available at compile time)",
     ))
 }
 
@@ -39,14 +39,14 @@ impl BuiltinFunction for AsmBuiltin {
             _ => unreachable!(),
         };
 
-        if expr.arguments.len() != 3 {
+        if expr.parameters.len() != 3 {
             return fail();
         }
 
         let (asm_str, constraints, arguments) = match (
-            &expr.arguments[0].kind,
-            &expr.arguments[1].kind,
-            &expr.arguments[2].kind,
+            &expr.parameters[0].kind,
+            &expr.parameters[1].kind,
+            &expr.parameters[2].kind,
         ) {
             (ExprKind::Literal(asm), ExprKind::Literal(cons), ExprKind::TupleLiteral(args)) => {
                 match (asm, cons) {

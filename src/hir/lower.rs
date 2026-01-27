@@ -281,7 +281,7 @@ impl LoweringContext {
         let modid = self.current_module.expect("current module set");
 
         let params = f
-            .arguments
+            .parameters
             .into_iter()
             .map(|p| {
                 (
@@ -403,7 +403,7 @@ impl LoweringContext {
 
             let param_tys = m
                 .fn_decl
-                .arguments
+                .parameters
                 .into_iter()
                 .map(|arg| self.lower_type(arg.ty))
                 .collect::<ThinVec<_>>();
@@ -552,7 +552,7 @@ impl LoweringContext {
                     let base = self.lower_expr(*ma.base);
                     let method_sym = self.krate.interner.intern(&ma.member.value);
                     let args = fc
-                        .arguments
+                        .parameters
                         .into_iter()
                         .map(|a| self.lower_expr(a))
                         .collect();
@@ -565,7 +565,7 @@ impl LoweringContext {
                 _ => {
                     let callee = self.lower_expr(*fc.callee);
                     let args = fc
-                        .arguments
+                        .parameters
                         .into_iter()
                         .map(|a| self.lower_expr(a))
                         .collect();

@@ -6,7 +6,7 @@ use thin_vec::ThinVec;
 use crate::{
     ast::{
         Ast, Ident, Stmt, StmtKind, Type, TypeKind, Visibility,
-        statements::{FnArgument, FnDeclStmt},
+        statements::{FnDeclStmt, FnParameter},
         types::SymbolType,
     },
     codegen::{
@@ -47,7 +47,7 @@ pub fn compile_header<'ctx>(
             let arguments =
                 ty.1.into_iter()
                     .enumerate()
-                    .map(|(i, arg)| FnArgument {
+                    .map(|(i, arg)| FnParameter {
                         name: Ident {
                             value: format!("arg{}", i).into(),
                             span: arg.span,
@@ -62,7 +62,7 @@ pub fn compile_header<'ctx>(
             let stmt = Stmt {
                 kind: StmtKind::FnDecl(FnDeclStmt {
                     name: Ident { value: name, span },
-                    arguments,
+                    parameters: arguments,
                     body: None,
                     return_type: ty.0,
                     is_extern: true,

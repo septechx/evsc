@@ -277,14 +277,14 @@ pub fn parse_function_call_expr(
 ) -> Result<Expr> {
     parser.expect(TokenKind::OpenParen)?;
 
-    let mut arguments: ThinVec<Expr> = ThinVec::new();
+    let mut parameters: ThinVec<Expr> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
             break;
         }
 
-        arguments.push(parse_expr(parser, BindingPower::Assignment)?);
+        parameters.push(parse_expr(parser, BindingPower::Assignment)?);
 
         if parser.current_token().kind != TokenKind::CloseParen {
             parser.expect(TokenKind::Comma)?;
@@ -297,7 +297,7 @@ pub fn parse_function_call_expr(
     Ok(Expr {
         kind: ExprKind::FunctionCall(FunctionCallExpr {
             callee: Box::new(left),
-            arguments,
+            parameters,
         }),
         span,
     })

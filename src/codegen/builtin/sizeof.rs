@@ -25,7 +25,7 @@ impl BuiltinFunction for SizeofBuiltin {
             _ => unreachable!(),
         };
 
-        let ty = match &expr.arguments[0].kind {
+        let ty = match &expr.parameters[0].kind {
             ExprKind::Type(ty) => ty.underlying.clone(),
             _ => bail!("First argument must be a type expression"),
         };

@@ -58,7 +58,7 @@ impl AstValidator {
     }
 
     fn validate_fn_decl(&mut self, f: &FnDeclStmt) {
-        self.check_duplicate_names(f.arguments.iter().map(|a| &a.name), "function arguments");
+        self.check_duplicate_names(f.parameters.iter().map(|a| &a.name), "function parameters");
 
         if f.is_extern {
             if f.body.is_some() {

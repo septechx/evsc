@@ -60,7 +60,7 @@ pub struct InterfaceDeclStmt {
 }
 
 #[derive(Debug, Clone)]
-pub struct FnArgument {
+pub struct FnParameter {
     pub name: Ident,
     pub ty: Type,
 }
@@ -68,7 +68,7 @@ pub struct FnArgument {
 #[derive(Debug, Clone)]
 pub struct FnDeclStmt {
     pub name: Ident,
-    pub arguments: ThinVec<FnArgument>,
+    pub parameters: ThinVec<FnParameter>,
     pub body: Option<Block>,
     pub return_type: Type,
     pub is_extern: bool,

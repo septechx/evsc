@@ -13,7 +13,7 @@ use inkwell::{
 use crate::{
     ast::{
         Stmt, StmtKind, Type,
-        statements::{ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
+        statements::{ExprStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -173,8 +173,17 @@ pub fn compile_stmts<'a, 'ctx>(
             StmtKind::Return(ret_stmt) => {
                 compile_return(context, module, builder, ret_stmt, compilation_context)?;
             }
-            StmtKind::Expression(expr_stmt) => {
+            StmtKind::Expr(expr_stmt) => {
                 compile_expression(context, module, builder, expr_stmt, compilation_context)?;
+            }
+            StmtKind::Semi(semi_stmt) => {
+                compile_expression_to_value(
+                    context,
+                    module,
+                    builder,
+                    &semi_stmt.expr,
+                    compilation_context,
+                )?;
             }
             StmtKind::VarDecl(var_decl) => {
                 compile_var_decl(context, module, builder, var_decl, compilation_context)?;
@@ -309,14 +318,14 @@ fn compile_expression<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    expr_stmt: &'a ExpressionStmt,
+    expr_stmt: &'a ExprStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     compile_expression_to_value(
         context,
         module,
         builder,
-        &expr_stmt.expression,
+        &expr_stmt.expr,
         compilation_context,
     )?;
     Ok(())

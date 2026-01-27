@@ -2,10 +2,16 @@ use thin_vec::ThinVec;
 
 use crate::ast::{Block, Expr, Ident, ImportTree, Mutability, Type, Visibility};
 
+/// Expression without a trailing semicolon
 #[derive(Debug, Clone)]
-pub struct ExpressionStmt {
-    pub expression: Expr,
-    pub has_semicolon: bool,
+pub struct ExprStmt {
+    pub expr: Expr,
+}
+
+/// Expression with a trailing semicolon
+#[derive(Debug, Clone)]
+pub struct SemiStmt {
+    pub expr: Expr,
 }
 
 #[derive(Debug, Clone)]

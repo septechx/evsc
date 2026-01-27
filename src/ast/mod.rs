@@ -50,7 +50,8 @@ pub struct Stmt {
 
 #[derive(Debug, Clone)]
 pub enum StmtKind {
-    Expression(ExpressionStmt),
+    Expr(ExprStmt),
+    Semi(SemiStmt),
     VarDecl(VarDeclStmt),
     StructDecl(StructDeclStmt),
     InterfaceDecl(InterfaceDeclStmt),

@@ -228,7 +228,10 @@ pub enum HirExpr {
 
 #[derive(Debug, Clone)]
 pub enum HirStmt {
+    /// Expression without a trailing semicolon
     Expr(ExprId),
+    /// Expression with a trailing semicolon
+    Semi(ExprId),
     Let {
         name: Symbol,
         ty: Option<TypeId>,

@@ -6,8 +6,9 @@ use crate::{
         Attribute, Block, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind,
         Type, TypeKind, Visibility,
         statements::{
-            ExpressionStmt, FnDeclStmt, FnParameter, ImplStmt, ImportStmt, InterfaceDeclStmt,
-            InterfaceMethod, ReturnStmt, StructDeclStmt, StructField, StructMethod, VarDeclStmt,
+            ExprStmt, FnDeclStmt, FnParameter, ImplStmt, ImportStmt, InterfaceDeclStmt,
+            InterfaceMethod, ReturnStmt, SemiStmt, StructDeclStmt, StructField, StructMethod,
+            VarDeclStmt,
         },
     },
     error_at, get_modifiers,
@@ -39,7 +40,7 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
         no_attributes!(&parser, &attributes);
         no_modifiers!(&parser, &modifiers);
 
-        let expression = parse_expr(parser, BindingPower::DefaultBp)?;
+        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
 
         let mut has_semicolon = false;
         if parser.current_token().kind == TokenKind::Semicolon {
@@ -47,20 +48,15 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
             parser.advance();
         }
 
-        if !has_semicolon && parser.current_token().kind != TokenKind::CloseCurly {
-            error_at!(
-                expression.span,
-                parser.current_token().module_id,
-                "Implicit return not allowed here"
-            )?;
-        }
+        let span = expr.span;
+        let kind = if has_semicolon {
+            StmtKind::Semi(SemiStmt { expr })
+        } else {
+            StmtKind::Expr(ExprStmt { expr })
+        };
 
-        let span = expression.span;
         Ok(Stmt {
-            kind: StmtKind::Expression(ExpressionStmt {
-                expression,
-                has_semicolon,
-            }),
+            kind,
             attributes,
             span,
         })

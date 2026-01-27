@@ -76,7 +76,7 @@ mod tests {
             *self.stmt_counts.entry("Stmt").or_insert(0) += 1;
 
             let kind_name = match &stmt.kind {
-                StmtKind::Expression(_) => "ExpressionStmt",
+                StmtKind::Expr(_) => "ExpressionStmt",
                 StmtKind::VarDecl(_) => "VarDeclStmt",
                 StmtKind::StructDecl(_) => "StructDeclStmt",
                 StmtKind::InterfaceDecl(_) => "InterfaceDeclStmt",
@@ -84,6 +84,7 @@ mod tests {
                 StmtKind::Return(_) => "ReturnStmt",
                 StmtKind::Import(_) => "ImportStmt",
                 StmtKind::Impl(_) => "ImplStmt",
+                StmtKind::Semi(_) => "SemiStmt",
             };
             *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
 
@@ -211,10 +212,7 @@ mod tests {
 
     fn dummy_stmt_expr(expr: Expr) -> Stmt {
         Stmt {
-            kind: StmtKind::Expression(ExpressionStmt {
-                expression: expr,
-                has_semicolon: true,
-            }),
+            kind: StmtKind::Expr(ExprStmt { expr }),
             span: dummy_span(),
             attributes: ThinVec::new(),
         }
@@ -1039,8 +1037,8 @@ mod tests {
                                     attributes: ThinVec::new(),
                                 },
                                 Stmt {
-                                    kind: StmtKind::Expression(ExpressionStmt {
-                                        expression: Expr {
+                                    kind: StmtKind::Expr(ExprStmt {
+                                        expr: Expr {
                                             kind: ExprKind::Block(BlockExpr {
                                                 block: Block {
                                                     body: thin_vec![Stmt {
@@ -1054,7 +1052,6 @@ mod tests {
                                             }),
                                             span: dummy_span(),
                                         },
-                                        has_semicolon: true,
                                     }),
                                     span: dummy_span(),
                                     attributes: ThinVec::new(),

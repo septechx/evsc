@@ -97,7 +97,8 @@ impl Visitable for Stmt {
     fn visit(&self, visitor: &mut impl Visitor) {
         match visitor.visit_stmt(self) {
             VisitAction::Continue => match &self.kind {
-                StmtKind::Expression(expr_stmt) => expr_stmt.visit(visitor),
+                StmtKind::Expr(expr_stmt) => expr_stmt.visit(visitor),
+                StmtKind::Semi(semi_stmt) => semi_stmt.visit(visitor),
                 StmtKind::VarDecl(var) => var.visit(visitor),
                 StmtKind::StructDecl(s) => s.visit(visitor),
                 StmtKind::InterfaceDecl(i) => i.visit(visitor),
@@ -123,9 +124,15 @@ impl Visitable for BlockExpr {
     }
 }
 
-impl Visitable for ExpressionStmt {
+impl Visitable for ExprStmt {
     fn visit(&self, visitor: &mut impl Visitor) {
-        self.expression.visit(visitor);
+        self.expr.visit(visitor);
+    }
+}
+
+impl Visitable for SemiStmt {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.expr.visit(visitor);
     }
 }
 

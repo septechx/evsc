@@ -149,21 +149,28 @@ fn escape_string(s: &str) -> String {
 
 pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::fmt::Result {
     match &stmt.kind {
-        StmtKind::Expression(expr_stmt) => {
-            write!(
-                out,
-                "{}{}:",
-                "ExpressionStmt".with_color(ctx.color),
-                punct_with_color(if expr_stmt.has_semicolon { ";" } else { "" }, ctx.color),
-            )?;
-            if expr_stmt.expression.kind.is_leaf() {
+        StmtKind::Expr(expr_stmt) => {
+            write!(out, "{}:", "ExpressionStmt".with_color(ctx.color),)?;
+            if expr_stmt.expr.kind.is_leaf() {
                 write!(out, " ")?;
-                write_expr(out, &expr_stmt.expression, &ctx.clone())?;
+                write_expr(out, &expr_stmt.expr, &ctx.clone())?;
             } else {
                 writeln!(out)?;
                 let expr_ctx = ctx.indented();
                 write!(out, "{}", expr_ctx.indent_str())?;
-                write_expr(out, &expr_stmt.expression, &expr_ctx)?;
+                write_expr(out, &expr_stmt.expr, &expr_ctx)?;
+            }
+        }
+        StmtKind::Semi(semi_stmt) => {
+            write!(out, "{}:", "SemiStmt".with_color(ctx.color),)?;
+            if semi_stmt.expr.kind.is_leaf() {
+                write!(out, " ")?;
+                write_expr(out, &semi_stmt.expr, &ctx.clone())?;
+            } else {
+                writeln!(out)?;
+                let expr_ctx = ctx.indented();
+                write!(out, "{}", expr_ctx.indent_str())?;
+                write_expr(out, &semi_stmt.expr, &expr_ctx)?;
             }
         }
         StmtKind::VarDecl(var_decl) => {

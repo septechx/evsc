@@ -650,9 +650,13 @@ impl LoweringContext {
 
     fn lower_stmt(&mut self, stmt: Stmt) -> StmtId {
         match stmt.kind {
-            StmtKind::Expression(e) => {
-                let exprid = self.lower_expr(e.expression);
+            StmtKind::Expr(e) => {
+                let exprid = self.lower_expr(e.expr);
                 self.alloc_stmt(HirStmt::Expr(exprid))
+            }
+            StmtKind::Semi(s) => {
+                let exprid = self.lower_expr(s.expr);
+                self.alloc_stmt(HirStmt::Semi(exprid))
             }
             StmtKind::VarDecl(v) => {
                 let name = self.krate.interner.intern(&v.variable_name.value);

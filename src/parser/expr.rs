@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 
 use crate::{
     ast::{
-        Expr, ExprKind, Ident, Literal,
+        Block, Expr, ExprKind, Ident, Literal,
         expressions::{
             ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, BlockExpr, FunctionCallExpr,
             MemberAccessExpr, PostfixExpr, PrefixExpr, StructInstantiationExpr, SymbolExpr,
@@ -406,7 +406,9 @@ pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
 
     Ok(Expr {
         kind: ExprKind::Block(BlockExpr {
-            body: body.into_boxed_slice(),
+            block: Block {
+                body: body.into_boxed_slice(),
+            },
         }),
         span,
     })

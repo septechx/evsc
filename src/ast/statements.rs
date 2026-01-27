@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Ident, ImportTree, Mutability, Type, Visibility};
+use crate::ast::{Block, Expr, Ident, ImportTree, Mutability, Type, Visibility};
 
 #[derive(Debug, Clone)]
 pub struct ExpressionStmt {
@@ -67,7 +67,7 @@ pub struct FnArgument {
 pub struct FnDeclStmt {
     pub name: Ident,
     pub arguments: Box<[FnArgument]>,
-    pub body: Option<Expr>,
+    pub body: Option<Block>,
     pub return_type: Type,
     pub is_extern: bool,
     pub visibility: Visibility,

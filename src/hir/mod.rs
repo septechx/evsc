@@ -41,6 +41,9 @@ pub struct StmtId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId(pub u32);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BodyId(pub u32);
+
 impl From<u32> for DefId {
     fn from(v: u32) -> Self {
         DefId(v)
@@ -71,14 +74,20 @@ impl From<u32> for ModuleId {
         ModuleId(v)
     }
 }
+impl From<u32> for BodyId {
+    fn from(v: u32) -> Self {
+        BodyId(v)
+    }
+}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default)]
 pub struct HirCrate {
     pub modules: Vec<ModuleInfo>,
     pub defs: Vec<Def>,
     pub exprs: Vec<HirExpr>,
     pub types: Vec<HirType>,
     pub stmts: Vec<HirStmt>,
+    pub bodies: Vec<Body>,
     pub interner: Interner,
     pub diagnostics: Vec<String>,
 }
@@ -126,11 +135,16 @@ pub struct Function {
     pub name: Symbol,
     pub params: Vec<(Symbol, TypeId)>,
     pub ret: TypeId,
-    pub body: Option<ExprId>,
+    pub body: Option<BodyId>,
     pub module: ModuleId,
-    // struct defid if this is a method
+    /// struct defid if this is a method
     pub associated: Option<DefId>,
     pub static_method: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct Body {
+    pub stmts: Vec<StmtId>,
 }
 
 #[derive(Debug, Clone)]

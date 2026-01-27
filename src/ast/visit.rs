@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
+        Ast, Block, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
         statements::*, types::*,
     },
     hashmap::FxHashMap,
@@ -77,6 +77,12 @@ impl Visitable for Ast {
     }
 }
 
+impl Visitable for Block {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.body.visit(visitor);
+    }
+}
+
 impl Visitable for Stmt {
     fn visit(&self, visitor: &mut impl Visitor) {
         match visitor.visit_stmt(self) {
@@ -103,7 +109,7 @@ impl Visitable for ImportStmt {
 
 impl Visitable for BlockExpr {
     fn visit(&self, visitor: &mut impl Visitor) {
-        self.body.visit(visitor);
+        self.block.visit(visitor);
     }
 }
 

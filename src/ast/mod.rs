@@ -143,6 +143,11 @@ pub enum Mutability {
 }
 
 #[derive(Debug, Clone)]
+pub struct Block {
+    pub body: Box<[Stmt]>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Path {
     pub span: Span,
     pub segments: Box<[Ident]>,

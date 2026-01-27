@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use crate::{
     ast::{
-        Attribute, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind, Type,
-        TypeKind, Visibility,
+        Attribute, Block, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind,
+        Type, TypeKind, Visibility,
         statements::{
             ExpressionStmt, FnArgument, FnDeclStmt, ImplStmt, ImportStmt, InterfaceDeclStmt,
             InterfaceMethod, ReturnStmt, StructDeclStmt, StructField, StructMethod, VarDeclStmt,
@@ -394,12 +394,13 @@ pub fn parse_fn_decl_stmt(
     let return_type = parse_type(parser, BindingPower::DefaultBp)?;
     let mut end_span = return_type.span;
 
-    let mut body: Option<Expr> = None;
+    // TODO: Don't try to parse function body as block expr
+    let mut body: Option<Block> = None;
     if parser.current_token().kind == TokenKind::OpenCurly {
         let expr = parse_expr(parser, BindingPower::DefaultBp)?;
         end_span = expr.span;
-        if let ExprKind::Block(_) = &expr.kind {
-            body = Some(expr);
+        if let ExprKind::Block(b) = expr.kind {
+            body = Some(b.block);
         } else {
             error_at!(
                 expr.span,

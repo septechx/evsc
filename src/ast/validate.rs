@@ -79,15 +79,6 @@ impl AstValidator {
         }
 
         if let Some(body) = &f.body {
-            if !matches!(body.kind, ExprKind::Block(_)) {
-                error_at!(
-                    body.span,
-                    self.module_id,
-                    "Function body must be a block expression"
-                )
-                .expect("failed to emit error");
-            }
-
             let old_in_function = self.in_function;
             let old_top_level = self.is_top_level;
             self.in_function = true;
@@ -223,7 +214,7 @@ impl Visitor for AstValidator {
             ExprKind::Block(b) => {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
-                for stmt in b.body.iter() {
+                for stmt in b.block.body.iter() {
                     stmt.visit(self);
                 }
                 self.is_top_level = old_top_level;

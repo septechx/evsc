@@ -424,22 +424,17 @@ fn write_struct_method(
 fn write_fn_decl(out: &mut String, fn_decl: &FnDeclStmt, ctx: &DisplayContext) -> std::fmt::Result {
     write!(out, "{}Body:", ctx.indent_str())?;
     if let Some(body) = &fn_decl.body {
-        match &body.kind {
-            ExprKind::Block(body) => {
-                if body.body.is_empty() {
-                    writeln!(out)?;
-                    write!(out, "{}  (empty)", ctx.indent_str())?;
-                } else {
-                    writeln!(out)?;
-                    let body_ctx = ctx.indented();
-                    for s in &body.body {
-                        write!(out, "{}", body_ctx.indent_str())?;
-                        write_stmt(out, s, &body_ctx)?;
-                        writeln!(out)?;
-                    }
-                }
+        if body.body.is_empty() {
+            writeln!(out)?;
+            write!(out, "{}  (empty)", ctx.indent_str())?;
+        } else {
+            writeln!(out)?;
+            let body_ctx = ctx.indented();
+            for s in &body.body {
+                write!(out, "{}", body_ctx.indent_str())?;
+                write_stmt(out, s, &body_ctx)?;
+                writeln!(out)?;
             }
-            _ => panic!("Expected block expression, got {:?}", body.kind), // This should never happen
         }
     } else {
         writeln!(out)?;
@@ -492,13 +487,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
         ExprKind::Block(block) => {
             write!(out, "{}", "BlockExpr".with_color(ctx.color),)?;
             write!(out, ":")?;
-            if block.body.is_empty() {
+            if block.block.body.is_empty() {
                 writeln!(out)?;
                 write!(out, "{}  (empty)", ctx.indent_str())?;
             } else {
                 writeln!(out)?;
                 let body_ctx = ctx.indented();
-                for s in &block.body {
+                for s in &block.block.body {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_stmt(out, s, &body_ctx)?;
                     writeln!(out)?;

@@ -5,10 +5,10 @@ use crate::{
     },
     hashmap::FxHashMap,
     hir::{
-        Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt, HirType, Interface,
-        InterfaceMethod, LocalId, MethodMeta, ModuleId, ModuleInfo, StmtId, Struct, StructField,
-        TypeId, Variable,
-        interner::{Interner, Symbol},
+        Body, BodyId, Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt,
+        HirType, Interface, InterfaceMethod, LocalId, MethodMeta, ModuleId, ModuleInfo, StmtId,
+        Struct, StructField, TypeId, Variable,
+        interner::Symbol,
         resolve::{PendingImport, ResolutionStatus},
     },
     lexer::token::TokenKind,
@@ -19,6 +19,7 @@ const BUILTIN_TYPES: [&str; 15] = [
     "bool", "void",
 ];
 
+#[derive(Debug, Default)]
 pub struct LoweringContext {
     pub krate: HirCrate,
     current_module: Option<ModuleId>,
@@ -29,29 +30,12 @@ pub struct LoweringContext {
     next_type: u32,
     next_local: u32,
     next_stmt: u32,
+    next_body: u32,
 }
 
 impl LoweringContext {
     pub fn new() -> Self {
-        LoweringContext {
-            krate: HirCrate {
-                modules: Vec::new(),
-                defs: Vec::new(),
-                exprs: Vec::new(),
-                types: Vec::new(),
-                stmts: Vec::new(),
-                interner: Interner::new(),
-                diagnostics: Vec::new(),
-            },
-            current_module: None,
-            current_struct: None,
-            local_stack: Vec::new(),
-            next_def: 0,
-            next_expr: 0,
-            next_type: 0,
-            next_local: 0,
-            next_stmt: 0,
-        }
+        LoweringContext::default()
     }
 
     pub fn lower_crate(&mut self, asts: Vec<Ast>) {
@@ -277,6 +261,13 @@ impl LoweringContext {
         id
     }
 
+    fn alloc_body(&mut self, body: Body) -> BodyId {
+        let id = BodyId(self.next_body);
+        self.next_body += 1;
+        self.krate.bodies.push(body);
+        id
+    }
+
     fn lower_fn_impl(
         &mut self,
         f: FnDeclStmt,
@@ -324,9 +315,16 @@ impl LoweringContext {
                     .expect("local stack exists")
                     .insert(pname, local);
             }
-            let expr = self.lower_expr(body);
+
+            let stmt_ids: Vec<StmtId> = body
+                .body
+                .into_iter()
+                .map(|stmt| self.lower_stmt(stmt))
+                .collect();
+
+            let body_id = self.alloc_body(Body { stmts: stmt_ids });
             if let Def::Function(func) = &mut self.krate.defs[defid.0 as usize] {
-                func.body = Some(expr);
+                func.body = Some(body_id);
             }
             self.local_stack.pop();
         }
@@ -633,16 +631,6 @@ impl LoweringContext {
                         field: field_sym,
                     })
                 }
-            }
-            ExprKind::Block(b) => {
-                self.local_stack.push(FxHashMap::default());
-                let stmt_ids = b
-                    .body
-                    .into_iter()
-                    .map(|stmt| self.lower_stmt(stmt))
-                    .collect();
-                self.local_stack.pop();
-                self.alloc_expr(HirExpr::Block { stmts: stmt_ids })
             }
             ExprKind::Binary(b) => {
                 let left_id = self.lower_expr(*b.left);

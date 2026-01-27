@@ -202,7 +202,9 @@ mod tests {
     fn dummy_expr_block(body: Vec<Stmt>) -> Expr {
         Expr {
             kind: ExprKind::Block(BlockExpr {
-                body: body.into_boxed_slice(),
+                block: Block {
+                    body: body.into_boxed_slice(),
+                },
             }),
             span: dummy_span(),
         }
@@ -217,6 +219,10 @@ mod tests {
             span: dummy_span(),
             attributes: Box::new([]),
         }
+    }
+
+    fn dummy_fn_body() -> Option<Block> {
+        Some(Block { body: Box::new([]) })
     }
 
     #[test]
@@ -645,10 +651,7 @@ mod tests {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
                         arguments: Box::new([]),
-                        body: Some(Expr {
-                            kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
-                            span: dummy_span(),
-                        }),
+                        body: dummy_fn_body(),
                         return_type: dummy_type_never(),
                         visibility: Visibility::Private,
                         is_extern: false,
@@ -715,11 +718,8 @@ mod tests {
                         },
                     ]
                     .into_boxed_slice(),
-                    body: Some(Expr {
-                        kind: ExprKind::Block(BlockExpr {
-                            body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
-                        }),
-                        span: dummy_span(),
+                    body: Some(Block {
+                        body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
                     }),
                     return_type: dummy_type_symbol("void"),
                     visibility: Visibility::Private,
@@ -734,8 +734,7 @@ mod tests {
         visitor.assert_visited("stmt", "Stmt", 2);
         visitor.assert_visited("stmt", "FnDeclStmt", 1);
         visitor.assert_visited("stmt", "ExpressionStmt", 1);
-        visitor.assert_visited("expr", "Expr", 2);
-        visitor.assert_visited("expr", "BlockExpr", 1);
+        visitor.assert_visited("expr", "Expr", 1);
         visitor.assert_visited("expr", "NumberExpr", 1);
         visitor.assert_visited("type", "Type", 3);
         visitor.assert_visited("type", "SymbolType", 3);
@@ -994,12 +993,9 @@ mod tests {
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
                                 arguments: Box::new([]),
-                                body: Some(Expr {
-                                    kind: ExprKind::Block(BlockExpr {
-                                        body: vec![dummy_stmt_expr(dummy_expr_number(1))]
-                                            .into_boxed_slice(),
-                                    }),
-                                    span: dummy_span(),
+                                body: Some(Block {
+                                    body: vec![dummy_stmt_expr(dummy_expr_number(1))]
+                                        .into_boxed_slice(),
                                 }),
                                 return_type: dummy_type_never(),
                                 visibility: Visibility::Private,
@@ -1019,10 +1015,7 @@ mod tests {
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
                                 arguments: Box::new([]),
-                                body: Some(Expr {
-                                    kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
-                                    span: dummy_span(),
-                                }),
+                                body: dummy_fn_body(),
                                 return_type: dummy_type_never(),
                                 visibility: Visibility::Private,
                                 is_extern: false,
@@ -1038,25 +1031,25 @@ mod tests {
                     kind: StmtKind::FnDecl(FnDeclStmt {
                         name: dummy_ident("main"),
                         arguments: Box::new([]),
-                        body: Some(Expr {
-                            kind: ExprKind::Block(BlockExpr {
-                                body: vec![
-                                    Stmt {
-                                        kind: StmtKind::VarDecl(VarDeclStmt {
-                                            variable_name: dummy_ident("a"),
-                                            mutability: Mutability::Mutable,
-                                            visibility: Visibility::Private,
-                                            assigned_value: Some(dummy_expr_number(1)),
-                                            ty: dummy_type_infer(),
-                                            is_static: false,
-                                        }),
-                                        span: dummy_span(),
-                                        attributes: Box::new([]),
-                                    },
-                                    Stmt {
-                                        kind: StmtKind::Expression(ExpressionStmt {
-                                            expression: Expr {
-                                                kind: ExprKind::Block(BlockExpr {
+                        body: Some(Block {
+                            body: vec![
+                                Stmt {
+                                    kind: StmtKind::VarDecl(VarDeclStmt {
+                                        variable_name: dummy_ident("a"),
+                                        mutability: Mutability::Mutable,
+                                        visibility: Visibility::Private,
+                                        assigned_value: Some(dummy_expr_number(1)),
+                                        ty: dummy_type_infer(),
+                                        is_static: false,
+                                    }),
+                                    span: dummy_span(),
+                                    attributes: Box::new([]),
+                                },
+                                Stmt {
+                                    kind: StmtKind::Expression(ExpressionStmt {
+                                        expression: Expr {
+                                            kind: ExprKind::Block(BlockExpr {
+                                                block: Block {
                                                     body: vec![Stmt {
                                                         kind: StmtKind::Return(ReturnStmt {
                                                             value: Some(dummy_expr_number(2)),
@@ -1065,18 +1058,17 @@ mod tests {
                                                         attributes: Box::new([]),
                                                     }]
                                                     .into_boxed_slice(),
-                                                }),
-                                                span: dummy_span(),
-                                            },
-                                            has_semicolon: true,
-                                        }),
-                                        span: dummy_span(),
-                                        attributes: Box::new([]),
-                                    },
-                                ]
-                                .into_boxed_slice(),
-                            }),
-                            span: dummy_span(),
+                                                },
+                                            }),
+                                            span: dummy_span(),
+                                        },
+                                        has_semicolon: true,
+                                    }),
+                                    span: dummy_span(),
+                                    attributes: Box::new([]),
+                                },
+                            ]
+                            .into_boxed_slice(),
                         }),
                         return_type: dummy_type_symbol("isize"),
                         visibility: Visibility::Private,
@@ -1097,7 +1089,7 @@ mod tests {
             ("stmt", "InterfaceDeclStmt", 1),
             ("stmt", "FnDeclStmt", 1),
             ("stmt", "VarDeclStmt", 1),
-            ("expr", "BlockExpr", 4),
+            ("expr", "BlockExpr", 1),
             ("stmt", "ReturnStmt", 1),
             ("stmt", "ExpressionStmt", 2),
         ]);
@@ -1211,10 +1203,7 @@ mod tests {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
                         arguments: Box::new([]),
-                        body: Some(Expr {
-                            kind: ExprKind::Block(BlockExpr { body: Box::new([]) }),
-                            span: dummy_span(),
-                        }),
+                        body: dummy_fn_body(),
                         return_type: dummy_type_symbol("void"),
                         is_extern: false,
                         visibility: Visibility::Private,
@@ -1230,6 +1219,5 @@ mod tests {
         visitor.assert_visited("stmt", "Stmt", 1);
         visitor.assert_visited("stmt", "ImplStmt", 1);
         visitor.assert_visited("type", "SymbolType", 2);
-        visitor.assert_visited("expr", "BlockExpr", 1);
     }
 }

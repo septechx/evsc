@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use inkwell::{
+    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
-    AddressSpace,
 };
 
 use crate::{
     ast::{
+        Stmt, StmtKind, Type,
         statements::{ExpressionStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
-        ExprKind, Stmt, StmtKind, Type,
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -237,18 +237,13 @@ fn compile_function<'ctx>(
     inner_compilation_context.symbol_table.extend(symbol_table);
 
     if let Some(body) = &fn_decl.body {
-        match &body.kind {
-            ExprKind::Block(block) => {
-                compile_stmts(
-                    context,
-                    module,
-                    &builder,
-                    &block.body,
-                    &mut inner_compilation_context,
-                )?;
-            }
-            _ => bail!("Expected block expression, got {:?}", body.kind),
-        }
+        compile_stmts(
+            context,
+            module,
+            &builder,
+            &body.body,
+            &mut inner_compilation_context,
+        )?;
     }
 
     if function

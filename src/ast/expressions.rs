@@ -1,12 +1,12 @@
 use crate::{
-    ast::{Expr, Ident, Stmt, Type},
+    ast::{Block, Expr, Ident, Type},
     hashmap::FxHashMap,
     lexer::token::Token,
 };
 
 #[derive(Debug, Clone)]
 pub struct BlockExpr {
-    pub body: Box<[Stmt]>,
+    pub block: Block,
 }
 
 #[derive(Debug, Clone)]

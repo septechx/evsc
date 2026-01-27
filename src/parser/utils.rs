@@ -1,4 +1,5 @@
 use anyhow::Result;
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{Ident, Path},
@@ -18,7 +19,7 @@ pub fn unexpected_token(token: Token) -> ! {
 
 pub fn parse_path(parser: &mut Parser) -> Result<Path> {
     let start = parser.current_token().span;
-    let mut segments = vec![];
+    let mut segments = ThinVec::new();
 
     let segment = parser.expect_identifier()?;
     let mut last = segment.span.end();
@@ -34,7 +35,7 @@ pub fn parse_path(parser: &mut Parser) -> Result<Path> {
     }
 
     Ok(Path {
-        segments: segments.into_boxed_slice(),
+        segments,
         span: Span::new(start.start(), last),
     })
 }

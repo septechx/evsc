@@ -1,4 +1,5 @@
 use anyhow::Result;
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{
@@ -33,10 +34,10 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
     let stmt_fn = stmt_lu.get(&parser.current_token().kind).cloned();
 
     if let Some(stmt_fn) = stmt_fn {
-        stmt_fn(parser, &attributes, &modifiers)
+        stmt_fn(parser, attributes, modifiers)
     } else {
-        no_attributes!(&parser, attributes);
-        no_modifiers!(&parser, modifiers);
+        no_attributes!(&parser, &attributes);
+        no_modifiers!(&parser, &modifiers);
 
         let expression = parse_expr(parser, BindingPower::DefaultBp)?;
 
@@ -60,7 +61,7 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
                 expression,
                 has_semicolon,
             }),
-            attributes: Box::new([]),
+            attributes,
             span,
         })
     }
@@ -68,10 +69,10 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
 
 pub fn parse_var_decl_statement(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
-    no_attributes!(&parser, attributes);
+    no_attributes!(&parser, &attributes);
 
     let var_token = parser.advance();
     let mut type_ = Type {
@@ -158,19 +159,19 @@ pub fn parse_var_decl_statement(
             mutability,
             visibility,
         }),
-        attributes: Box::new([]),
+        attributes,
         span,
     })
 }
 
 pub fn parse_struct_decl_stmt(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
     let struct_token = parser.expect(TokenKind::Struct)?;
-    let mut properties: Vec<StructField> = Vec::new();
-    let mut methods: Vec<StructMethod> = Vec::new();
+    let mut fields: ThinVec<StructField> = ThinVec::new();
+    let mut methods: ThinVec<StructMethod> = ThinVec::new();
     let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::OpenCurly)?;
@@ -197,7 +198,9 @@ pub fn parse_struct_decl_stmt(
         };
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind {
+            if let StmtKind::FnDecl(fn_decl) =
+                parse_fn_decl_stmt(parser, ThinVec::new(), ThinVec::new())?.kind
+            {
                 methods.push(StructMethod {
                     fn_decl: FnDeclStmt {
                         is_extern: false,
@@ -233,7 +236,7 @@ pub fn parse_struct_decl_stmt(
                 parser.expect(TokenKind::Comma)?;
             }
 
-            if properties
+            if fields
                 .iter()
                 .any(|arg| arg.name.value == property_name.value)
             {
@@ -254,7 +257,7 @@ pub fn parse_struct_decl_stmt(
                 Visibility::Private
             };
 
-            properties.push(StructField {
+            fields.push(StructField {
                 name: property_name,
                 ty: type_,
                 visibility,
@@ -289,25 +292,25 @@ pub fn parse_struct_decl_stmt(
 
     Ok(Stmt {
         kind: StmtKind::StructDecl(StructDeclStmt {
-            fields: properties.into_boxed_slice(),
-            methods: methods.into_boxed_slice(),
+            fields,
+            methods,
             name,
             visibility,
         }),
-        attributes: attributes.into(),
+        attributes,
         span,
     })
 }
 
 pub fn parse_interface_decl_stmt(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
     let interface_token = parser.expect(TokenKind::Interface)?;
     let name = parser.expect_identifier()?;
 
-    let mut methods: Vec<InterfaceMethod> = Vec::new();
+    let mut methods: ThinVec<InterfaceMethod> = ThinVec::new();
     parser.expect(TokenKind::OpenCurly)?;
     loop {
         if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
@@ -315,7 +318,8 @@ pub fn parse_interface_decl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn
-            && let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind
+            && let StmtKind::FnDecl(fn_decl) =
+                parse_fn_decl_stmt(parser, ThinVec::new(), ThinVec::new())?.kind
         {
             methods.push(InterfaceMethod { fn_decl });
         } else if parser.current_token().kind == TokenKind::Comma {
@@ -347,19 +351,19 @@ pub fn parse_interface_decl_stmt(
 
     Ok(Stmt {
         kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
-            methods: methods.into_boxed_slice(),
+            methods,
             name,
             visibility,
         }),
-        attributes: attributes.into(),
+        attributes,
         span,
     })
 }
 
 pub fn parse_fn_decl_stmt(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
     let (pub_mod, extern_mod) = get_modifiers!(&parser, modifiers, [Pub, Extern]);
 
@@ -367,7 +371,7 @@ pub fn parse_fn_decl_stmt(
     let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::OpenParen)?;
-    let mut arguments: Vec<FnArgument> = vec![];
+    let mut arguments: ThinVec<FnArgument> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
@@ -445,25 +449,25 @@ pub fn parse_fn_decl_stmt(
 
     Ok(Stmt {
         kind: StmtKind::FnDecl(FnDeclStmt {
-            arguments: arguments.into_boxed_slice(),
+            arguments,
             body,
             name,
             return_type,
             visibility,
             is_extern: extern_mod.is_some(),
         }),
-        attributes: attributes.into(),
+        attributes,
         span,
     })
 }
 
 pub fn parse_return_stmt(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
-    no_attributes!(&parser, attributes);
-    no_modifiers!(&parser, modifiers);
+    no_attributes!(&parser, &attributes);
+    no_modifiers!(&parser, &modifiers);
 
     let return_token = parser.advance();
 
@@ -479,25 +483,25 @@ pub fn parse_return_stmt(
 
     Ok(Stmt {
         kind: StmtKind::Return(ReturnStmt { value }),
-        attributes: Box::new([]),
+        attributes,
         span,
     })
 }
 
 pub fn parse_impl_stmt(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
-    no_attributes!(&parser, attributes);
-    no_modifiers!(&parser, modifiers);
+    no_attributes!(&parser, &attributes);
+    no_modifiers!(&parser, &modifiers);
 
     let start_span = parser.expect(TokenKind::Impl)?.span;
     let interface = parser.expect_identifier()?;
     parser.expect(TokenKind::Colon)?;
     let self_ty = parse_type(parser, BindingPower::DefaultBp)?;
 
-    let mut methods: Vec<InterfaceMethod> = Vec::new();
+    let mut methods: ThinVec<InterfaceMethod> = ThinVec::new();
     parser.expect(TokenKind::OpenCurly)?;
     loop {
         if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
@@ -505,7 +509,8 @@ pub fn parse_impl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn
-            && let StmtKind::FnDecl(fn_decl) = parse_fn_decl_stmt(parser, &[], &[])?.kind
+            && let StmtKind::FnDecl(fn_decl) =
+                parse_fn_decl_stmt(parser, ThinVec::new(), ThinVec::new())?.kind
         {
             methods.push(InterfaceMethod { fn_decl });
         } else {
@@ -516,19 +521,19 @@ pub fn parse_impl_stmt(
 
     Ok(Stmt {
         kind: StmtKind::Impl(ImplStmt {
-            items: methods.into_boxed_slice(),
+            items: methods,
             self_ty,
             interface,
         }),
-        attributes: Box::new([]),
+        attributes,
         span: Span::new(start_span.start(), end_span.end()),
     })
 }
 
 pub fn parse_import_stmt(
     parser: &mut Parser,
-    attributes: &[Attribute],
-    modifiers: &[Modifier],
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
 ) -> Result<Stmt> {
     let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
@@ -546,7 +551,7 @@ pub fn parse_import_stmt(
 
     Ok(Stmt {
         kind: StmtKind::Import(ImportStmt { tree, visibility }),
-        attributes: attributes.into(),
+        attributes,
         span,
     })
 }
@@ -573,8 +578,8 @@ fn parse_import_tree(parser: &mut Parser) -> Result<ImportTree> {
     Ok(ImportTree { prefix, kind, span })
 }
 
-fn parse_import_tree_list(parser: &mut Parser) -> Result<Box<[ImportTree]>> {
-    let mut items = vec![];
+fn parse_import_tree_list(parser: &mut Parser) -> Result<ThinVec<ImportTree>> {
+    let mut items = ThinVec::new();
 
     parser.expect(TokenKind::OpenCurly)?;
 
@@ -597,5 +602,5 @@ fn parse_import_tree_list(parser: &mut Parser) -> Result<Box<[ImportTree]>> {
 
     parser.expect(TokenKind::CloseCurly)?;
 
-    Ok(items.into_boxed_slice())
+    Ok(items)
 }

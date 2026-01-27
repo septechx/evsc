@@ -1,3 +1,5 @@
+use thin_vec::ThinVec;
+
 use crate::{
     ast::{
         Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind, Visibility,
@@ -24,7 +26,7 @@ pub struct LoweringContext {
     pub krate: HirCrate,
     current_module: Option<ModuleId>,
     current_struct: Option<DefId>,
-    local_stack: Vec<FxHashMap<Symbol, LocalId>>,
+    local_stack: ThinVec<FxHashMap<Symbol, LocalId>>,
     next_def: u32,
     next_expr: u32,
     next_type: u32,
@@ -38,12 +40,12 @@ impl LoweringContext {
         LoweringContext::default()
     }
 
-    pub fn lower_crate(&mut self, asts: Vec<Ast>) {
+    pub fn lower_crate(&mut self, asts: ThinVec<Ast>) {
         for ast in &asts {
             let modinfo = ModuleInfo {
                 name: ast.name.to_string(),
                 exports: FxHashMap::default(),
-                items: Vec::new(),
+                items: ThinVec::new(),
                 imports: FxHashMap::default(),
                 struct_methods: FxHashMap::default(),
                 struct_fields: FxHashMap::default(),
@@ -147,7 +149,7 @@ impl LoweringContext {
 
     fn resolve_all_imports(&mut self, asts: &[Ast]) {
         // PASS 2: Resolve imports (iteratively until fixpoint)
-        let mut pending: Vec<PendingImport> = Vec::new();
+        let mut pending: ThinVec<PendingImport> = ThinVec::new();
         for (mid, ast) in asts.iter().enumerate() {
             for stmt in ast.items.iter() {
                 if let StmtKind::Import(im) = &stmt.kind {
@@ -192,7 +194,7 @@ impl LoweringContext {
         // anything left unresolved -> emit diagnostics
         if !pending.is_empty() {
             for pi in pending {
-                let segments: Vec<String> = pi
+                let segments: ThinVec<String> = pi
                     .import_stmt
                     .tree
                     .prefix
@@ -209,7 +211,7 @@ impl LoweringContext {
         }
     }
 
-    fn lower_bodies(&mut self, asts: Vec<Ast>) {
+    fn lower_bodies(&mut self, asts: ThinVec<Ast>) {
         // PASS 3: Lower definition bodies
         for (mid, ast) in asts.iter().enumerate() {
             self.current_module = Some(ModuleId(mid as u32));
@@ -304,7 +306,7 @@ impl LoweringContext {
 
         if let Some(body) = f.body {
             self.local_stack.push(FxHashMap::default());
-            let param_names: Vec<_> = match &self.krate.defs[defid.0 as usize] {
+            let param_names: ThinVec<_> = match &self.krate.defs[defid.0 as usize] {
                 Def::Function(func) => func.params.iter().map(|(pname, _)| *pname).collect(),
                 _ => panic!("expected function"),
             };
@@ -316,7 +318,7 @@ impl LoweringContext {
                     .insert(pname, local);
             }
 
-            let stmt_ids: Vec<StmtId> = body
+            let stmt_ids: ThinVec<StmtId> = body
                 .body
                 .into_iter()
                 .map(|stmt| self.lower_stmt(stmt))
@@ -354,7 +356,7 @@ impl LoweringContext {
         let st = Struct {
             name: sym,
             fields,
-            methods: Vec::with_capacity(s.methods.len()),
+            methods: ThinVec::with_capacity(s.methods.len()),
             module: modid,
         };
         self.krate.defs[defid.0 as usize] = Def::Struct(st);
@@ -395,7 +397,7 @@ impl LoweringContext {
             .lookup_in_current_module(sym)
             .expect("interface def must exist");
 
-        let mut methods = Vec::with_capacity(i.methods.len());
+        let mut methods = ThinVec::with_capacity(i.methods.len());
         for m in i.methods.into_iter() {
             let method_name = self.krate.interner.intern(&m.fn_decl.name.value);
 
@@ -404,7 +406,7 @@ impl LoweringContext {
                 .arguments
                 .into_iter()
                 .map(|arg| self.lower_type(arg.ty))
-                .collect::<Vec<_>>();
+                .collect::<ThinVec<_>>();
 
             let ret_ty = self.lower_type(m.fn_decl.return_type);
 
@@ -573,7 +575,7 @@ impl LoweringContext {
             ExprKind::StructInstantiation(si) => {
                 let def_sym = self.krate.interner.intern(&si.name.value);
                 if let Some(defid) = self.lookup_in_current_module(def_sym) {
-                    let mut fields = Vec::with_capacity(si.fields.len());
+                    let mut fields = ThinVec::with_capacity(si.fields.len());
                     for (ident, val) in si.fields.into_iter() {
                         let fsym = self.krate.interner.intern(&ident.value);
                         let v = self.lower_expr(val);

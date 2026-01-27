@@ -16,16 +16,17 @@ use crate::{
 
 use anyhow::Result;
 use std::convert::TryInto;
+use thin_vec::ThinVec;
 
 pub struct Parser {
-    tokens: Box<[Token]>,
+    tokens: ThinVec<Token>,
     pos: usize,
 }
 
 impl Parser {
     pub fn new(tokens: TokenStream) -> Self {
         Parser {
-            tokens: tokens.into_boxed_slice(),
+            tokens: tokens.0,
             pos: 0,
         }
     }
@@ -103,7 +104,7 @@ pub fn parse(tokens: TokenStream, name: &str) -> Result<Ast> {
     create_token_lookups();
     create_token_type_lookups();
 
-    let mut body: Vec<Stmt> = vec![];
+    let mut body: ThinVec<Stmt> = ThinVec::new();
     let mut parser = Parser::new(tokens);
 
     while parser.has_tokens() {
@@ -112,6 +113,6 @@ pub fn parse(tokens: TokenStream, name: &str) -> Result<Ast> {
 
     Ok(Ast {
         name: name.into(),
-        items: body.into_boxed_slice(),
+        items: body,
     })
 }

@@ -12,6 +12,7 @@ mod tests {
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
+    use thin_vec::{ThinVec, thin_vec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {
@@ -199,12 +200,10 @@ mod tests {
         }
     }
 
-    fn dummy_expr_block(body: Vec<Stmt>) -> Expr {
+    fn dummy_expr_block(body: ThinVec<Stmt>) -> Expr {
         Expr {
             kind: ExprKind::Block(BlockExpr {
-                block: Block {
-                    body: body.into_boxed_slice(),
-                },
+                block: Block { body },
             }),
             span: dummy_span(),
         }
@@ -217,12 +216,14 @@ mod tests {
                 has_semicolon: true,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         }
     }
 
     fn dummy_fn_body() -> Option<Block> {
-        Some(Block { body: Box::new([]) })
+        Some(Block {
+            body: ThinVec::new(),
+        })
     }
 
     #[test]
@@ -406,11 +407,11 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::ArrayLiteral(ArrayLiteralExpr {
                 underlying: dummy_type_symbol("i32"),
-                contents: Box::new([
+                contents: thin_vec![
                     dummy_expr_number(1),
                     dummy_expr_number(2),
                     dummy_expr_number(3),
-                ]),
+                ],
             }),
             span: dummy_span(),
         };
@@ -428,7 +429,7 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::FunctionCall(FunctionCallExpr {
                 callee: Box::new(dummy_expr_symbol("foo")),
-                arguments: Box::new([dummy_expr_number(1), dummy_expr_number(2)]),
+                arguments: thin_vec![dummy_expr_number(1), dummy_expr_number(2)],
             }),
             span: dummy_span(),
         };
@@ -495,11 +496,11 @@ mod tests {
     fn test_tuple_literal_expr() {
         let expr = Expr {
             kind: ExprKind::TupleLiteral(TupleLiteralExpr {
-                elements: Box::new([
+                elements: thin_vec![
                     dummy_expr_number(1),
                     dummy_expr_number(2),
                     dummy_expr_number(3),
-                ]),
+                ],
             }),
             span: dummy_span(),
         };
@@ -512,7 +513,7 @@ mod tests {
 
     #[test]
     fn test_block_stmt_empty() {
-        let stmt = dummy_expr_block(vec![]);
+        let stmt = dummy_expr_block(thin_vec![]);
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
         visitor.assert_visited("stmt", "Stmt", 0);
@@ -522,7 +523,7 @@ mod tests {
 
     #[test]
     fn test_block_stmt_with_body() {
-        let stmt = dummy_expr_block(vec![dummy_stmt_expr(dummy_expr_number(1))]);
+        let stmt = dummy_expr_block(thin_vec![dummy_stmt_expr(dummy_expr_number(1))]);
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
         visitor.assert_visited("stmt", "Stmt", 1);
@@ -555,7 +556,7 @@ mod tests {
                 is_static: false,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -579,7 +580,7 @@ mod tests {
                 is_static: false,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -594,12 +595,12 @@ mod tests {
         let stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                fields: Box::new([]),
-                methods: Box::new([]),
+                fields: ThinVec::new(),
+                methods: ThinVec::new(),
                 visibility: Visibility::Private,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -612,7 +613,7 @@ mod tests {
         let stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                fields: vec![
+                fields: thin_vec![
                     StructField {
                         name: dummy_ident("a"),
                         ty: dummy_type_symbol("i32"),
@@ -623,13 +624,12 @@ mod tests {
                         ty: dummy_type_symbol("bool"),
                         visibility: Visibility::Private,
                     },
-                ]
-                .into_boxed_slice(),
-                methods: Box::new([]),
+                ],
+                methods: ThinVec::new(),
                 visibility: Visibility::Private,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -644,24 +644,23 @@ mod tests {
         let stmt = Stmt {
             kind: StmtKind::StructDecl(StructDeclStmt {
                 name: dummy_ident("Foo"),
-                fields: Box::new([]),
-                methods: vec![StructMethod {
+                fields: ThinVec::new(),
+                methods: thin_vec![StructMethod {
                     is_static: false,
                     visibility: Visibility::Private,
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: Box::new([]),
+                        arguments: ThinVec::new(),
                         body: dummy_fn_body(),
                         return_type: dummy_type_never(),
                         visibility: Visibility::Private,
                         is_extern: false,
                     },
-                }]
-                .into_boxed_slice(),
+                }],
                 visibility: Visibility::Private,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -676,21 +675,20 @@ mod tests {
         let stmt = Stmt {
             kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
                 name: dummy_ident("Foo"),
-                methods: vec![InterfaceMethod {
+                methods: thin_vec![InterfaceMethod {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: Box::new([]),
+                        arguments: ThinVec::new(),
                         body: None,
                         return_type: dummy_type_never(),
                         visibility: Visibility::Private,
                         is_extern: false,
                     },
-                }]
-                .into_boxed_slice(),
+                }],
                 visibility: Visibility::Private,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -704,10 +702,10 @@ mod tests {
     fn test_fn_decl_stmt() {
         let ast = Ast {
             name: "test".into(),
-            items: Box::new([Stmt {
+            items: thin_vec![Stmt {
                 kind: StmtKind::FnDecl(FnDeclStmt {
                     name: dummy_ident("foo"),
-                    arguments: vec![
+                    arguments: thin_vec![
                         FnArgument {
                             name: dummy_ident("a"),
                             ty: dummy_type_symbol("i32"),
@@ -716,18 +714,17 @@ mod tests {
                             name: dummy_ident("b"),
                             ty: dummy_type_symbol("bool"),
                         },
-                    ]
-                    .into_boxed_slice(),
+                    ],
                     body: Some(Block {
-                        body: vec![dummy_stmt_expr(dummy_expr_number(1))].into_boxed_slice(),
+                        body: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
                     }),
                     return_type: dummy_type_symbol("void"),
                     visibility: Visibility::Private,
                     is_extern: false,
                 }),
                 span: dummy_span(),
-                attributes: Box::new([]),
-            }]),
+                attributes: ThinVec::new(),
+            }],
         };
         let mut visitor = NodeCounterVisitor::new();
         ast.visit(&mut visitor);
@@ -747,7 +744,7 @@ mod tests {
                 value: Some(dummy_expr_number(1)),
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -762,7 +759,7 @@ mod tests {
         let stmt = Stmt {
             kind: StmtKind::Return(ReturnStmt { value: None }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -777,7 +774,7 @@ mod tests {
                 tree: ImportTree {
                     prefix: Path {
                         span: dummy_span(),
-                        segments: Box::new([dummy_ident("foo")]),
+                        segments: thin_vec![dummy_ident("foo")],
                     },
                     kind: ImportTreeKind::Simple(None),
                     span: dummy_span(),
@@ -785,7 +782,7 @@ mod tests {
                 visibility: Visibility::Private,
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);
@@ -871,7 +868,7 @@ mod tests {
     fn test_function_type() {
         let ty = Type {
             kind: TypeKind::Function(FunctionType {
-                parameters: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
+                parameters: thin_vec![dummy_type_symbol("i32"), dummy_type_symbol("bool")],
                 return_type: Box::new(dummy_type_symbol("void")),
             }),
             span: dummy_span(),
@@ -887,7 +884,7 @@ mod tests {
     fn test_tuple_type() {
         let ty = Type {
             kind: TypeKind::Tuple(TupleType {
-                elements: Box::new([dummy_type_symbol("i32"), dummy_type_symbol("bool")]),
+                elements: thin_vec![dummy_type_symbol("i32"), dummy_type_symbol("bool")],
             }),
             span: dummy_span(),
         };
@@ -903,7 +900,7 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::FunctionCall(FunctionCallExpr {
                 callee: Box::new(dummy_expr_symbol("foo")),
-                arguments: Box::new([
+                arguments: thin_vec![
                     dummy_expr_number(1),
                     Expr {
                         kind: ExprKind::StructInstantiation(StructInstantiationExpr {
@@ -940,7 +937,7 @@ mod tests {
                         }),
                         span: dummy_span(),
                     },
-                ]),
+                ],
             }),
             span: dummy_span(),
         };
@@ -962,13 +959,13 @@ mod tests {
     fn test_comprehensive_all_statement_types() {
         let ast = Ast {
             name: "test".into(),
-            items: Box::new([
+            items: thin_vec![
                 Stmt {
                     kind: StmtKind::Import(ImportStmt {
                         tree: ImportTree {
                             prefix: Path {
                                 span: dummy_span(),
-                                segments: Box::new([dummy_ident("std")]),
+                                segments: thin_vec![dummy_ident("std")],
                             },
                             kind: ImportTreeKind::Simple(None),
                             span: dummy_span(),
@@ -976,63 +973,59 @@ mod tests {
                         visibility: Visibility::Private,
                     }),
                     span: dummy_span(),
-                    attributes: Box::new([]),
+                    attributes: ThinVec::new(),
                 },
                 Stmt {
                     kind: StmtKind::StructDecl(StructDeclStmt {
                         name: dummy_ident("Foo"),
-                        fields: vec![StructField {
+                        fields: thin_vec![StructField {
                             name: dummy_ident("x"),
                             ty: dummy_type_symbol("i32"),
                             visibility: Visibility::Private,
-                        }]
-                        .into_boxed_slice(),
-                        methods: vec![StructMethod {
+                        }],
+                        methods: thin_vec![StructMethod {
                             is_static: false,
                             visibility: Visibility::Private,
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
-                                arguments: Box::new([]),
+                                arguments: ThinVec::new(),
                                 body: Some(Block {
-                                    body: vec![dummy_stmt_expr(dummy_expr_number(1))]
-                                        .into_boxed_slice(),
+                                    body: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
                                 }),
                                 return_type: dummy_type_never(),
                                 visibility: Visibility::Private,
                                 is_extern: false,
                             },
-                        }]
-                        .into_boxed_slice(),
+                        }],
                         visibility: Visibility::Private,
                     }),
                     span: dummy_span(),
-                    attributes: Box::new([]),
+                    attributes: ThinVec::new(),
                 },
                 Stmt {
                     kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
                         name: dummy_ident("Bar"),
-                        methods: vec![InterfaceMethod {
+                        methods: thin_vec![InterfaceMethod {
                             fn_decl: FnDeclStmt {
                                 name: dummy_ident("method"),
-                                arguments: Box::new([]),
+                                arguments: ThinVec::new(),
                                 body: dummy_fn_body(),
                                 return_type: dummy_type_never(),
                                 visibility: Visibility::Private,
                                 is_extern: false,
                             },
-                        }]
-                        .into_boxed_slice(),
+                        }],
                         visibility: Visibility::Private,
                     }),
                     span: dummy_span(),
-                    attributes: Box::new([]),
+                    attributes: ThinVec::new(),
                 },
                 Stmt {
                     kind: StmtKind::FnDecl(FnDeclStmt {
                         name: dummy_ident("main"),
-                        arguments: Box::new([]),
+                        arguments: ThinVec::new(),
                         body: Some(Block {
-                            body: vec![
+                            body: thin_vec![
                                 Stmt {
                                     kind: StmtKind::VarDecl(VarDeclStmt {
                                         variable_name: dummy_ident("a"),
@@ -1043,21 +1036,20 @@ mod tests {
                                         is_static: false,
                                     }),
                                     span: dummy_span(),
-                                    attributes: Box::new([]),
+                                    attributes: ThinVec::new(),
                                 },
                                 Stmt {
                                     kind: StmtKind::Expression(ExpressionStmt {
                                         expression: Expr {
                                             kind: ExprKind::Block(BlockExpr {
                                                 block: Block {
-                                                    body: vec![Stmt {
+                                                    body: thin_vec![Stmt {
                                                         kind: StmtKind::Return(ReturnStmt {
                                                             value: Some(dummy_expr_number(2)),
                                                         }),
                                                         span: dummy_span(),
-                                                        attributes: Box::new([]),
-                                                    }]
-                                                    .into_boxed_slice(),
+                                                        attributes: ThinVec::new(),
+                                                    }],
                                                 },
                                             }),
                                             span: dummy_span(),
@@ -1065,19 +1057,18 @@ mod tests {
                                         has_semicolon: true,
                                     }),
                                     span: dummy_span(),
-                                    attributes: Box::new([]),
+                                    attributes: ThinVec::new(),
                                 },
-                            ]
-                            .into_boxed_slice(),
+                            ],
                         }),
                         return_type: dummy_type_symbol("isize"),
                         visibility: Visibility::Private,
                         is_extern: false,
                     }),
                     span: dummy_span(),
-                    attributes: Box::new([]),
+                    attributes: ThinVec::new(),
                 },
-            ]),
+            ],
         };
 
         let mut visitor = NodeCounterVisitor::new();
@@ -1099,7 +1090,7 @@ mod tests {
     fn test_comprehensive_all_type_types() {
         let ty = Type {
             kind: TypeKind::Function(FunctionType {
-                parameters: Box::new([
+                parameters: thin_vec![
                     Type {
                         kind: TypeKind::Pointer(PointerType {
                             underlying: Box::new(dummy_type_symbol("i32")),
@@ -1120,14 +1111,14 @@ mod tests {
                         }),
                         span: dummy_span(),
                     },
-                ]),
+                ],
                 return_type: Box::new(Type {
                     kind: TypeKind::Tuple(TupleType {
-                        elements: Box::new([
+                        elements: thin_vec![
                             dummy_type_infer(),
                             dummy_type_never(),
                             dummy_type_symbol("void"),
-                        ]),
+                        ],
                     }),
                     span: dummy_span(),
                 }),
@@ -1199,20 +1190,19 @@ mod tests {
             kind: StmtKind::Impl(ImplStmt {
                 self_ty: dummy_type_symbol("Foo"),
                 interface: dummy_ident("Bar"),
-                items: vec![InterfaceMethod {
+                items: thin_vec![InterfaceMethod {
                     fn_decl: FnDeclStmt {
                         name: dummy_ident("bar"),
-                        arguments: Box::new([]),
+                        arguments: ThinVec::new(),
                         body: dummy_fn_body(),
                         return_type: dummy_type_symbol("void"),
                         is_extern: false,
                         visibility: Visibility::Private,
                     },
-                }]
-                .into_boxed_slice(),
+                }],
             }),
             span: dummy_span(),
-            attributes: Box::new([]),
+            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
         stmt.visit(&mut visitor);

@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow};
 use clang::{Clang, EntityKind, Index, source::SourceLocation};
 use inkwell::{builder::Builder, context::Context, module::Module};
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{
@@ -34,7 +35,7 @@ pub fn compile_header<'ctx>(
     let index = Index::new(&clang, false, false);
     let tu = index.parser(module_path.clone()).parse()?;
 
-    let mut ast: Vec<Stmt> = Vec::new();
+    let mut ast: ThinVec<Stmt> = ThinVec::new();
 
     for e in tu.get_entity().get_children().iter() {
         if e.get_kind() == EntityKind::FunctionDecl {
@@ -53,7 +54,7 @@ pub fn compile_header<'ctx>(
                         },
                         ty: arg,
                     })
-                    .collect::<Box<[_]>>();
+                    .collect::<ThinVec<_>>();
 
             let location = e.get_location().expect("function has no location");
             let (span, _module_id) = convert_clang_location(location);
@@ -68,7 +69,7 @@ pub fn compile_header<'ctx>(
                     visibility: Visibility::Public,
                 }),
                 span,
-                attributes: Box::new([]),
+                attributes: ThinVec::new(),
             };
 
             ast.push(stmt);
@@ -77,7 +78,7 @@ pub fn compile_header<'ctx>(
 
     let ast = Ast {
         name: module_name.clone().into_boxed_str(),
-        items: ast.into_boxed_slice(),
+        items: ast,
     };
 
     let module_id = crate::SOURCE_MAPS.with(|sm| {

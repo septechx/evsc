@@ -1,8 +1,9 @@
 use crate::{ast::Attribute, lexer::token::TokenKind, parser::Parser, span::Span};
 use anyhow::Result;
+use thin_vec::ThinVec;
 
-pub fn parse_attributes(parser: &mut Parser) -> Result<Box<[Attribute]>> {
-    let mut attributes = Vec::new();
+pub fn parse_attributes(parser: &mut Parser) -> Result<ThinVec<Attribute>> {
+    let mut attributes = ThinVec::new();
 
     while parser.current_token().kind == TokenKind::Hash {
         let hash_token = parser.advance();
@@ -12,7 +13,7 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Box<[Attribute]>> {
 
         let arguments = if parser.current_token().kind == TokenKind::OpenParen {
             parser.advance();
-            let mut args = Vec::new();
+            let mut args = ThinVec::new();
 
             while parser.current_token().kind != TokenKind::CloseParen {
                 args.push(parser.expect(TokenKind::Identifier)?.value);
@@ -23,7 +24,7 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Box<[Attribute]>> {
             }
 
             parser.expect(TokenKind::CloseParen)?;
-            Some(args.into_boxed_slice())
+            Some(args)
         } else {
             None
         };
@@ -39,7 +40,7 @@ pub fn parse_attributes(parser: &mut Parser) -> Result<Box<[Attribute]>> {
         });
     }
 
-    Ok(attributes.into_boxed_slice())
+    Ok(attributes)
 }
 
 #[macro_export]

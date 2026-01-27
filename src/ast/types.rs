@@ -1,3 +1,5 @@
+use thin_vec::ThinVec;
+
 use crate::ast::{Ident, Mutability, Type};
 
 #[derive(Debug, Clone)]
@@ -24,11 +26,11 @@ pub struct FixedArrayType {
 
 #[derive(Debug, Clone)]
 pub struct FunctionType {
-    pub parameters: Box<[Type]>,
+    pub parameters: ThinVec<Type>,
     pub return_type: Box<Type>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TupleType {
-    pub elements: Box<[Type]>,
+    pub elements: ThinVec<Type>,
 }

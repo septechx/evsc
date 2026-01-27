@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use anyhow::{Result, bail};
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{
@@ -243,7 +244,7 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
 
     parser.expect(TokenKind::OpenCurly)?;
 
-    let mut contents: Vec<Expr> = Vec::new();
+    let mut contents: ThinVec<Expr> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {
@@ -263,7 +264,7 @@ pub fn parse_array_literal_expr(parser: &mut Parser) -> Result<Expr> {
     Ok(Expr {
         kind: ExprKind::ArrayLiteral(ArrayLiteralExpr {
             underlying: type_,
-            contents: contents.into_boxed_slice(),
+            contents,
         }),
         span,
     })
@@ -276,7 +277,7 @@ pub fn parse_function_call_expr(
 ) -> Result<Expr> {
     parser.expect(TokenKind::OpenParen)?;
 
-    let mut arguments: Vec<Expr> = Vec::new();
+    let mut arguments: ThinVec<Expr> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
@@ -296,7 +297,7 @@ pub fn parse_function_call_expr(
     Ok(Expr {
         kind: ExprKind::FunctionCall(FunctionCallExpr {
             callee: Box::new(left),
-            arguments: arguments.into_boxed_slice(),
+            arguments,
         }),
         span,
     })
@@ -355,11 +356,11 @@ pub fn parse_as_cast_expr(parser: &mut Parser, left: Expr, _bp: BindingPower) ->
 pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
     let start_token = parser.expect(TokenKind::OpenParen)?;
 
-    let mut expressions = Vec::new();
+    let mut elements = ThinVec::new();
     let mut has_comma = false;
 
     while parser.current_token().kind != TokenKind::CloseParen {
-        expressions.push(parse_expr(parser, BindingPower::DefaultBp)?);
+        elements.push(parse_expr(parser, BindingPower::DefaultBp)?);
 
         if parser.current_token().kind == TokenKind::Comma {
             has_comma = true;
@@ -375,15 +376,13 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
     let close_token = parser.expect(TokenKind::CloseParen)?;
     let end_span = close_token.span;
 
-    if expressions.len() == 1 && !has_comma {
-        let mut expr = expressions.pop().expect("expressions isn't empty");
+    if elements.len() == 1 && !has_comma {
+        let mut expr = elements.pop().expect("expressions isn't empty");
         expr.span = Span::new(start_token.span.start(), end_span.end());
         Ok(expr)
     } else {
         Ok(Expr {
-            kind: ExprKind::TupleLiteral(TupleLiteralExpr {
-                elements: expressions.into_boxed_slice(),
-            }),
+            kind: ExprKind::TupleLiteral(TupleLiteralExpr { elements }),
             span: Span::new(start_token.span.start(), end_span.end()),
         })
     }
@@ -391,7 +390,7 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
 
 pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
     let start_token = parser.expect(TokenKind::OpenCurly)?;
-    let mut body = Vec::new();
+    let mut body = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {
@@ -406,9 +405,7 @@ pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
 
     Ok(Expr {
         kind: ExprKind::Block(BlockExpr {
-            block: Block {
-                body: body.into_boxed_slice(),
-            },
+            block: Block { body },
         }),
         span,
     })

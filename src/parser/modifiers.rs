@@ -1,5 +1,7 @@
 use std::fmt::{Display, Formatter};
 
+use thin_vec::ThinVec;
+
 use crate::{
     lexer::token::{Token, TokenKind},
     parser::Parser,
@@ -46,8 +48,8 @@ impl From<Token> for Modifier {
     }
 }
 
-pub fn parse_modifiers(parser: &mut Parser) -> Box<[Modifier]> {
-    let mut modifiers = Vec::new();
+pub fn parse_modifiers(parser: &mut Parser) -> ThinVec<Modifier> {
+    let mut modifiers = ThinVec::new();
 
     while matches!(
         parser.current_token().kind,
@@ -56,7 +58,7 @@ pub fn parse_modifiers(parser: &mut Parser) -> Box<[Modifier]> {
         modifiers.push(parser.advance().into());
     }
 
-    modifiers.into_boxed_slice()
+    modifiers
 }
 
 #[macro_export]

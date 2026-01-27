@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use parking_lot::Once;
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{Attribute, Expr, Stmt},
@@ -27,7 +28,7 @@ pub enum BindingPower {
 }
 use BindingPower as BP;
 
-type StmtHandler = fn(&mut Parser, &[Attribute], &[Modifier]) -> anyhow::Result<Stmt>;
+type StmtHandler = fn(&mut Parser, ThinVec<Attribute>, ThinVec<Modifier>) -> anyhow::Result<Stmt>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expr>;
 type LedHandler = fn(&mut Parser, Expr, BindingPower) -> anyhow::Result<Expr>;
 

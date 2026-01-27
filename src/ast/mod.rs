@@ -6,6 +6,7 @@ pub mod validate;
 pub mod visit;
 
 use anyhow::bail;
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{display::DisplayContext, expressions::*, statements::*, types::*},
@@ -16,7 +17,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Ast {
     pub name: Box<str>,
-    pub items: Box<[Stmt]>,
+    pub items: ThinVec<Stmt>,
 }
 
 impl Ast {
@@ -36,7 +37,7 @@ impl Ast {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute {
     pub name: Ident,
-    pub arguments: Option<Box<[Box<str>]>>,
+    pub arguments: Option<ThinVec<Box<str>>>,
     pub span: Span,
 }
 
@@ -44,7 +45,7 @@ pub struct Attribute {
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
-    pub attributes: Box<[Attribute]>,
+    pub attributes: ThinVec<Attribute>,
 }
 
 #[derive(Debug, Clone)]
@@ -144,13 +145,13 @@ pub enum Mutability {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub body: Box<[Stmt]>,
+    pub body: ThinVec<Stmt>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Path {
     pub span: Span,
-    pub segments: Box<[Ident]>,
+    pub segments: ThinVec<Ident>,
 }
 
 #[derive(Debug, Clone)]
@@ -168,7 +169,7 @@ pub enum ImportTreeKind {
     ///             ^^^^^^^^^^
     /// ```
     Nested {
-        items: Box<[ImportTree]>,
+        items: ThinVec<ImportTree>,
         span: Span,
     },
     /// `import prefix::*`

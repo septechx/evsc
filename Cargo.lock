@@ -301,6 +301,7 @@ dependencies = [
  "rand",
  "regex",
  "similar",
+ "thin-vec",
 ]
 
 [[package]]
@@ -473,6 +474,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "thin-vec"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "144f754d318415ac792f9d69fc87abbbfc043ce2ef041c60f16ad828f638717d"
 
 [[package]]
 name = "thiserror"

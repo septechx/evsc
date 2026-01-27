@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 use parking_lot::Once;
 use std::sync::OnceLock;
+use thin_vec::ThinVec;
 
 use colored::Colorize;
 
@@ -193,7 +194,7 @@ pub fn parse_type(parser: &mut Parser, bp: BindingPower) -> Result<Type> {
 fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
     let start_token = parser.current_token();
 
-    let mut types = Vec::new();
+    let mut types = ThinVec::new();
     parser.advance();
 
     while parser.current_token().kind != TokenKind::CloseParen {
@@ -214,16 +215,14 @@ fn parse_parenthesis_type(parser: &mut Parser) -> Result<Type> {
 
         Ok(Type {
             kind: TypeKind::Function(FunctionType {
-                parameters: types.into_boxed_slice(),
+                parameters: types,
                 return_type: Box::new(return_type),
             }),
             span: Span::new(start_token.span.start(), end_span.end()),
         })
     } else {
         Ok(Type {
-            kind: TypeKind::Tuple(TupleType {
-                elements: types.into_boxed_slice(),
-            }),
+            kind: TypeKind::Tuple(TupleType { elements: types }),
             span: Span::new(start_token.span.start(), close_token.span.end()),
         })
     }

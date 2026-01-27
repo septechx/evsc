@@ -1,5 +1,7 @@
 use std::hash::Hash;
 
+use thin_vec::ThinVec;
+
 use crate::{
     ast::{
         Ast, Block, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
@@ -40,6 +42,14 @@ impl<T: Visitable> Visitable for Box<T> {
 impl<T: Visitable> Visitable for Option<T> {
     fn visit(&self, visitor: &mut impl Visitor) {
         if let Some(inner) = self {
+            inner.visit(visitor);
+        }
+    }
+}
+
+impl<T: Visitable> Visitable for ThinVec<T> {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        for inner in self {
             inner.visit(visitor);
         }
     }

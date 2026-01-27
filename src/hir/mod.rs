@@ -1,3 +1,5 @@
+use thin_vec::ThinVec;
+
 use crate::ast::{Mutability, Visibility};
 use crate::hashmap::FxHashMap;
 
@@ -14,7 +16,7 @@ mod interner;
 mod lower;
 mod resolve;
 
-pub fn lower_ast(asts: Vec<Ast>) -> HirCrate {
+pub fn lower_ast(asts: ThinVec<Ast>) -> HirCrate {
     let mut ctx = LoweringContext::new();
     ctx.lower_crate(asts);
     for diag in &ctx.krate.diagnostics {
@@ -82,25 +84,25 @@ impl From<u32> for BodyId {
 
 #[derive(Debug, Default)]
 pub struct HirCrate {
-    pub modules: Vec<ModuleInfo>,
-    pub defs: Vec<Def>,
-    pub exprs: Vec<HirExpr>,
-    pub types: Vec<HirType>,
-    pub stmts: Vec<HirStmt>,
-    pub bodies: Vec<Body>,
+    pub modules: ThinVec<ModuleInfo>,
+    pub defs: ThinVec<Def>,
+    pub exprs: ThinVec<HirExpr>,
+    pub types: ThinVec<HirType>,
+    pub stmts: ThinVec<HirStmt>,
+    pub bodies: ThinVec<Body>,
     pub interner: Interner,
-    pub diagnostics: Vec<String>,
+    pub diagnostics: ThinVec<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModuleInfo {
     pub name: String,
     pub exports: FxHashMap<Symbol, ExportEntry>,
-    pub items: Vec<DefId>,
+    pub items: ThinVec<DefId>,
     pub imports: FxHashMap<Symbol, DefId>,
     pub struct_methods: FxHashMap<DefId, FxHashMap<Symbol, MethodMeta>>,
     pub struct_fields: FxHashMap<DefId, FxHashMap<Symbol, Visibility>>,
-    pub struct_impls: FxHashMap<DefId, Vec<DefId>>,
+    pub struct_impls: FxHashMap<DefId, ThinVec<DefId>>,
 }
 
 #[derive(Debug, Clone)]
@@ -133,7 +135,7 @@ impl Def {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: Symbol,
-    pub params: Vec<(Symbol, TypeId)>,
+    pub params: ThinVec<(Symbol, TypeId)>,
     pub ret: TypeId,
     pub body: Option<BodyId>,
     pub module: ModuleId,
@@ -144,7 +146,7 @@ pub struct Function {
 
 #[derive(Debug, Clone)]
 pub struct Body {
-    pub stmts: Vec<StmtId>,
+    pub stmts: ThinVec<StmtId>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,22 +159,22 @@ pub struct StructField {
 #[derive(Debug, Clone)]
 pub struct Struct {
     pub name: Symbol,
-    pub fields: Vec<StructField>,
-    pub methods: Vec<(Symbol, DefId)>,
+    pub fields: ThinVec<StructField>,
+    pub methods: ThinVec<(Symbol, DefId)>,
     pub module: ModuleId,
 }
 
 #[derive(Debug, Clone)]
 pub struct Interface {
     pub name: Symbol,
-    pub methods: Vec<InterfaceMethod>,
+    pub methods: ThinVec<InterfaceMethod>,
     pub module: ModuleId,
 }
 
 #[derive(Debug, Clone)]
 pub struct InterfaceMethod {
     pub name: Symbol,
-    pub params: Vec<TypeId>,
+    pub params: ThinVec<TypeId>,
     pub ret: TypeId,
 }
 
@@ -199,12 +201,12 @@ pub enum HirExpr {
     Global(DefId),
     Call {
         callee: ExprId,
-        args: Vec<ExprId>,
+        args: ThinVec<ExprId>,
     },
     MethodCall {
         base: ExprId,
         method: Symbol,
-        args: Vec<ExprId>,
+        args: ThinVec<ExprId>,
     },
     Field {
         base: ExprId,
@@ -212,10 +214,10 @@ pub enum HirExpr {
     },
     StructInit {
         def: DefId,
-        fields: Vec<(Symbol, ExprId)>,
+        fields: ThinVec<(Symbol, ExprId)>,
     },
     Block {
-        stmts: Vec<StmtId>,
+        stmts: ThinVec<StmtId>,
     },
     Binary {
         left: ExprId,

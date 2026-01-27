@@ -1,3 +1,5 @@
+use thin_vec::ThinVec;
+
 use crate::{
     ast::{Block, Expr, Ident, Type},
     hashmap::FxHashMap,
@@ -49,13 +51,13 @@ pub struct StructInstantiationExpr {
 #[derive(Debug, Clone)]
 pub struct ArrayLiteralExpr {
     pub underlying: Type,
-    pub contents: Box<[Expr]>,
+    pub contents: ThinVec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionCallExpr {
     pub callee: Box<Expr>,
-    pub arguments: Box<[Expr]>,
+    pub arguments: ThinVec<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -78,5 +80,5 @@ pub struct AsExpr {
 
 #[derive(Debug, Clone)]
 pub struct TupleLiteralExpr {
-    pub elements: Box<[Expr]>,
+    pub elements: ThinVec<Expr>,
 }

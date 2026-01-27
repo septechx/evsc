@@ -1,3 +1,5 @@
+use thin_vec::ThinVec;
+
 use crate::ast::{Block, Expr, Ident, ImportTree, Mutability, Type, Visibility};
 
 #[derive(Debug, Clone)]
@@ -33,8 +35,8 @@ pub struct StructMethod {
 #[derive(Debug, Clone)]
 pub struct StructDeclStmt {
     pub name: Ident,
-    pub fields: Box<[StructField]>,
-    pub methods: Box<[StructMethod]>,
+    pub fields: ThinVec<StructField>,
+    pub methods: ThinVec<StructMethod>,
     pub visibility: Visibility,
 }
 
@@ -42,7 +44,7 @@ pub struct StructDeclStmt {
 pub struct ImplStmt {
     pub self_ty: Type,
     pub interface: Ident,
-    pub items: Box<[InterfaceMethod]>,
+    pub items: ThinVec<InterfaceMethod>,
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +55,7 @@ pub struct InterfaceMethod {
 #[derive(Debug, Clone)]
 pub struct InterfaceDeclStmt {
     pub name: Ident,
-    pub methods: Box<[InterfaceMethod]>,
+    pub methods: ThinVec<InterfaceMethod>,
     pub visibility: Visibility,
 }
 
@@ -66,7 +68,7 @@ pub struct FnArgument {
 #[derive(Debug, Clone)]
 pub struct FnDeclStmt {
     pub name: Ident,
-    pub arguments: Box<[FnArgument]>,
+    pub arguments: ThinVec<FnArgument>,
     pub body: Option<Block>,
     pub return_type: Type,
     pub is_extern: bool,

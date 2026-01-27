@@ -22,6 +22,7 @@ use std::{
 
 use anyhow::Result;
 use clap::Parser;
+use thin_vec::ThinVec;
 
 use crate::{
     ast::validate::validate_ast, cli::Cli, errors::ErrorCollector, hir::lower_ast, lexer::tokenize,
@@ -62,7 +63,7 @@ fn check_for_errors() {
 }
 
 fn build_file(cli: Cli) -> Result<()> {
-    let mut asts = Vec::with_capacity(cli.input.len());
+    let mut asts = ThinVec::with_capacity(cli.input.len());
     for file_path in cli.input {
         let source_text = match fs::read_to_string(&file_path) {
             Err(err) => fatal!(format!(

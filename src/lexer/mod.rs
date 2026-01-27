@@ -13,6 +13,7 @@ use crate::{
 use anyhow::Result;
 use parking_lot::Once;
 use regex::Regex;
+use thin_vec::ThinVec;
 
 type TokenHandler = Box<dyn Fn(&str, Span, ModuleId) -> Result<Option<Token>> + Send + Sync>;
 
@@ -45,7 +46,7 @@ impl Lexer {
     }
 
     pub fn tokenize(&mut self, module_id: ModuleId) -> Result<TokenStream> {
-        let mut tokens: Vec<Token> = vec![];
+        let mut tokens: ThinVec<Token> = ThinVec::new();
 
         if self.file_content.starts_with("#!") {
             self.advance(
@@ -95,7 +96,7 @@ impl Lexer {
             self.advance(match_len);
         }
 
-        Ok(tokens.into())
+        Ok(TokenStream(tokens))
     }
 }
 

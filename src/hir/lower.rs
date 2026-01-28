@@ -644,6 +644,24 @@ impl LoweringContext {
                     right: right_id,
                 })
             }
+            ExprKind::Block(b) => {
+                let stmts = self.lower_body(b.block.body);
+                self.alloc_expr(HirExpr::Block { stmts })
+            }
+            ExprKind::If(i) => {
+                let cond = self.lower_expr(*i.condition);
+
+                let then_stmts = self.lower_body(i.then_branch.body);
+                let then_branch = self.alloc_expr(HirExpr::Block { stmts: then_stmts });
+
+                let else_branch = i.else_branch.map(|e| self.lower_expr(*e));
+
+                self.alloc_expr(HirExpr::If {
+                    cond,
+                    then_branch,
+                    else_branch,
+                })
+            }
             _ => todo!("Lowering of {:?} not implemented", expr.kind),
         }
     }
@@ -731,5 +749,15 @@ impl LoweringContext {
         }
 
         None
+    }
+
+    fn lower_body(&mut self, body: ThinVec<Stmt>) -> ThinVec<StmtId> {
+        self.local_stack.push(FxHashMap::default());
+        let stmts = body
+            .into_iter()
+            .map(|s| self.lower_stmt(s))
+            .collect::<ThinVec<_>>();
+        self.local_stack.pop();
+        stmts
     }
 }

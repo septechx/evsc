@@ -83,6 +83,7 @@ pub enum ExprKind {
     As(AsExpr),
     TupleLiteral(TupleLiteralExpr),
     Block(BlockExpr),
+    If(IfExpr),
 }
 
 #[derive(Debug, Clone)]

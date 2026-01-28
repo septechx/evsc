@@ -224,6 +224,14 @@ pub enum HirExpr {
         op: BinOp,
         right: ExprId,
     },
+    If {
+        cond: ExprId,
+        /// Will always point to a [HirExpr::Block].
+        /// NOTE: Using an [ExprId] instead of a [Body] is intentional
+        then_branch: ExprId,
+        /// Will point to a [HirExpr::Block] or [HirExpr::If].
+        else_branch: Option<ExprId>,
+    },
 }
 
 #[derive(Debug, Clone)]

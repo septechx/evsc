@@ -82,3 +82,10 @@ pub struct AsExpr {
 pub struct TupleLiteralExpr {
     pub elements: ThinVec<Expr>,
 }
+
+#[derive(Debug, Clone)]
+pub struct IfExpr {
+    pub condition: Box<Expr>,
+    pub then_branch: Block,
+    pub else_branch: Option<Box<Expr>>, // can be another if-expression or a block expression
+}

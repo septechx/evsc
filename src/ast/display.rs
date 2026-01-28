@@ -531,6 +531,35 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
                 punct_with_color("\"", ctx.color)
             )?;
         }
+        ExprKind::If(i) => {
+            writeln!(out, "{}", "If".with_color(ctx.color))?;
+            let expr_ctx = ctx.indented();
+            writeln!(out, "{}Condition:", expr_ctx.indent_str())?;
+            write!(out, "{}", expr_ctx.indent_str())?;
+            write_expr(out, &i.condition, &expr_ctx)?;
+            write!(out, "{}Then:", expr_ctx.indent_str())?;
+            if i.then_branch.body.is_empty() {
+                writeln!(out)?;
+                write!(out, "{}  (empty)", expr_ctx.indent_str())?;
+            } else {
+                writeln!(out)?;
+                let body_ctx = expr_ctx.indented();
+                for s in &i.then_branch.body {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_stmt(out, s, &body_ctx)?;
+                    writeln!(out)?;
+                }
+            }
+            write!(out, "{}Else:", expr_ctx.indent_str())?;
+            if let Some(else_branch) = &i.else_branch {
+                writeln!(out)?;
+                write!(out, "{}", expr_ctx.indent_str())?;
+                write_expr(out, else_branch, &expr_ctx)?;
+            } else {
+                writeln!(out)?;
+                write!(out, "{}  (empty)", expr_ctx.indent_str())?;
+            }
+        }
         ExprKind::Binary(b) => {
             writeln!(out, "{}", "Binary".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();

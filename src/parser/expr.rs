@@ -4,24 +4,16 @@ use anyhow::{Result, bail};
 use thin_vec::ThinVec;
 
 use crate::{
-    ast::{
-        Block, Expr, ExprKind, Ident, Literal,
-        expressions::{
-            ArrayLiteralExpr, AsExpr, AssignmentExpr, BinaryExpr, BlockExpr, FunctionCallExpr,
-            MemberAccessExpr, PostfixExpr, PrefixExpr, StructInstantiationExpr, SymbolExpr,
-            TupleLiteralExpr, TypeExpr,
-        },
-    },
+    ast::{Block, Expr, ExprKind, Ident, Literal, expressions::*},
     fatal_at,
     hashmap::FxHashMap,
     lexer::token::TokenKind,
     parser::{
         Parser,
         lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
-        stmt::parse_stmt,
         string::process_string,
         types::parse_type,
-        utils::unexpected_token,
+        utils::{parse_body, unexpected_token},
     },
     span::Span,
 };
@@ -389,23 +381,43 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> Result<Expr> {
 }
 
 pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
-    let start_token = parser.expect(TokenKind::OpenCurly)?;
-    let mut body = ThinVec::new();
+    let start_span = parser.expect(TokenKind::OpenCurly)?.span;
 
-    loop {
-        if parser.current_token().kind == TokenKind::CloseCurly {
-            break;
-        }
-
-        body.push(parse_stmt(parser)?);
-    }
-
-    let end_token = parser.expect(TokenKind::CloseCurly)?;
-    let span = Span::new(start_token.span.start(), end_token.span.end());
+    let (body, span) = parse_body(parser, start_span)?;
 
     Ok(Expr {
         kind: ExprKind::Block(BlockExpr {
             block: Block { body },
+        }),
+        span,
+    })
+}
+
+pub fn parse_if_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_span = parser.expect(TokenKind::If)?.span;
+
+    let condition = Box::new(parse_expr(parser, BindingPower::Call)?);
+
+    parser.expect(TokenKind::OpenCurly)?;
+    let (body, body_span) = parse_body(parser, start_span)?;
+
+    let mut else_branch: Option<Box<Expr>> = None;
+    if parser.current_token().kind == TokenKind::Else {
+        parser.advance();
+        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
+        else_branch = Some(Box::new(expr));
+    }
+
+    let mut span = body_span;
+    if let Some(else_branch) = &else_branch {
+        span = Span::new(body_span.start(), else_branch.span.end());
+    }
+
+    Ok(Expr {
+        kind: ExprKind::If(IfExpr {
+            condition,
+            then_branch: Block { body },
+            else_branch,
         }),
         span,
     })

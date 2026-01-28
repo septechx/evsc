@@ -105,6 +105,7 @@ mod tests {
                     }
                 }
                 ExprKind::Block(_) => "BlockExpr",
+                ExprKind::If(_) => "IfExpr",
                 ExprKind::Symbol(_) => "SymbolExpr",
                 ExprKind::Binary(_) => "BinaryExpr",
                 ExprKind::Postfix(_) => "PostfixExpr",

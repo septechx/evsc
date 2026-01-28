@@ -3,13 +3,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Attribute, Block, Expr, ExprKind, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind,
-        Type, TypeKind, Visibility,
-        statements::{
-            ExprStmt, FnDeclStmt, FnParameter, ImplStmt, ImportStmt, InterfaceDeclStmt,
-            InterfaceMethod, ReturnStmt, SemiStmt, StructDeclStmt, StructField, StructMethod,
-            VarDeclStmt,
-        },
+        Attribute, Block, Expr, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind, Type,
+        TypeKind, Visibility, statements::*,
     },
     error_at, get_modifiers,
     lexer::token::TokenKind,
@@ -21,7 +16,7 @@ use crate::{
         lookups::{BindingPower, STMT_LU},
         modifiers::{Modifier, ModifierKind, parse_modifiers},
         types::parse_type,
-        utils::{parse_path, parse_rename, unexpected_token},
+        utils::{parse_body, parse_path, parse_rename, unexpected_token},
     },
     span::Span,
     warning_at,
@@ -363,7 +358,13 @@ pub fn parse_fn_decl_stmt(
 ) -> Result<Stmt> {
     let (pub_mod, extern_mod) = get_modifiers!(&parser, modifiers, [Pub, Extern]);
 
-    let fn_token = parser.expect(TokenKind::Fn)?;
+    let mut start_span = parser.expect(TokenKind::Fn)?.span;
+    if let Some(pub_mod) = pub_mod {
+        start_span = pub_mod.span;
+    } else if let Some(extern_mod) = extern_mod {
+        start_span = extern_mod.span;
+    }
+
     let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::OpenParen)?;
@@ -397,17 +398,10 @@ pub fn parse_fn_decl_stmt(
     // TODO: Don't try to parse function body as block expr
     let mut body: Option<Block> = None;
     if parser.current_token().kind == TokenKind::OpenCurly {
-        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
-        end_span = expr.span;
-        if let ExprKind::Block(b) = expr.kind {
-            body = Some(b.block);
-        } else {
-            error_at!(
-                expr.span,
-                parser.current_token().module_id,
-                "Expected block as function body"
-            )?;
-        }
+        parser.advance();
+        let (stmts, body_span) = parse_body(parser, start_span)?;
+        end_span = body_span;
+        body = Some(Block { body: stmts });
     } else {
         match parser.current_token().kind {
             TokenKind::Semicolon => {
@@ -425,14 +419,6 @@ pub fn parse_fn_decl_stmt(
                 )?;
             }
         }
-    }
-
-    let mut start_span = fn_token.span;
-
-    if let Some(pub_mod) = pub_mod {
-        start_span = pub_mod.span;
-    } else if let Some(extern_mod) = extern_mod {
-        start_span = extern_mod.span;
     }
 
     let span = Span::new(start_span.start(), end_span.end());

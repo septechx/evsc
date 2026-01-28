@@ -222,7 +222,8 @@ impl Visitable for Expr {
         match visitor.visit_expr(self) {
             VisitAction::Continue => match &self.kind {
                 ExprKind::Literal(l) => l.visit(visitor),
-                ExprKind::Block(block) => block.visit(visitor),
+                ExprKind::Block(b) => b.visit(visitor),
+                ExprKind::If(i) => i.visit(visitor),
                 ExprKind::Symbol(s) => s.visit(visitor),
                 ExprKind::Binary(b) => b.visit(visitor),
                 ExprKind::Postfix(p) => p.visit(visitor),
@@ -250,6 +251,14 @@ impl Visitable for SymbolExpr {
 impl Visitable for Literal {
     fn visit(&self, _visitor: &mut impl Visitor) {
         // Unit
+    }
+}
+
+impl Visitable for IfExpr {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.condition.visit(visitor);
+        self.then_branch.visit(visitor);
+        self.else_branch.visit(visitor);
     }
 }
 

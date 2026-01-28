@@ -2,6 +2,9 @@
 
 ![CI status](https://github.com/septechx/oxi/actions/workflows/linux.yml/badge.svg)
 
+> [!WARNING]
+> This branch currently contains an in-development, non-functional version of the compiler. For the older, functioning version, use the [legacy branch](https://github.com/septechx/oxi/tree/legacy).
+
 Oxic is a compiler for the Oxi programming language.
 
 ```zig
@@ -19,14 +22,12 @@ pub fn main() isize {
 **Building:**
 
 - Rust
-- Clang
 - LLVM 21.1
 - just
 
 **Usage:**
 
 - LLVM 21.1
-- libclang >=10.0
 - Mold/lld/gold/ld
 
 ## Installation

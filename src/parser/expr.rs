@@ -387,7 +387,7 @@ pub fn parse_block_expr(parser: &mut Parser) -> Result<Expr> {
 
     Ok(Expr {
         kind: ExprKind::Block(BlockExpr {
-            block: Block { body },
+            block: Block { stmts: body },
         }),
         span,
     })
@@ -416,7 +416,7 @@ pub fn parse_if_expr(parser: &mut Parser) -> Result<Expr> {
     Ok(Expr {
         kind: ExprKind::If(IfExpr {
             condition,
-            then_branch: Block { body },
+            then_branch: Block { stmts: body },
             else_branch,
         }),
         span,
@@ -429,7 +429,7 @@ pub fn parse_loop_expr(parser: &mut Parser) -> Result<Expr> {
     let (body, span) = parse_body(parser, start_span)?;
     Ok(Expr {
         kind: ExprKind::Loop(LoopExpr {
-            body: Block { body },
+            body: Block { stmts: body },
         }),
         span,
     })

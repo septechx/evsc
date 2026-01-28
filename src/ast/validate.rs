@@ -214,7 +214,7 @@ impl Visitor for AstValidator {
             ExprKind::Block(b) => {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
-                for stmt in b.block.body.iter() {
+                for stmt in b.block.stmts.iter() {
                     stmt.visit(self);
                 }
                 self.is_top_level = old_top_level;

@@ -319,7 +319,7 @@ impl LoweringContext {
             }
 
             let stmt_ids: ThinVec<StmtId> = body
-                .body
+                .stmts
                 .into_iter()
                 .map(|stmt| self.lower_stmt(stmt))
                 .collect();
@@ -645,13 +645,13 @@ impl LoweringContext {
                 })
             }
             ExprKind::Block(b) => {
-                let stmts = self.lower_body(b.block.body);
+                let stmts = self.lower_body(b.block.stmts);
                 self.alloc_expr(HirExpr::Block { stmts })
             }
             ExprKind::If(i) => {
                 let cond = self.lower_expr(*i.condition);
 
-                let then_stmts = self.lower_body(i.then_branch.body);
+                let then_stmts = self.lower_body(i.then_branch.stmts);
                 let then_branch = self.alloc_expr(HirExpr::Block { stmts: then_stmts });
 
                 let else_branch = i.else_branch.map(|e| self.lower_expr(*e));
@@ -663,7 +663,7 @@ impl LoweringContext {
                 })
             }
             ExprKind::Loop(l) => {
-                let stmts = self.lower_body(l.body.body);
+                let stmts = self.lower_body(l.body.stmts);
                 let body = self.alloc_body(Body { stmts });
                 self.alloc_expr(HirExpr::Loop {
                     body,

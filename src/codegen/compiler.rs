@@ -253,7 +253,7 @@ fn compile_function<'ctx>(
             context,
             module,
             &builder,
-            &body.body,
+            &body.stmts,
             &mut inner_compilation_context,
         )?;
     }

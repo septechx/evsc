@@ -89,7 +89,7 @@ impl Visitable for Ast {
 
 impl Visitable for Block {
     fn visit(&self, visitor: &mut impl Visitor) {
-        self.body.visit(visitor);
+        self.stmts.visit(visitor);
     }
 }
 

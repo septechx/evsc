@@ -401,7 +401,7 @@ pub fn parse_fn_decl_stmt(
         parser.advance();
         let (stmts, body_span) = parse_body(parser, start_span)?;
         end_span = body_span;
-        body = Some(Block { body: stmts });
+        body = Some(Block { stmts });
     } else {
         match parser.current_token().kind {
             TokenKind::Semicolon => {

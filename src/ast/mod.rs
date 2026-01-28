@@ -148,7 +148,7 @@ pub enum Mutability {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub body: ThinVec<Stmt>,
+    pub stmts: ThinVec<Stmt>,
 }
 
 #[derive(Debug, Clone)]

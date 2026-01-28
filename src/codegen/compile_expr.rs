@@ -450,7 +450,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 context,
                 module,
                 builder,
-                &block.block.body,
+                &block.block.stmts,
                 &mut inner_compilation_context,
             )?;
             SmartValue::from_value(

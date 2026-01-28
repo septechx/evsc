@@ -431,13 +431,13 @@ fn write_struct_method(
 fn write_fn_decl(out: &mut String, fn_decl: &FnDeclStmt, ctx: &DisplayContext) -> std::fmt::Result {
     write!(out, "{}Body:", ctx.indent_str())?;
     if let Some(body) = &fn_decl.body {
-        if body.body.is_empty() {
+        if body.stmts.is_empty() {
             writeln!(out)?;
             write!(out, "{}  (empty)", ctx.indent_str())?;
         } else {
             writeln!(out)?;
             let body_ctx = ctx.indented();
-            for s in &body.body {
+            for s in &body.stmts {
                 write!(out, "{}", body_ctx.indent_str())?;
                 write_stmt(out, s, &body_ctx)?;
                 writeln!(out)?;
@@ -494,13 +494,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
         ExprKind::Block(block) => {
             write!(out, "{}", "BlockExpr".with_color(ctx.color),)?;
             write!(out, ":")?;
-            if block.block.body.is_empty() {
+            if block.block.stmts.is_empty() {
                 writeln!(out)?;
                 write!(out, "{}  (empty)", ctx.indent_str())?;
             } else {
                 writeln!(out)?;
                 let body_ctx = ctx.indented();
-                for s in &block.block.body {
+                for s in &block.block.stmts {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_stmt(out, s, &body_ctx)?;
                     writeln!(out)?;
@@ -538,13 +538,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
             write!(out, "{}", expr_ctx.indent_str())?;
             write_expr(out, &i.condition, &expr_ctx)?;
             write!(out, "{}Then:", expr_ctx.indent_str())?;
-            if i.then_branch.body.is_empty() {
+            if i.then_branch.stmts.is_empty() {
                 writeln!(out)?;
                 write!(out, "{}  (empty)", expr_ctx.indent_str())?;
             } else {
                 writeln!(out)?;
                 let body_ctx = expr_ctx.indented();
-                for s in &i.then_branch.body {
+                for s in &i.then_branch.stmts {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_stmt(out, s, &body_ctx)?;
                     writeln!(out)?;
@@ -564,13 +564,13 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
             writeln!(out, "{}", "Loop".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();
             write!(out, "{}Body:", expr_ctx.indent_str())?;
-            if l.body.body.is_empty() {
+            if l.body.stmts.is_empty() {
                 writeln!(out)?;
                 write!(out, "{}  (empty)", expr_ctx.indent_str())?;
             } else {
                 writeln!(out)?;
                 let body_ctx = expr_ctx.indented();
-                for s in &l.body.body {
+                for s in &l.body.stmts {
                     write!(out, "{}", body_ctx.indent_str())?;
                     write_stmt(out, s, &body_ctx)?;
                     writeln!(out)?;

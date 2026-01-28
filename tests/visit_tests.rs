@@ -206,7 +206,7 @@ mod tests {
     fn dummy_expr_block(body: ThinVec<Stmt>) -> Expr {
         Expr {
             kind: ExprKind::Block(BlockExpr {
-                block: Block { body },
+                block: Block { stmts: body },
             }),
             span: dummy_span(),
         }
@@ -222,7 +222,7 @@ mod tests {
 
     fn dummy_fn_body() -> Option<Block> {
         Some(Block {
-            body: ThinVec::new(),
+            stmts: ThinVec::new(),
         })
     }
 
@@ -716,7 +716,7 @@ mod tests {
                         },
                     ],
                     body: Some(Block {
-                        body: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
+                        stmts: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
                     }),
                     return_type: dummy_type_symbol("void"),
                     visibility: Visibility::Private,
@@ -990,7 +990,7 @@ mod tests {
                                 name: dummy_ident("method"),
                                 parameters: ThinVec::new(),
                                 body: Some(Block {
-                                    body: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
+                                    stmts: thin_vec![dummy_stmt_expr(dummy_expr_number(1))],
                                 }),
                                 return_type: dummy_type_never(),
                                 visibility: Visibility::Private,
@@ -1025,7 +1025,7 @@ mod tests {
                         name: dummy_ident("main"),
                         parameters: ThinVec::new(),
                         body: Some(Block {
-                            body: thin_vec![
+                            stmts: thin_vec![
                                 Stmt {
                                     kind: StmtKind::VarDecl(VarDeclStmt {
                                         variable_name: dummy_ident("a"),
@@ -1043,7 +1043,7 @@ mod tests {
                                         expr: Expr {
                                             kind: ExprKind::Block(BlockExpr {
                                                 block: Block {
-                                                    body: thin_vec![Stmt {
+                                                    stmts: thin_vec![Stmt {
                                                         kind: StmtKind::Return(ReturnStmt {
                                                             value: Some(dummy_expr_number(2)),
                                                         }),

@@ -534,9 +534,8 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
         ExprKind::If(i) => {
             writeln!(out, "{}", "If".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();
-            writeln!(out, "{}Condition:", expr_ctx.indent_str())?;
-            write!(out, "{}", expr_ctx.indent_str())?;
-            write_expr(out, &i.condition, &expr_ctx)?;
+            write_expr_inline_or_nested(out, "Condition: ", &i.condition, &expr_ctx)?;
+            writeln!(out)?;
             write!(out, "{}Then:", expr_ctx.indent_str())?;
             if i.then_branch.stmts.is_empty() {
                 writeln!(out)?;
@@ -553,8 +552,9 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
             write!(out, "{}Else:", expr_ctx.indent_str())?;
             if let Some(else_branch) = &i.else_branch {
                 writeln!(out)?;
-                write!(out, "{}", expr_ctx.indent_str())?;
-                write_expr(out, else_branch, &expr_ctx)?;
+                let else_ctx = expr_ctx.indented();
+                write!(out, "{}", else_ctx.indent_str())?;
+                write_expr(out, else_branch, &else_ctx)?;
             } else {
                 writeln!(out)?;
                 write!(out, "{}  (empty)", expr_ctx.indent_str())?;

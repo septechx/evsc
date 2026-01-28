@@ -89,3 +89,8 @@ pub struct IfExpr {
     pub then_branch: Block,
     pub else_branch: Option<Box<Expr>>, // can be another if-expression or a block expression
 }
+
+#[derive(Debug, Clone)]
+pub struct LoopExpr {
+    pub body: Block,
+}

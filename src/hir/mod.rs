@@ -150,6 +150,16 @@ pub struct Body {
 }
 
 #[derive(Debug, Clone)]
+pub enum LoopSource {
+    /// `loop { ... }`
+    Loop,
+    /// `while x { ... }`
+    While,
+    /// `for x : y { ... }`
+    For,
+}
+
+#[derive(Debug, Clone)]
 pub struct StructField {
     pub name: Symbol,
     pub ty: TypeId,
@@ -231,6 +241,10 @@ pub enum HirExpr {
         then_branch: ExprId,
         /// Will point to a [HirExpr::Block] or [HirExpr::If].
         else_branch: Option<ExprId>,
+    },
+    Loop {
+        body: BodyId,
+        source: LoopSource,
     },
 }
 

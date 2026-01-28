@@ -560,6 +560,23 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
                 write!(out, "{}  (empty)", expr_ctx.indent_str())?;
             }
         }
+        ExprKind::Loop(l) => {
+            writeln!(out, "{}", "Loop".with_color(ctx.color))?;
+            let expr_ctx = ctx.indented();
+            write!(out, "{}Body:", expr_ctx.indent_str())?;
+            if l.body.body.is_empty() {
+                writeln!(out)?;
+                write!(out, "{}  (empty)", expr_ctx.indent_str())?;
+            } else {
+                writeln!(out)?;
+                let body_ctx = expr_ctx.indented();
+                for s in &l.body.body {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_stmt(out, s, &body_ctx)?;
+                    writeln!(out)?;
+                }
+            }
+        }
         ExprKind::Binary(b) => {
             writeln!(out, "{}", "Binary".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();

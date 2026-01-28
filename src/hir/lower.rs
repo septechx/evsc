@@ -8,8 +8,8 @@ use crate::{
     hashmap::FxHashMap,
     hir::{
         Body, BodyId, Def, DefId, ExportEntry, ExprId, Function, HirCrate, HirExpr, HirStmt,
-        HirType, Interface, InterfaceMethod, LocalId, MethodMeta, ModuleId, ModuleInfo, StmtId,
-        Struct, StructField, TypeId, Variable,
+        HirType, Interface, InterfaceMethod, LocalId, LoopSource, MethodMeta, ModuleId, ModuleInfo,
+        StmtId, Struct, StructField, TypeId, Variable,
         interner::Symbol,
         resolve::{PendingImport, ResolutionStatus},
     },
@@ -660,6 +660,14 @@ impl LoweringContext {
                     cond,
                     then_branch,
                     else_branch,
+                })
+            }
+            ExprKind::Loop(l) => {
+                let stmts = self.lower_body(l.body.body);
+                let body = self.alloc_body(Body { stmts });
+                self.alloc_expr(HirExpr::Loop {
+                    body,
+                    source: LoopSource::Loop,
                 })
             }
             _ => todo!("Lowering of {:?} not implemented", expr.kind),

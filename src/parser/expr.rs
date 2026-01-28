@@ -422,3 +422,15 @@ pub fn parse_if_expr(parser: &mut Parser) -> Result<Expr> {
         span,
     })
 }
+
+pub fn parse_loop_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_span = parser.expect(TokenKind::Loop)?.span;
+    parser.expect(TokenKind::OpenCurly)?;
+    let (body, span) = parse_body(parser, start_span)?;
+    Ok(Expr {
+        kind: ExprKind::Loop(LoopExpr {
+            body: Block { body },
+        }),
+        span,
+    })
+}

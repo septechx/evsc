@@ -272,6 +272,7 @@ pub fn create_token_lookups() {
         nud(T::OpenBracket, parse_array_literal_expr, &mut nud_lu);
 
         nud(T::If, parse_if_expr, &mut nud_lu);
+        nud(T::While, parse_while_expr, &mut nud_lu);
         nud(T::Loop, parse_loop_expr, &mut nud_lu);
 
         // Statements

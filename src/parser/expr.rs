@@ -399,7 +399,7 @@ pub fn parse_if_expr(parser: &mut Parser) -> Result<Expr> {
     let condition = Box::new(parse_expr(parser, BindingPower::Call)?);
 
     parser.expect(TokenKind::OpenCurly)?;
-    let (body, body_span) = parse_body(parser, start_span)?;
+    let (stmts, body_span) = parse_body(parser, start_span)?;
 
     let mut else_branch: Option<Box<Expr>> = None;
     if parser.current_token().kind == TokenKind::Else {
@@ -416,8 +416,22 @@ pub fn parse_if_expr(parser: &mut Parser) -> Result<Expr> {
     Ok(Expr {
         kind: ExprKind::If(IfExpr {
             condition,
-            then_branch: Block { stmts: body },
+            then_branch: Block { stmts },
             else_branch,
+        }),
+        span,
+    })
+}
+
+pub fn parse_while_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_span = parser.expect(TokenKind::While)?.span;
+    let condition = Box::new(parse_expr(parser, BindingPower::Call)?);
+    parser.expect(TokenKind::OpenCurly)?;
+    let (stmts, span) = parse_body(parser, start_span)?;
+    Ok(Expr {
+        kind: ExprKind::While(WhileExpr {
+            condition,
+            body: Block { stmts },
         }),
         span,
     })
@@ -426,10 +440,10 @@ pub fn parse_if_expr(parser: &mut Parser) -> Result<Expr> {
 pub fn parse_loop_expr(parser: &mut Parser) -> Result<Expr> {
     let start_span = parser.expect(TokenKind::Loop)?.span;
     parser.expect(TokenKind::OpenCurly)?;
-    let (body, span) = parse_body(parser, start_span)?;
+    let (stmts, span) = parse_body(parser, start_span)?;
     Ok(Expr {
         kind: ExprKind::Loop(LoopExpr {
-            body: Block { stmts: body },
+            body: Block { stmts },
         }),
         span,
     })

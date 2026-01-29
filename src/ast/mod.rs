@@ -84,6 +84,7 @@ pub enum ExprKind {
     TupleLiteral(TupleLiteralExpr),
     Block(BlockExpr),
     If(IfExpr),
+    While(WhileExpr),
     Loop(LoopExpr),
 }
 

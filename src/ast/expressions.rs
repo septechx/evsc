@@ -91,6 +91,12 @@ pub struct IfExpr {
 }
 
 #[derive(Debug, Clone)]
+pub struct WhileExpr {
+    pub condition: Box<Expr>,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone)]
 pub struct LoopExpr {
     pub body: Block,
 }

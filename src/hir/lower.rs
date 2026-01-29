@@ -1,4 +1,4 @@
-use thin_vec::ThinVec;
+use thin_vec::{ThinVec, thin_vec};
 
 use crate::{
     ast::{
@@ -660,6 +660,33 @@ impl LoweringContext {
                     cond,
                     then_branch,
                     else_branch,
+                })
+            }
+            ExprKind::While(w) => {
+                let cond = self.lower_expr(*w.condition);
+
+                let then_stmts = self.lower_body(w.body.stmts);
+                let then_branch = self.alloc_expr(HirExpr::Block { stmts: then_stmts });
+
+                let break_expr = self.alloc_expr(HirExpr::Break);
+                let break_stmt = self.alloc_stmt(HirStmt::Semi(break_expr));
+                let else_branch = self.alloc_expr(HirExpr::Block {
+                    stmts: thin_vec![break_stmt],
+                });
+
+                let if_expr = self.alloc_expr(HirExpr::If {
+                    cond,
+                    then_branch,
+                    else_branch: Some(else_branch),
+                });
+                let if_stmt = self.alloc_stmt(HirStmt::Semi(if_expr));
+                let body = self.alloc_body(Body {
+                    stmts: thin_vec![if_stmt],
+                });
+
+                self.alloc_expr(HirExpr::Loop {
+                    body,
+                    source: LoopSource::While,
                 })
             }
             ExprKind::Loop(l) => {

@@ -560,6 +560,25 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
                 write!(out, "{}  (empty)", expr_ctx.indent_str())?;
             }
         }
+        ExprKind::While(w) => {
+            writeln!(out, "{}", "While".with_color(ctx.color))?;
+            let expr_ctx = ctx.indented();
+            write_expr_inline_or_nested(out, "Condition: ", &w.condition, &expr_ctx)?;
+            writeln!(out)?;
+            write!(out, "{}Body:", expr_ctx.indent_str())?;
+            if w.body.stmts.is_empty() {
+                writeln!(out)?;
+                write!(out, "{}  (empty)", expr_ctx.indent_str())?;
+            } else {
+                writeln!(out)?;
+                let body_ctx = expr_ctx.indented();
+                for s in &w.body.stmts {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_stmt(out, s, &body_ctx)?;
+                    writeln!(out)?;
+                }
+            }
+        }
         ExprKind::Loop(l) => {
             writeln!(out, "{}", "Loop".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();

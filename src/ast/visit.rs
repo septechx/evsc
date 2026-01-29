@@ -224,6 +224,7 @@ impl Visitable for Expr {
                 ExprKind::Literal(l) => l.visit(visitor),
                 ExprKind::Block(b) => b.visit(visitor),
                 ExprKind::If(i) => i.visit(visitor),
+                ExprKind::While(w) => w.visit(visitor),
                 ExprKind::Loop(l) => l.visit(visitor),
                 ExprKind::Symbol(s) => s.visit(visitor),
                 ExprKind::Binary(b) => b.visit(visitor),
@@ -260,6 +261,13 @@ impl Visitable for IfExpr {
         self.condition.visit(visitor);
         self.then_branch.visit(visitor);
         self.else_branch.visit(visitor);
+    }
+}
+
+impl Visitable for WhileExpr {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.condition.visit(visitor);
+        self.body.visit(visitor);
     }
 }
 

@@ -246,6 +246,7 @@ pub enum HirExpr {
         body: BodyId,
         source: LoopSource,
     },
+    Break, // FIXME: Add `break` expr to AST and parser
 }
 
 #[derive(Debug, Clone)]

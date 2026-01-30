@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
     ast::{
-        Stmt, StmtKind, Type,
         statements::{ExprStmt, FnDeclStmt, StructDeclStmt, VarDeclStmt},
+        Stmt, StmtKind, Type,
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -155,6 +155,13 @@ pub fn compile_stmts<'a, 'ctx>(
 
     // 2nd pass: Compile block
     for stmt in stmts {
+        // Skip if the current block already has a terminator (e.g., from a return statement)
+        if let Some(block) = builder.get_insert_block()
+            && block.get_terminator().is_some()
+        {
+            break;
+        }
+
         match &stmt.kind {
             StmtKind::FnDecl(fn_decl) => {
                 if let Some(function) = compilation_context

@@ -497,7 +497,18 @@ fn compile_return<'ctx>(
             bail!("cannot return a value from a void function");
         }
     } else {
-        builder.build_return(None)?;
+        let function = builder
+            .get_insert_block()
+            .expect("function has a block")
+            .get_parent()
+            .expect("block has a function");
+        let expected_ret_type = function.get_type().get_return_type();
+
+        if expected_ret_type.is_some() {
+            bail!("cannot return a value from a void function");
+        } else {
+            builder.build_return(None)?;
+        }
     }
 
     Ok(())

@@ -275,6 +275,7 @@ pub fn create_token_lookups() {
         nud(T::While, parse_while_expr, &mut nud_lu);
         nud(T::Loop, parse_loop_expr, &mut nud_lu);
         nud(T::Break, parse_break_expr, &mut nud_lu);
+        nud(T::Return, parse_return_expr, &mut nud_lu);
 
         // Statements
         stmt(T::Let, parse_var_decl_statement, &mut bp_lu, &mut stmt_lu);
@@ -294,7 +295,6 @@ pub fn create_token_lookups() {
         );
         stmt(T::Impl, parse_impl_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Fn, parse_fn_decl_stmt, &mut bp_lu, &mut stmt_lu);
-        stmt(T::Return, parse_return_stmt, &mut bp_lu, &mut stmt_lu);
         stmt(T::Import, parse_import_stmt, &mut bp_lu, &mut stmt_lu);
 
         let _ = BP_LU.set(bp_lu);

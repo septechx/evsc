@@ -452,11 +452,7 @@ pub fn parse_loop_expr(parser: &mut Parser) -> Result<Expr> {
 pub fn parse_break_expr(parser: &mut Parser) -> Result<Expr> {
     let start_span = parser.expect(TokenKind::Break)?.span;
 
-    let current = parser.current_token().kind;
-    let value = if !matches!(
-        current,
-        TokenKind::Semicolon | TokenKind::CloseCurly | TokenKind::Comma
-    ) {
+    let value = if has_expr(parser) {
         Some(Box::new(parse_expr(parser, BindingPower::DefaultBp)?))
     } else {
         None
@@ -469,4 +465,30 @@ pub fn parse_break_expr(parser: &mut Parser) -> Result<Expr> {
         kind: ExprKind::Break(BreakExpr { value }),
         span,
     })
+}
+
+pub fn parse_return_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_span = parser.expect(TokenKind::Return)?.span;
+
+    let value = if has_expr(parser) {
+        Some(Box::new(parse_expr(parser, BindingPower::DefaultBp)?))
+    } else {
+        None
+    };
+
+    let end_span = value.as_ref().map(|v| v.span).unwrap_or(start_span);
+    let span = Span::new(start_span.start(), end_span.end());
+
+    Ok(Expr {
+        kind: ExprKind::Return(ReturnExpr { value }),
+        span,
+    })
+}
+
+fn has_expr(parser: &mut Parser) -> bool {
+    let current = parser.current_token().kind;
+    !matches!(
+        current,
+        TokenKind::Semicolon | TokenKind::CloseCurly | TokenKind::Comma
+    )
 }

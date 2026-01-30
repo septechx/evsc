@@ -13,13 +13,13 @@ use inkwell::{
 use crate::{
     ast::{
         Stmt, StmtKind, Type,
-        statements::{ExprStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
+        statements::{ExprStmt, FnDeclStmt, StructDeclStmt, VarDeclStmt},
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::Builtin,
         compile_expr::compile_expression_to_value,
-        compile_type::{cast_int_to_type, compile_function_type, compile_type},
+        compile_type::{compile_function_type, compile_type},
         inkwell_ext::add_global_constant,
         pointer::SmartValue,
     },
@@ -170,9 +170,6 @@ pub fn compile_stmts<'a, 'ctx>(
                     )?;
                 }
             }
-            StmtKind::Return(ret_stmt) => {
-                compile_return(context, module, builder, ret_stmt, compilation_context)?;
-            }
             StmtKind::Expr(expr_stmt) => {
                 compile_expression(context, module, builder, expr_stmt, compilation_context)?;
             }
@@ -278,38 +275,6 @@ fn compile_function<'ctx>(
                 .as_basic_type_enum(),
         ),
     );
-
-    Ok(())
-}
-
-fn compile_return<'ctx>(
-    context: &'ctx Context,
-    module: &Module<'ctx>,
-    builder: &Builder<'ctx>,
-    ret_stmt: &ReturnStmt,
-    compilation_context: &mut CompilationContext<'ctx>,
-) -> Result<()> {
-    if let Some(expr) = &ret_stmt.value {
-        let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
-
-        let ret_val = ret.unwrap(builder)?;
-
-        let function = builder
-            .get_insert_block()
-            .expect("function has a block")
-            .get_parent()
-            .expect("block has a function");
-        let expected_ret_type = function.get_type().get_return_type();
-
-        if let Some(expected_type) = expected_ret_type {
-            let casted = cast_int_to_type(builder, ret_val, expected_type)?;
-            builder.build_return(Some(&casted))?;
-        } else {
-            builder.build_return(Some(&ret_val))?;
-        }
-    } else {
-        builder.build_return(None)?;
-    }
 
     Ok(())
 }

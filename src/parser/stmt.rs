@@ -443,33 +443,6 @@ pub fn parse_fn_decl_stmt(
     })
 }
 
-pub fn parse_return_stmt(
-    parser: &mut Parser,
-    attributes: ThinVec<Attribute>,
-    modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
-    no_attributes!(&parser, &attributes);
-    no_modifiers!(&parser, &modifiers);
-
-    let return_token = parser.advance();
-
-    let value = if parser.current_token().kind != TokenKind::Semicolon {
-        Some(parse_expr(parser, BindingPower::DefaultBp)?)
-    } else {
-        None
-    };
-
-    let end_span = parser.expect(TokenKind::Semicolon)?.span;
-
-    let span = Span::new(return_token.span.start(), end_span.end());
-
-    Ok(Stmt {
-        kind: StmtKind::Return(ReturnStmt { value }),
-        attributes,
-        span,
-    })
-}
-
 pub fn parse_impl_stmt(
     parser: &mut Parser,
     attributes: ThinVec<Attribute>,

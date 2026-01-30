@@ -105,3 +105,8 @@ pub struct LoopExpr {
 pub struct BreakExpr {
     pub value: Option<Box<Expr>>,
 }
+
+#[derive(Debug, Clone)]
+pub struct ReturnExpr {
+    pub value: Option<Box<Expr>>,
+}

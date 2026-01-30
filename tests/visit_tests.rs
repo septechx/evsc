@@ -12,7 +12,7 @@ mod tests {
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use thin_vec::{thin_vec, ThinVec};
+    use thin_vec::{ThinVec, thin_vec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {

@@ -1,14 +1,10 @@
 pub mod widgets;
 
-use std::{
-    fmt::{self, Display, Formatter},
-};
+use std::fmt::{self, Display, Formatter};
 
 use crate::{elog, elogln, hashmap::FxHashMap};
 
 use colored::Colorize;
-
-
 
 use crate::errors::widgets::Widget;
 

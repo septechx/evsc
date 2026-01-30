@@ -238,6 +238,7 @@ impl Visitable for Expr {
                 ExprKind::Type(t) => t.visit(visitor),
                 ExprKind::As(a) => a.visit(visitor),
                 ExprKind::TupleLiteral(t) => t.visit(visitor),
+                ExprKind::Break(b) => b.visit(visitor),
             },
             VisitAction::SkipChildren => {}
         }
@@ -274,6 +275,14 @@ impl Visitable for WhileExpr {
 impl Visitable for LoopExpr {
     fn visit(&self, visitor: &mut impl Visitor) {
         self.body.visit(visitor);
+    }
+}
+
+impl Visitable for BreakExpr {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        if let Some(v) = &self.value {
+            v.visit(visitor);
+        }
     }
 }
 

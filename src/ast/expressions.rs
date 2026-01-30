@@ -100,3 +100,8 @@ pub struct WhileExpr {
 pub struct LoopExpr {
     pub body: Block,
 }
+
+#[derive(Debug, Clone)]
+pub struct BreakExpr {
+    pub value: Option<Box<Expr>>,
+}

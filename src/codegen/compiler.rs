@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 
 use crate::{
     ast::{
-        Stmt, StmtKind, Type,
         statements::{ExprStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
+        Stmt, StmtKind, Type,
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{

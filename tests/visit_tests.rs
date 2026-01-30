@@ -12,7 +12,7 @@ mod tests {
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use thin_vec::{ThinVec, thin_vec};
+    use thin_vec::{thin_vec, ThinVec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {
@@ -120,6 +120,7 @@ mod tests {
                 ExprKind::Type(_) => "TypeExpr",
                 ExprKind::As(_) => "AsExpr",
                 ExprKind::TupleLiteral(_) => "TupleLiteralExpr",
+                ExprKind::Break(_) => "BreakExpr",
             };
             *self.expr_counts.entry(kind_name).or_insert(0) += 1;
 

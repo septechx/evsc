@@ -274,6 +274,7 @@ pub fn create_token_lookups() {
         nud(T::If, parse_if_expr, &mut nud_lu);
         nud(T::While, parse_while_expr, &mut nud_lu);
         nud(T::Loop, parse_loop_expr, &mut nud_lu);
+        nud(T::Break, parse_break_expr, &mut nud_lu);
 
         // Statements
         stmt(T::Let, parse_var_decl_statement, &mut bp_lu, &mut stmt_lu);

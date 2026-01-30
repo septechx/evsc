@@ -448,3 +448,21 @@ pub fn parse_loop_expr(parser: &mut Parser) -> Result<Expr> {
         span,
     })
 }
+
+pub fn parse_break_expr(parser: &mut Parser) -> Result<Expr> {
+    let start_span = parser.expect(TokenKind::Break)?.span;
+
+    let value = if parser.current_token().kind != TokenKind::Semicolon {
+        Some(Box::new(parse_expr(parser, BindingPower::DefaultBp)?))
+    } else {
+        None
+    };
+
+    let end_span = value.as_ref().map(|v| v.span).unwrap_or(start_span);
+    let span = Span::new(start_span.start(), end_span.end());
+
+    Ok(Expr {
+        kind: ExprKind::Break(BreakExpr { value }),
+        span,
+    })
+}

@@ -596,6 +596,16 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
                 }
             }
         }
+        ExprKind::Break(break_expr) => {
+            write!(out, "{}", "Break".with_color(ctx.color),)?;
+            if let Some(value) = &break_expr.value {
+                writeln!(out, ":")?;
+                let value_ctx = ctx.indented();
+                write!(out, "{}", value_ctx.indent_str())?;
+                write_expr(out, value, &value_ctx)?;
+            }
+        }
+
         ExprKind::Binary(b) => {
             writeln!(out, "{}", "Binary".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();

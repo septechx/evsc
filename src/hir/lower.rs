@@ -668,7 +668,7 @@ impl LoweringContext {
                 let then_stmts = self.lower_body(w.body.stmts);
                 let then_branch = self.alloc_expr(HirExpr::Block { stmts: then_stmts });
 
-                let break_expr = self.alloc_expr(HirExpr::Break);
+                let break_expr = self.alloc_expr(HirExpr::Break { value: None });
                 let break_stmt = self.alloc_stmt(HirStmt::Semi(break_expr));
                 let else_branch = self.alloc_expr(HirExpr::Block {
                     stmts: thin_vec![break_stmt],
@@ -696,6 +696,10 @@ impl LoweringContext {
                     body,
                     source: LoopSource::Loop,
                 })
+            }
+            ExprKind::Break(b) => {
+                let value = b.value.map(|e| self.lower_expr(*e));
+                self.alloc_expr(HirExpr::Break { value })
             }
             _ => todo!("Lowering of {:?} not implemented", expr.kind),
         }

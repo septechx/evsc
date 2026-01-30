@@ -86,6 +86,7 @@ pub enum ExprKind {
     If(IfExpr),
     While(WhileExpr),
     Loop(LoopExpr),
+    Break(BreakExpr),
 }
 
 #[derive(Debug, Clone)]

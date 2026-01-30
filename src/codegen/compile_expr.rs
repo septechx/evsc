@@ -494,7 +494,7 @@ fn compile_return<'ctx>(
             let casted = cast_int_to_type(builder, ret_val, expected_type)?;
             builder.build_return(Some(&casted))?;
         } else {
-            builder.build_return(Some(&ret_val))?;
+            bail!("cannot return a value from a void function");
         }
     } else {
         builder.build_return(None)?;

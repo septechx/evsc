@@ -782,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    fn test_return_stmt_no_value() {
+    fn test_return_no_value() {
         let expr = Expr {
             kind: ExprKind::Return(ReturnExpr { value: None }),
             span: dummy_span(),

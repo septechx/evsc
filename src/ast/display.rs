@@ -340,17 +340,6 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 write_fn_decl(out, fn_decl, &sub_ctx)?;
             }
         }
-        StmtKind::Return(return_stmt) => {
-            write!(out, "{}:", "Return".with_color(ctx.color),)?;
-            if let Some(value) = &return_stmt.value {
-                writeln!(out)?;
-                let value_ctx = ctx.indented();
-                write!(out, "{}", value_ctx.indent_str())?;
-                write_expr(out, value, &value_ctx)?;
-            } else {
-                write!(out, " (empty)")?;
-            }
-        }
         StmtKind::Import(import_stmt) => {
             write!(out, "{}: ", "Import".with_color(ctx.color),)?;
             write_import_tree(out, &import_stmt.tree, ctx)?;
@@ -596,9 +585,18 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
                 }
             }
         }
-        ExprKind::Break(break_expr) => {
-            write!(out, "{}", "Break".with_color(ctx.color),)?;
-            if let Some(value) = &break_expr.value {
+        ExprKind::Break(b) => {
+            write!(out, "{}", "Break".with_color(ctx.color))?;
+            if let Some(value) = &b.value {
+                writeln!(out, ":")?;
+                let value_ctx = ctx.indented();
+                write!(out, "{}", value_ctx.indent_str())?;
+                write_expr(out, value, &value_ctx)?;
+            }
+        }
+        ExprKind::Return(r) => {
+            write!(out, "{}", "Return".with_color(ctx.color))?;
+            if let Some(value) = &r.value {
                 writeln!(out, ":")?;
                 let value_ctx = ctx.indented();
                 write!(out, "{}", value_ctx.indent_str())?;

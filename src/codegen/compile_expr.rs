@@ -9,7 +9,7 @@ use inkwell::{
 };
 
 use crate::{
-    ast::{Expr, ExprKind, Literal, Type, TypeKind, types::SliceType},
+    ast::{Expr, ExprKind, Literal, Type, TypeKind, expressions::ReturnExpr, types::SliceType},
     codegen::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
@@ -443,6 +443,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(slice_val.as_basic_value_enum())
         }
+        ExprKind::Return(ret) => {
+            compile_return(context, module, builder, ret, compilation_context)?;
+            SmartValue::from_value(
+                compile_arch_size_type(context)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            )
+        }
         // TODO: Return the value of the last expression in the block
         ExprKind::Block(block) => {
             let mut inner_compilation_context = compilation_context.clone();
@@ -461,4 +469,47 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         }
         expr => unimplemented!("{expr:#?}"),
     })
+}
+
+fn compile_return<'ctx>(
+    context: &'ctx Context,
+    module: &Module<'ctx>,
+    builder: &Builder<'ctx>,
+    ret: &ReturnExpr,
+    compilation_context: &mut CompilationContext<'ctx>,
+) -> Result<()> {
+    if let Some(expr) = &ret.value {
+        let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
+
+        let ret_val = ret.unwrap(builder)?;
+
+        let function = builder
+            .get_insert_block()
+            .expect("function has a block")
+            .get_parent()
+            .expect("block has a function");
+        let expected_ret_type = function.get_type().get_return_type();
+
+        if let Some(expected_type) = expected_ret_type {
+            let casted = cast_int_to_type(builder, ret_val, expected_type)?;
+            builder.build_return(Some(&casted))?;
+        } else {
+            bail!("cannot return a value from a void function");
+        }
+    } else {
+        let function = builder
+            .get_insert_block()
+            .expect("function has a block")
+            .get_parent()
+            .expect("block has a function");
+        let expected_ret_type = function.get_type().get_return_type();
+
+        if expected_ret_type.is_some() {
+            bail!("cannot return a value from a void function");
+        } else {
+            builder.build_return(None)?;
+        }
+    }
+
+    Ok(())
 }

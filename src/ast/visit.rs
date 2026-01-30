@@ -104,7 +104,6 @@ impl Visitable for Stmt {
                 StmtKind::InterfaceDecl(i) => i.visit(visitor),
                 StmtKind::Impl(i) => i.visit(visitor),
                 StmtKind::FnDecl(f) => f.visit(visitor),
-                StmtKind::Return(r) => r.visit(visitor),
                 StmtKind::Import(i) => i.visit(visitor),
             },
             VisitAction::SkipChildren => {}
@@ -209,14 +208,6 @@ impl Visitable for FnDeclStmt {
     }
 }
 
-impl Visitable for ReturnStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        if let Some(v) = &self.value {
-            v.visit(visitor);
-        }
-    }
-}
-
 impl Visitable for Expr {
     fn visit(&self, visitor: &mut impl Visitor) {
         match visitor.visit_expr(self) {
@@ -239,6 +230,7 @@ impl Visitable for Expr {
                 ExprKind::As(a) => a.visit(visitor),
                 ExprKind::TupleLiteral(t) => t.visit(visitor),
                 ExprKind::Break(b) => b.visit(visitor),
+                ExprKind::Return(r) => r.visit(visitor),
             },
             VisitAction::SkipChildren => {}
         }
@@ -279,6 +271,14 @@ impl Visitable for LoopExpr {
 }
 
 impl Visitable for BreakExpr {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        if let Some(v) = &self.value {
+            v.visit(visitor);
+        }
+    }
+}
+
+impl Visitable for ReturnExpr {
     fn visit(&self, visitor: &mut impl Visitor) {
         if let Some(v) = &self.value {
             v.visit(visitor);

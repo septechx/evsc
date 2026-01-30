@@ -12,7 +12,7 @@ mod tests {
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use thin_vec::{thin_vec, ThinVec};
+    use thin_vec::{ThinVec, thin_vec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {
@@ -81,7 +81,6 @@ mod tests {
                 StmtKind::StructDecl(_) => "StructDeclStmt",
                 StmtKind::InterfaceDecl(_) => "InterfaceDeclStmt",
                 StmtKind::FnDecl(_) => "FnDeclStmt",
-                StmtKind::Return(_) => "ReturnStmt",
                 StmtKind::Import(_) => "ImportStmt",
                 StmtKind::Impl(_) => "ImplStmt",
                 StmtKind::Semi(_) => "SemiStmt",
@@ -121,6 +120,7 @@ mod tests {
                 ExprKind::As(_) => "AsExpr",
                 ExprKind::TupleLiteral(_) => "TupleLiteralExpr",
                 ExprKind::Break(_) => "BreakExpr",
+                ExprKind::Return(_) => "ReturnExpr",
             };
             *self.expr_counts.entry(kind_name).or_insert(0) += 1;
 
@@ -767,33 +767,30 @@ mod tests {
     }
 
     #[test]
-    fn test_return_stmt_with_value() {
-        let stmt = Stmt {
-            kind: StmtKind::Return(ReturnStmt {
-                value: Some(dummy_expr_number(1)),
+    fn test_return_with_value() {
+        let expr = Expr {
+            kind: ExprKind::Return(ReturnExpr {
+                value: Some(Box::new(dummy_expr_number(1))),
             }),
             span: dummy_span(),
-            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
-        stmt.visit(&mut visitor);
-        visitor.assert_visited("stmt", "Stmt", 1);
-        visitor.assert_visited("stmt", "ReturnStmt", 1);
-        visitor.assert_visited("expr", "Expr", 1);
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "ReturnExpr", 1);
         visitor.assert_visited("expr", "NumberExpr", 1);
     }
 
     #[test]
-    fn test_return_stmt_no_value() {
-        let stmt = Stmt {
-            kind: StmtKind::Return(ReturnStmt { value: None }),
+    fn test_return_no_value() {
+        let expr = Expr {
+            kind: ExprKind::Return(ReturnExpr { value: None }),
             span: dummy_span(),
-            attributes: ThinVec::new(),
         };
         let mut visitor = NodeCounterVisitor::new();
-        stmt.visit(&mut visitor);
-        visitor.assert_visited("stmt", "Stmt", 1);
-        visitor.assert_visited("stmt", "ReturnStmt", 1);
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "ReturnExpr", 1);
     }
 
     #[test]
@@ -1073,8 +1070,17 @@ mod tests {
                                             kind: ExprKind::Block(BlockExpr {
                                                 block: Block {
                                                     stmts: thin_vec![Stmt {
-                                                        kind: StmtKind::Return(ReturnStmt {
-                                                            value: Some(dummy_expr_number(2)),
+                                                        kind: StmtKind::Semi(SemiStmt {
+                                                            expr: Expr {
+                                                                kind: ExprKind::Return(
+                                                                    ReturnExpr {
+                                                                        value: Some(Box::new(
+                                                                            dummy_expr_number(2)
+                                                                        ))
+                                                                    }
+                                                                ),
+                                                                span: dummy_span()
+                                                            }
                                                         }),
                                                         span: dummy_span(),
                                                         attributes: ThinVec::new(),
@@ -1109,7 +1115,7 @@ mod tests {
             ("stmt", "FnDeclStmt", 1),
             ("stmt", "VarDeclStmt", 1),
             ("expr", "BlockExpr", 1),
-            ("stmt", "ReturnStmt", 1),
+            ("expr", "ReturnExpr", 1),
             ("stmt", "ExpressionStmt", 2),
         ]);
     }

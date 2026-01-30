@@ -82,11 +82,6 @@ pub struct FnDeclStmt {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReturnStmt {
-    pub value: Option<Expr>,
-}
-
-#[derive(Debug, Clone)]
 pub struct ImportStmt {
     pub tree: ImportTree,
     pub visibility: Visibility,

@@ -57,7 +57,6 @@ pub enum StmtKind {
     InterfaceDecl(InterfaceDeclStmt),
     Impl(ImplStmt),
     FnDecl(FnDeclStmt),
-    Return(ReturnStmt),
     Import(ImportStmt),
 }
 
@@ -87,6 +86,7 @@ pub enum ExprKind {
     While(WhileExpr),
     Loop(LoopExpr),
     Break(BreakExpr),
+    Return(ReturnExpr),
 }
 
 #[derive(Debug, Clone)]

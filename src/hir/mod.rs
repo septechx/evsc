@@ -249,6 +249,9 @@ pub enum HirExpr {
     Break {
         value: Option<ExprId>,
     },
+    Return {
+        value: Option<ExprId>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -263,7 +266,6 @@ pub enum HirStmt {
         init: ExprId,
         local: LocalId,
     },
-    Return(Option<ExprId>),
 }
 
 #[derive(Debug, Clone)]

@@ -139,21 +139,6 @@ impl Visitor for AstValidator {
 
                 VisitAction::SkipChildren
             }
-            StmtKind::Return(r) => {
-                if !self.in_function {
-                    error_at!(
-                        stmt.span,
-                        self.module_id,
-                        "Return statement outside of function"
-                    )
-                    .expect("failed to emit error");
-                }
-                if let Some(val) = &r.value {
-                    val.visit(self);
-                }
-
-                VisitAction::SkipChildren
-            }
             StmtKind::VarDecl(v) => {
                 if !self.is_top_level && v.visibility == Visibility::Public {
                     error_at!(
@@ -221,6 +206,22 @@ impl Visitor for AstValidator {
 
                 VisitAction::SkipChildren
             }
+            ExprKind::Return(r) => {
+                if !self.in_function {
+                    error_at!(
+                        expr.span,
+                        self.module_id,
+                        "Return statement outside of function"
+                    )
+                    .expect("failed to emit error");
+                }
+                if let Some(val) = &r.value {
+                    val.visit(self);
+                }
+
+                VisitAction::SkipChildren
+            }
+
             _ => VisitAction::Continue,
         }
     }

@@ -4,7 +4,7 @@ use parking_lot::Once;
 use thin_vec::ThinVec;
 
 use crate::{
-    ast::{Attribute, Expr, Stmt},
+    ast::{Attribute, Expr, Item},
     hashmap::FxHashMap,
     lexer::token::TokenKind::{self, self as T},
     parser::{Parser, expr::*, modifiers::Modifier, stmt::*},
@@ -28,11 +28,11 @@ pub enum BindingPower {
 }
 use BindingPower as BP;
 
-type StmtHandler = fn(&mut Parser, ThinVec<Attribute>, ThinVec<Modifier>) -> anyhow::Result<Stmt>;
+type ItemHandler = fn(&mut Parser, ThinVec<Attribute>, ThinVec<Modifier>) -> anyhow::Result<Item>;
 type NudHandler = fn(&mut Parser) -> anyhow::Result<Expr>;
 type LedHandler = fn(&mut Parser, Expr, BindingPower) -> anyhow::Result<Expr>;
 
-type StmtLookup = FxHashMap<TokenKind, StmtHandler>;
+type ItemLookup = FxHashMap<TokenKind, ItemHandler>;
 type NudLookup = FxHashMap<TokenKind, NudHandler>;
 type LedLookup = FxHashMap<TokenKind, LedHandler>;
 pub type BpLookup = FxHashMap<TokenKind, BindingPower>;
@@ -41,7 +41,7 @@ static INITIALIZE: Once = Once::new();
 pub static BP_LU: OnceLock<BpLookup> = OnceLock::new();
 pub static NUD_LU: OnceLock<NudLookup> = OnceLock::new();
 pub static LED_LU: OnceLock<LedLookup> = OnceLock::new();
-pub static STMT_LU: OnceLock<StmtLookup> = OnceLock::new();
+pub static ITEM_LU: OnceLock<ItemLookup> = OnceLock::new();
 
 fn led(
     kind: TokenKind,
@@ -58,9 +58,9 @@ fn nud(kind: TokenKind, nud_fn: NudHandler, nud_lu: &mut NudLookup) {
     nud_lu.insert(kind, nud_fn);
 }
 
-fn stmt(kind: TokenKind, stmt_fn: StmtHandler, bp_lu: &mut BpLookup, stmt_lu: &mut StmtLookup) {
+fn item(kind: TokenKind, item_fn: ItemHandler, bp_lu: &mut BpLookup, item_lu: &mut ItemLookup) {
     bp_lu.insert(kind, BindingPower::DefaultBp);
-    stmt_lu.insert(kind, stmt_fn);
+    item_lu.insert(kind, item_fn);
 }
 
 pub fn create_token_lookups() {
@@ -68,7 +68,7 @@ pub fn create_token_lookups() {
         let mut bp_lu = BpLookup::default();
         let mut nud_lu = NudLookup::default();
         let mut led_lu = LedLookup::default();
-        let mut stmt_lu = StmtLookup::default();
+        let mut item_lu = ItemLookup::default();
 
         // Assignment
         led(
@@ -276,30 +276,22 @@ pub fn create_token_lookups() {
         nud(T::Loop, parse_loop_expr, &mut nud_lu);
         nud(T::Break, parse_break_expr, &mut nud_lu);
 
-        // Statements
-        stmt(T::Let, parse_var_decl_statement, &mut bp_lu, &mut stmt_lu);
-        stmt(
-            T::Static,
-            parse_var_decl_statement,
-            &mut bp_lu,
-            &mut stmt_lu,
-        );
-
-        stmt(T::Struct, parse_struct_decl_stmt, &mut bp_lu, &mut stmt_lu);
-        stmt(
+        // Items (top-level definitions)
+        item(T::Static, parse_static_item, &mut bp_lu, &mut item_lu);
+        item(T::Struct, parse_struct_decl_item, &mut bp_lu, &mut item_lu);
+        item(
             T::Interface,
-            parse_interface_decl_stmt,
+            parse_interface_decl_item,
             &mut bp_lu,
-            &mut stmt_lu,
+            &mut item_lu,
         );
-        stmt(T::Impl, parse_impl_stmt, &mut bp_lu, &mut stmt_lu);
-        stmt(T::Fn, parse_fn_decl_stmt, &mut bp_lu, &mut stmt_lu);
-        stmt(T::Return, parse_return_stmt, &mut bp_lu, &mut stmt_lu);
-        stmt(T::Import, parse_import_stmt, &mut bp_lu, &mut stmt_lu);
+        item(T::Impl, parse_impl_item, &mut bp_lu, &mut item_lu);
+        item(T::Fn, parse_fn_decl_item, &mut bp_lu, &mut item_lu);
+        item(T::Import, parse_import_item, &mut bp_lu, &mut item_lu);
 
         let _ = BP_LU.set(bp_lu);
         let _ = NUD_LU.set(nud_lu);
         let _ = LED_LU.set(led_lu);
-        let _ = STMT_LU.set(stmt_lu);
+        let _ = ITEM_LU.set(item_lu);
     });
 }

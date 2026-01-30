@@ -118,7 +118,7 @@ fn compile_oxi_module<'ctx>(
 
     let mut mod_compilation_context = CompilationContext::new(module_path, module_id);
 
-    compiler::compile_stmts(
+    compiler::compile_items(
         context,
         module,
         builder,

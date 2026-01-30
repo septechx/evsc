@@ -4,8 +4,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Ast, Block, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
-        statements::*, types::*,
+        Ast, Block, Expr, ExprKind, Item, ItemKind, Literal, Stmt, StmtKind, Type, TypeKind,
+        expressions::*, statements::*, types::*,
     },
     hashmap::FxHashMap,
 };
@@ -18,6 +18,9 @@ pub enum VisitAction {
 }
 
 pub trait Visitor {
+    fn visit_item(&mut self, _item: &Item) -> VisitAction {
+        VisitAction::Continue
+    }
     fn visit_stmt(&mut self, _stmt: &Stmt) -> VisitAction {
         VisitAction::Continue
     }
@@ -81,62 +84,29 @@ impl<K: Eq + Hash, V: Visitable> Visitable for FxHashMap<K, V> {
 
 impl Visitable for Ast {
     fn visit(&self, visitor: &mut impl Visitor) {
-        for stmt in &self.items {
-            stmt.visit(visitor);
+        for item in &self.items {
+            item.visit(visitor);
         }
     }
 }
 
-impl Visitable for Block {
+impl Visitable for Item {
     fn visit(&self, visitor: &mut impl Visitor) {
-        self.stmts.visit(visitor);
-    }
-}
-
-impl Visitable for Stmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        match visitor.visit_stmt(self) {
+        match visitor.visit_item(self) {
             VisitAction::Continue => match &self.kind {
-                StmtKind::Expr(expr_stmt) => expr_stmt.visit(visitor),
-                StmtKind::Semi(semi_stmt) => semi_stmt.visit(visitor),
-                StmtKind::VarDecl(var) => var.visit(visitor),
-                StmtKind::StructDecl(s) => s.visit(visitor),
-                StmtKind::InterfaceDecl(i) => i.visit(visitor),
-                StmtKind::Impl(i) => i.visit(visitor),
-                StmtKind::FnDecl(f) => f.visit(visitor),
-                StmtKind::Return(r) => r.visit(visitor),
-                StmtKind::Import(i) => i.visit(visitor),
+                ItemKind::Static(s) => s.visit(visitor),
+                ItemKind::Struct(s) => s.visit(visitor),
+                ItemKind::Interface(i) => i.visit(visitor),
+                ItemKind::Impl(i) => i.visit(visitor),
+                ItemKind::Fn(f) => f.visit(visitor),
+                ItemKind::Import(i) => i.visit(visitor),
             },
             VisitAction::SkipChildren => {}
         }
     }
 }
 
-impl Visitable for ImportStmt {
-    fn visit(&self, _visitor: &mut impl Visitor) {
-        // Leaf
-    }
-}
-
-impl Visitable for BlockExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.block.visit(visitor);
-    }
-}
-
-impl Visitable for ExprStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.expr.visit(visitor);
-    }
-}
-
-impl Visitable for SemiStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.expr.visit(visitor);
-    }
-}
-
-impl Visitable for VarDeclStmt {
+impl Visitable for Static {
     fn visit(&self, visitor: &mut impl Visitor) {
         if let Some(val) = &self.assigned_value {
             val.visit(visitor);
@@ -157,7 +127,7 @@ impl Visitable for StructMethod {
     }
 }
 
-impl Visitable for StructDeclStmt {
+impl Visitable for Struct {
     fn visit(&self, visitor: &mut impl Visitor) {
         for p in &self.fields {
             p.visit(visitor);
@@ -174,7 +144,7 @@ impl Visitable for InterfaceMethod {
     }
 }
 
-impl Visitable for InterfaceDeclStmt {
+impl Visitable for Interface {
     fn visit(&self, visitor: &mut impl Visitor) {
         for m in &self.methods {
             m.visit(visitor);
@@ -182,7 +152,7 @@ impl Visitable for InterfaceDeclStmt {
     }
 }
 
-impl Visitable for ImplStmt {
+impl Visitable for Impl {
     fn visit(&self, visitor: &mut impl Visitor) {
         self.self_ty.visit(visitor);
         for item in &self.items {
@@ -197,7 +167,7 @@ impl Visitable for FnParameter {
     }
 }
 
-impl Visitable for FnDeclStmt {
+impl Visitable for Fn {
     fn visit(&self, visitor: &mut impl Visitor) {
         for arg in &self.parameters {
             arg.visit(visitor);
@@ -209,11 +179,64 @@ impl Visitable for FnDeclStmt {
     }
 }
 
+impl Visitable for Import {
+    fn visit(&self, _visitor: &mut impl Visitor) {
+        // Leaf
+    }
+}
+
+impl Visitable for Block {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.stmts.visit(visitor);
+    }
+}
+
+impl Visitable for Stmt {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        match visitor.visit_stmt(self) {
+            VisitAction::Continue => match &self.kind {
+                StmtKind::Expr(expr_stmt) => expr_stmt.visit(visitor),
+                StmtKind::Semi(semi_stmt) => semi_stmt.visit(visitor),
+                StmtKind::Let(let_stmt) => let_stmt.visit(visitor),
+                StmtKind::Return(r) => r.visit(visitor),
+            },
+            VisitAction::SkipChildren => {}
+        }
+    }
+}
+
+impl Visitable for ExprStmt {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.expr.visit(visitor);
+    }
+}
+
+impl Visitable for SemiStmt {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.expr.visit(visitor);
+    }
+}
+
+impl Visitable for LetStmt {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        if let Some(val) = &self.assigned_value {
+            val.visit(visitor);
+        }
+        self.ty.visit(visitor);
+    }
+}
+
 impl Visitable for ReturnStmt {
     fn visit(&self, visitor: &mut impl Visitor) {
         if let Some(v) = &self.value {
             v.visit(visitor);
         }
+    }
+}
+
+impl Visitable for BlockExpr {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.block.visit(visitor);
     }
 }
 

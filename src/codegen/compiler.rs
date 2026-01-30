@@ -12,8 +12,8 @@ use inkwell::{
 
 use crate::{
     ast::{
-        Stmt, StmtKind, Type,
-        statements::{ExprStmt, FnDeclStmt, ReturnStmt, StructDeclStmt, VarDeclStmt},
+        Item, ItemKind, Type,
+        statements::{ExprStmt, Fn, LetStmt, ReturnStmt, Static, Struct},
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -118,17 +118,17 @@ impl<'ctx> CompilationContext<'ctx> {
     }
 }
 
-pub fn compile_stmts<'a, 'ctx>(
+pub fn compile_items<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    stmts: &[Stmt],
+    items: &[Item],
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     // 1st pass: Declare functions and structs
-    for stmt in stmts {
-        match &stmt.kind {
-            StmtKind::FnDecl(fn_decl) => {
+    for item in items {
+        match &item.kind {
+            ItemKind::Fn(fn_decl) => {
                 let param_types: Vec<Type> = fn_decl
                     .parameters
                     .iter()
@@ -146,17 +146,17 @@ pub fn compile_stmts<'a, 'ctx>(
                     .function_table
                     .insert(fn_decl.name.value.clone(), function.into());
             }
-            StmtKind::StructDecl(struct_decl) => {
+            ItemKind::Struct(struct_decl) => {
                 compile_struct_decl(context, module, struct_decl, compilation_context)?;
             }
             _ => (),
         }
     }
 
-    // 2nd pass: Compile block
-    for stmt in stmts {
-        match &stmt.kind {
-            StmtKind::FnDecl(fn_decl) => {
+    // 2nd pass: Compile function bodies and static variables
+    for item in items {
+        match &item.kind {
+            ItemKind::Fn(fn_decl) => {
                 if let Some(function) = compilation_context
                     .function_table
                     .get(fn_decl.name.value.as_ref())
@@ -170,9 +170,30 @@ pub fn compile_stmts<'a, 'ctx>(
                     )?;
                 }
             }
-            StmtKind::Return(ret_stmt) => {
-                compile_return(context, module, builder, ret_stmt, compilation_context)?;
+            ItemKind::Static(static_item) => {
+                compile_static_item(context, module, builder, static_item, compilation_context)?;
             }
+            ItemKind::Struct(_) => (), // Structs are compiled during the first pass
+            ItemKind::Interface(_) => (), // Handled elsewhere
+            ItemKind::Impl(_) => (),   // Handled elsewhere
+            ItemKind::Import(_) => (), // Handled elsewhere
+        }
+    }
+
+    Ok(())
+}
+
+pub fn compile_body_stmts<'a, 'ctx>(
+    context: &'ctx Context,
+    module: &'a Module<'ctx>,
+    builder: &'a Builder<'ctx>,
+    stmts: &[crate::ast::Stmt],
+    compilation_context: &mut CompilationContext<'ctx>,
+) -> Result<()> {
+    use crate::ast::StmtKind;
+
+    for stmt in stmts {
+        match &stmt.kind {
             StmtKind::Expr(expr_stmt) => {
                 compile_expression(context, module, builder, expr_stmt, compilation_context)?;
             }
@@ -185,13 +206,12 @@ pub fn compile_stmts<'a, 'ctx>(
                     compilation_context,
                 )?;
             }
-            StmtKind::VarDecl(var_decl) => {
-                compile_var_decl(context, module, builder, var_decl, compilation_context)?;
+            StmtKind::Let(let_stmt) => {
+                compile_let_stmt(context, module, builder, let_stmt, compilation_context)?;
             }
-            StmtKind::StructDecl(_) => (), // Structs are compiled during the first pass
-            StmtKind::InterfaceDecl(_) => todo!(),
-            StmtKind::Impl(_) => todo!(),
-            StmtKind::Import(_) => todo!(),
+            StmtKind::Return(ret_stmt) => {
+                compile_return(context, module, builder, ret_stmt, compilation_context)?;
+            }
         }
     }
 
@@ -202,7 +222,7 @@ fn compile_function<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     function: FunctionValue<'ctx>,
-    fn_decl: &FnDeclStmt,
+    fn_decl: &Fn,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     compilation_context.symbol_table.insert(
@@ -249,7 +269,7 @@ fn compile_function<'ctx>(
     inner_compilation_context.symbol_table.extend(symbol_table);
 
     if let Some(body) = &fn_decl.body {
-        compile_stmts(
+        compile_body_stmts(
             context,
             module,
             &builder,
@@ -331,14 +351,14 @@ fn compile_expression<'a, 'ctx>(
     Ok(())
 }
 
-fn compile_var_decl<'a, 'ctx>(
+fn compile_let_stmt<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    var_decl: &VarDeclStmt,
+    let_stmt: &LetStmt,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let value = if let Some(expr) = &var_decl.assigned_value {
+    let value = if let Some(expr) = &let_stmt.assigned_value {
         compile_expression_to_value(context, module, builder, expr, compilation_context)?
     } else {
         bail!("Variable must have an initial value");
@@ -346,33 +366,47 @@ fn compile_var_decl<'a, 'ctx>(
 
     let value = value.unwrap(builder)?;
 
-    if var_decl.is_static {
-        let gv = add_global_constant(
-            module,
-            value.get_type(),
-            &var_decl.variable_name.value,
-            value,
-        )?;
-        gv.set_linkage(Linkage::Private);
-
-        compilation_context.symbol_table.insert(
-            var_decl.variable_name.value.clone(),
-            SymbolTableEntry::from_pointer(
-                context,
-                gv.as_pointer_value().as_basic_value_enum(),
-                value.get_type(),
-            ),
-        );
-
-        return Ok(());
-    }
-
-    let alloca = builder.build_alloca(value.get_type(), &var_decl.variable_name.value)?;
+    let alloca = builder.build_alloca(value.get_type(), &let_stmt.variable_name.value)?;
     builder.build_store(alloca, value)?;
 
     compilation_context.symbol_table.insert(
-        var_decl.variable_name.value.clone(),
+        let_stmt.variable_name.value.clone(),
         SymbolTableEntry::from_pointer(context, alloca.as_basic_value_enum(), value.get_type()),
+    );
+
+    Ok(())
+}
+
+fn compile_static_item<'a, 'ctx>(
+    context: &'ctx Context,
+    module: &'a Module<'ctx>,
+    _builder: &'a Builder<'ctx>,
+    static_item: &Static,
+    compilation_context: &mut CompilationContext<'ctx>,
+) -> Result<()> {
+    let value = if let Some(expr) = &static_item.assigned_value {
+        compile_expression_to_value(context, module, _builder, expr, compilation_context)?
+    } else {
+        bail!("Static variable must have an initial value");
+    };
+
+    let value = value.unwrap(_builder)?;
+
+    let gv = add_global_constant(
+        module,
+        value.get_type(),
+        &static_item.variable_name.value,
+        value,
+    )?;
+    gv.set_linkage(Linkage::Private);
+
+    compilation_context.symbol_table.insert(
+        static_item.variable_name.value.clone(),
+        SymbolTableEntry::from_pointer(
+            context,
+            gv.as_pointer_value().as_basic_value_enum(),
+            value.get_type(),
+        ),
     );
 
     Ok(())
@@ -381,7 +415,7 @@ fn compile_var_decl<'a, 'ctx>(
 fn compile_struct_decl<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
-    struct_decl: &StructDeclStmt,
+    struct_decl: &Struct,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let mut field_types = Vec::new();

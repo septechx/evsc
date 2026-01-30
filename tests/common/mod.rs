@@ -27,6 +27,9 @@ pub struct Test {
 
 impl Test {
     pub fn new() -> Self {
+        // Clear errors from previous tests to prevent state leakage
+        ERRORS.with(|e| e.borrow_mut().clear());
+
         Self {
             files: vec![],
             should_compile: None,

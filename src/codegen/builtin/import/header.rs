@@ -5,8 +5,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Ast, Ident, Stmt, StmtKind, Type, TypeKind, Visibility,
-        statements::{FnDeclStmt, FnParameter},
+        Ast, Ident, Item, ItemKind, Type, TypeKind, Visibility,
+        statements::{Fn, FnParameter},
         types::SymbolType,
     },
     codegen::{
@@ -35,7 +35,7 @@ pub fn compile_header<'ctx>(
     let index = Index::new(&clang, false, false);
     let tu = index.parser(module_path.clone()).parse()?;
 
-    let mut ast: ThinVec<Stmt> = ThinVec::new();
+    let mut items: ThinVec<Item> = ThinVec::new();
 
     for e in tu.get_entity().get_children().iter() {
         if e.get_kind() == EntityKind::FunctionDecl {
@@ -59,8 +59,8 @@ pub fn compile_header<'ctx>(
             let location = e.get_location().expect("function has no location");
             let (span, _module_id) = convert_clang_location(location);
 
-            let stmt = Stmt {
-                kind: StmtKind::FnDecl(FnDeclStmt {
+            let item = Item {
+                kind: ItemKind::Fn(Fn {
                     name: Ident { value: name, span },
                     parameters: arguments,
                     body: None,
@@ -72,13 +72,13 @@ pub fn compile_header<'ctx>(
                 attributes: ThinVec::new(),
             };
 
-            ast.push(stmt);
+            items.push(item);
         }
     }
 
     let ast = Ast {
         name: module_name.clone().into_boxed_str(),
-        items: ast,
+        items,
     };
 
     let module_id = crate::SOURCE_MAPS.with(|sm| {
@@ -87,7 +87,7 @@ pub fn compile_header<'ctx>(
     });
 
     let mut mod_compilation_context = CompilationContext::new(module_path, module_id);
-    compiler::compile_stmts(
+    compiler::compile_items(
         context,
         module,
         builder,

@@ -17,48 +17,52 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Ast {
     pub name: Box<str>,
-    pub items: ThinVec<Stmt>,
+    pub items: ThinVec<Item>,
 }
 
 impl Ast {
     pub fn display(&self, color: bool) -> Result<String, std::fmt::Error> {
         let ctx = DisplayContext::new(color);
         let mut output = String::new();
-        for (i, stmt) in self.items.iter().enumerate() {
+        for (i, item) in self.items.iter().enumerate() {
             if i > 0 {
                 output.push('\n');
             }
-            display::write_stmt(&mut output, stmt, &ctx)?;
+            display::write_item(&mut output, item, &ctx)?;
         }
         Ok(output)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Attribute {
-    pub name: Ident,
-    pub parameters: Option<ThinVec<Box<str>>>,
+#[derive(Debug, Clone)]
+pub struct Item {
+    pub kind: ItemKind,
     pub span: Span,
+    pub attributes: ThinVec<Attribute>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ItemKind {
+    Static(Static),
+    Struct(Struct),
+    Interface(Interface),
+    Impl(Impl),
+    Fn(Fn),
+    Import(Import),
 }
 
 #[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
-    pub attributes: ThinVec<Attribute>,
 }
 
 #[derive(Debug, Clone)]
 pub enum StmtKind {
     Expr(ExprStmt),
     Semi(SemiStmt),
-    VarDecl(VarDeclStmt),
-    StructDecl(StructDeclStmt),
-    InterfaceDecl(InterfaceDeclStmt),
-    Impl(ImplStmt),
-    FnDecl(FnDeclStmt),
+    Let(LetStmt),
     Return(ReturnStmt),
-    Import(ImportStmt),
 }
 
 #[derive(Debug, Clone)]
@@ -157,6 +161,13 @@ pub struct Block {
 pub struct Path {
     pub span: Span,
     pub segments: ThinVec<Ident>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attribute {
+    pub name: Ident,
+    pub parameters: Option<ThinVec<Box<str>>>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]

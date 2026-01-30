@@ -1,5 +1,5 @@
 use crate::{
-    ast::{ImportTreeKind, Visibility, statements::ImportStmt},
+    ast::{ImportTreeKind, Visibility, statements::Import},
     hir::{ExportEntry, lower::LoweringContext},
 };
 
@@ -15,11 +15,11 @@ pub enum ResolutionStatus {
 
 pub struct PendingImport<'a> {
     pub module_idx: usize,
-    pub import_stmt: &'a ImportStmt,
+    pub import_item: &'a Import,
 }
 
 impl LoweringContext {
-    pub fn try_resolve_import(&mut self, mid: usize, im: &ImportStmt) -> ResolutionStatus {
+    pub fn try_resolve_import(&mut self, mid: usize, im: &Import) -> ResolutionStatus {
         match &im.tree.kind {
             ImportTreeKind::Simple(rename_opt) => {
                 let segments = &im.tree.prefix.segments;

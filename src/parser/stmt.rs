@@ -3,8 +3,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Attribute, Block, Expr, ImportTree, ImportTreeKind, Mutability, Stmt, StmtKind, Type,
-        TypeKind, Visibility, statements::*,
+        Attribute, Block, Expr, ImportTree, ImportTreeKind, Item, ItemKind, Mutability, Stmt,
+        StmtKind, Type, TypeKind, Visibility, statements::*,
     },
     error_at, get_modifiers,
     lexer::token::TokenKind,
@@ -13,7 +13,7 @@ use crate::{
         Parser,
         attributes::parse_attributes,
         expr::parse_expr,
-        lookups::{BindingPower, STMT_LU},
+        lookups::{BindingPower, ITEM_LU},
         modifiers::{Modifier, ModifierKind, parse_modifiers},
         types::parse_type,
         utils::{parse_body, parse_path, parse_rename, unexpected_token},
@@ -22,132 +22,70 @@ use crate::{
     warning_at,
 };
 
-pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
+pub fn parse_item(parser: &mut Parser) -> Result<Item> {
     let attributes = parse_attributes(parser)?;
     let modifiers = parse_modifiers(parser);
-    let stmt_lu = STMT_LU.get().expect("Lookups not initialized");
+    let item_lu = ITEM_LU.get().expect("Lookups not initialized");
 
-    let stmt_fn = stmt_lu.get(&parser.current_token().kind).cloned();
+    let item_fn = item_lu.get(&parser.current_token().kind).cloned();
 
-    if let Some(stmt_fn) = stmt_fn {
-        stmt_fn(parser, attributes, modifiers)
+    if let Some(item_fn) = item_fn {
+        item_fn(parser, attributes, modifiers)
     } else {
-        no_attributes!(&parser, &attributes);
-        no_modifiers!(&parser, &modifiers);
-
-        let expr = parse_expr(parser, BindingPower::DefaultBp)?;
-
-        let mut has_semicolon = false;
-        if parser.current_token().kind == TokenKind::Semicolon {
-            has_semicolon = true;
-            parser.advance();
-        }
-
-        let span = expr.span;
-        let kind = if has_semicolon {
-            StmtKind::Semi(SemiStmt { expr })
-        } else {
-            StmtKind::Expr(ExprStmt { expr })
-        };
-
-        Ok(Stmt {
-            kind,
-            attributes,
-            span,
-        })
-    }
-}
-
-pub fn parse_var_decl_statement(
-    parser: &mut Parser,
-    attributes: ThinVec<Attribute>,
-    modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
-    no_attributes!(&parser, &attributes);
-
-    let var_token = parser.advance();
-    let mut type_ = Type {
-        kind: TypeKind::Infer,
-        span: Span::new(var_token.span.end(), var_token.span.end()),
-    };
-    let mut assigned_value: Option<Expr> = None;
-
-    let is_static = var_token.kind == TokenKind::Static;
-
-    let is_constant = parser.current_token().kind != TokenKind::Mut;
-
-    if is_static && !is_constant {
         error_at!(
             parser.current_token().span,
             parser.current_token().module_id,
-            "Static variables must be constant"
+            format!(
+                "Expected top-level item (static, struct, interface, impl, fn, import), but found {} instead.",
+                parser.current_token().kind
+            )
         )?;
+        unreachable!()
     }
+}
 
-    if !is_constant {
-        parser.advance();
-    }
+pub fn parse_static_item(
+    parser: &mut Parser,
+    attributes: ThinVec<Attribute>,
+    modifiers: ThinVec<Modifier>,
+) -> Result<Item> {
+    no_attributes!(&parser, &attributes);
+
+    let static_token = parser.advance();
 
     let variable_name = parser.expect_identifier()?;
 
-    if parser.current_token().kind == TokenKind::Colon {
-        parser.advance();
-        type_ = parse_type(parser, BindingPower::DefaultBp)?;
-    }
+    parser.expect(TokenKind::Colon)?;
+    let type_ = parse_type(parser, BindingPower::DefaultBp)?;
 
-    if parser.current_token().kind != TokenKind::Semicolon {
-        parser.expect(TokenKind::Equals)?;
-        assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
-    }
+    parser.expect(TokenKind::Equals)?;
+    let assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
 
     let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
     let mut is_public = false;
 
     let end_span = parser.expect(TokenKind::Semicolon)?.span;
-    let mut start_span = var_token.span;
+    let mut start_span = static_token.span;
 
     if let Some(pub_mod) = pub_mod {
-        if !is_static {
-            error_at!(
-                pub_mod.span,
-                parser.current_token().module_id,
-                "Modifier 'pub' is only allowed on static variables"
-            )?;
-        }
-
         start_span = pub_mod.span;
         is_public = true;
     };
 
     let span = Span::new(start_span.start(), end_span.end());
 
-    if assigned_value.is_none() && is_constant {
-        warning_at!(
-            span,
-            parser.current_token().module_id,
-            "Declared constant without providing a value"
-        )?;
-    }
-
-    let mutability = if is_constant {
-        Mutability::Constant
-    } else {
-        Mutability::Mutable
-    };
     let visibility = if is_public {
         Visibility::Public
     } else {
         Visibility::Private
     };
 
-    Ok(Stmt {
-        kind: StmtKind::VarDecl(VarDeclStmt {
+    Ok(Item {
+        kind: ItemKind::Static(Static {
             ty: type_,
-            is_static,
             variable_name,
             assigned_value,
-            mutability,
             visibility,
         }),
         attributes,
@@ -155,11 +93,11 @@ pub fn parse_var_decl_statement(
     })
 }
 
-pub fn parse_struct_decl_stmt(
+pub fn parse_struct_decl_item(
     parser: &mut Parser,
     attributes: ThinVec<Attribute>,
     modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
+) -> Result<Item> {
     let struct_token = parser.expect(TokenKind::Struct)?;
     let mut fields: ThinVec<StructField> = ThinVec::new();
     let mut methods: ThinVec<StructMethod> = ThinVec::new();
@@ -189,11 +127,11 @@ pub fn parse_struct_decl_stmt(
         };
 
         if parser.current_token().kind == TokenKind::Fn {
-            if let StmtKind::FnDecl(fn_decl) =
-                parse_fn_decl_stmt(parser, ThinVec::new(), ThinVec::new())?.kind
+            if let ItemKind::Fn(fn_decl) =
+                parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
             {
                 methods.push(StructMethod {
-                    fn_decl: FnDeclStmt {
+                    fn_decl: Fn {
                         is_extern: false,
                         visibility,
                         ..fn_decl
@@ -281,8 +219,8 @@ pub fn parse_struct_decl_stmt(
         Visibility::Private
     };
 
-    Ok(Stmt {
-        kind: StmtKind::StructDecl(StructDeclStmt {
+    Ok(Item {
+        kind: ItemKind::Struct(Struct {
             fields,
             methods,
             name,
@@ -293,11 +231,11 @@ pub fn parse_struct_decl_stmt(
     })
 }
 
-pub fn parse_interface_decl_stmt(
+pub fn parse_interface_decl_item(
     parser: &mut Parser,
     attributes: ThinVec<Attribute>,
     modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
+) -> Result<Item> {
     let interface_token = parser.expect(TokenKind::Interface)?;
     let name = parser.expect_identifier()?;
 
@@ -309,8 +247,8 @@ pub fn parse_interface_decl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn
-            && let StmtKind::FnDecl(fn_decl) =
-                parse_fn_decl_stmt(parser, ThinVec::new(), ThinVec::new())?.kind
+            && let ItemKind::Fn(fn_decl) =
+                parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
         {
             methods.push(InterfaceMethod { fn_decl });
         } else if parser.current_token().kind == TokenKind::Comma {
@@ -340,8 +278,8 @@ pub fn parse_interface_decl_stmt(
         Visibility::Private
     };
 
-    Ok(Stmt {
-        kind: StmtKind::InterfaceDecl(InterfaceDeclStmt {
+    Ok(Item {
+        kind: ItemKind::Interface(Interface {
             methods,
             name,
             visibility,
@@ -351,11 +289,11 @@ pub fn parse_interface_decl_stmt(
     })
 }
 
-pub fn parse_fn_decl_stmt(
+pub fn parse_fn_decl_item(
     parser: &mut Parser,
     attributes: ThinVec<Attribute>,
     modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
+) -> Result<Item> {
     let (pub_mod, extern_mod) = get_modifiers!(&parser, modifiers, [Pub, Extern]);
 
     let mut start_span = parser.expect(TokenKind::Fn)?.span;
@@ -395,7 +333,6 @@ pub fn parse_fn_decl_stmt(
     let return_type = parse_type(parser, BindingPower::DefaultBp)?;
     let mut end_span = return_type.span;
 
-    // TODO: Don't try to parse function body as block expr
     let mut body: Option<Block> = None;
     if parser.current_token().kind == TokenKind::OpenCurly {
         parser.advance();
@@ -409,7 +346,6 @@ pub fn parse_fn_decl_stmt(
             }
             TokenKind::Comma => {
                 end_span = parser.peek().span;
-                // Token is consumed by the caller (interface)
             }
             _ => {
                 error_at!(
@@ -429,8 +365,8 @@ pub fn parse_fn_decl_stmt(
         Visibility::Private
     };
 
-    Ok(Stmt {
-        kind: StmtKind::FnDecl(FnDeclStmt {
+    Ok(Item {
+        kind: ItemKind::Fn(Fn {
             parameters,
             body,
             name,
@@ -443,38 +379,11 @@ pub fn parse_fn_decl_stmt(
     })
 }
 
-pub fn parse_return_stmt(
+pub fn parse_impl_item(
     parser: &mut Parser,
     attributes: ThinVec<Attribute>,
     modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
-    no_attributes!(&parser, &attributes);
-    no_modifiers!(&parser, &modifiers);
-
-    let return_token = parser.advance();
-
-    let value = if parser.current_token().kind != TokenKind::Semicolon {
-        Some(parse_expr(parser, BindingPower::DefaultBp)?)
-    } else {
-        None
-    };
-
-    let end_span = parser.expect(TokenKind::Semicolon)?.span;
-
-    let span = Span::new(return_token.span.start(), end_span.end());
-
-    Ok(Stmt {
-        kind: StmtKind::Return(ReturnStmt { value }),
-        attributes,
-        span,
-    })
-}
-
-pub fn parse_impl_stmt(
-    parser: &mut Parser,
-    attributes: ThinVec<Attribute>,
-    modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
+) -> Result<Item> {
     no_attributes!(&parser, &attributes);
     no_modifiers!(&parser, &modifiers);
 
@@ -491,8 +400,8 @@ pub fn parse_impl_stmt(
         }
 
         if parser.current_token().kind == TokenKind::Fn
-            && let StmtKind::FnDecl(fn_decl) =
-                parse_fn_decl_stmt(parser, ThinVec::new(), ThinVec::new())?.kind
+            && let ItemKind::Fn(fn_decl) =
+                parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
         {
             methods.push(InterfaceMethod { fn_decl });
         } else {
@@ -501,8 +410,8 @@ pub fn parse_impl_stmt(
     }
     let end_span = parser.expect(TokenKind::CloseCurly)?.span;
 
-    Ok(Stmt {
-        kind: StmtKind::Impl(ImplStmt {
+    Ok(Item {
+        kind: ItemKind::Impl(Impl {
             items: methods,
             self_ty,
             interface,
@@ -512,11 +421,11 @@ pub fn parse_impl_stmt(
     })
 }
 
-pub fn parse_import_stmt(
+pub fn parse_import_item(
     parser: &mut Parser,
     attributes: ThinVec<Attribute>,
     modifiers: ThinVec<Modifier>,
-) -> Result<Stmt> {
+) -> Result<Item> {
     let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
     let start_span = parser.expect(TokenKind::Import)?.span;
@@ -531,8 +440,8 @@ pub fn parse_import_stmt(
         Visibility::Private
     };
 
-    Ok(Stmt {
-        kind: StmtKind::Import(ImportStmt { tree, visibility }),
+    Ok(Item {
+        kind: ItemKind::Import(Import { tree, visibility }),
         attributes,
         span,
     })
@@ -585,4 +494,106 @@ fn parse_import_tree_list(parser: &mut Parser) -> Result<ThinVec<ImportTree>> {
     parser.expect(TokenKind::CloseCurly)?;
 
     Ok(items)
+}
+
+pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
+    let current_kind = parser.current_token().kind;
+
+    match current_kind {
+        TokenKind::Return => parse_return_stmt(parser),
+        TokenKind::Let => parse_let_stmt(parser),
+        _ => parse_expr_stmt(parser),
+    }
+}
+
+fn parse_return_stmt(parser: &mut Parser) -> Result<Stmt> {
+    let return_token = parser.advance();
+
+    let value = if parser.current_token().kind != TokenKind::Semicolon {
+        Some(parse_expr(parser, BindingPower::DefaultBp)?)
+    } else {
+        None
+    };
+
+    let end_span = parser.expect(TokenKind::Semicolon)?.span;
+
+    let span = Span::new(return_token.span.start(), end_span.end());
+
+    Ok(Stmt {
+        kind: StmtKind::Return(ReturnStmt { value }),
+        span,
+    })
+}
+
+fn parse_let_stmt(parser: &mut Parser) -> Result<Stmt> {
+    let let_token = parser.advance();
+    let mut type_ = Type {
+        kind: TypeKind::Infer,
+        span: Span::new(let_token.span.end(), let_token.span.end()),
+    };
+    let mut assigned_value: Option<Expr> = None;
+
+    let is_constant = parser.current_token().kind != TokenKind::Mut;
+
+    if !is_constant {
+        parser.advance();
+    }
+
+    let variable_name = parser.expect_identifier()?;
+
+    if parser.current_token().kind == TokenKind::Colon {
+        parser.advance();
+        type_ = parse_type(parser, BindingPower::DefaultBp)?;
+    }
+
+    if parser.current_token().kind != TokenKind::Semicolon {
+        parser.expect(TokenKind::Equals)?;
+        assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
+    }
+
+    let end_span = parser.expect(TokenKind::Semicolon)?.span;
+    let span = Span::new(let_token.span.start(), end_span.end());
+
+    if assigned_value.is_none() && is_constant {
+        warning_at!(
+            span,
+            parser.current_token().module_id,
+            "Declared constant without providing a value"
+        )?;
+    }
+
+    let mutability = if is_constant {
+        Mutability::Constant
+    } else {
+        Mutability::Mutable
+    };
+
+    Ok(Stmt {
+        kind: StmtKind::Let(LetStmt {
+            ty: type_,
+            variable_name,
+            assigned_value,
+            mutability,
+        }),
+        span,
+    })
+}
+
+fn parse_expr_stmt(parser: &mut Parser) -> Result<Stmt> {
+    let expr = parse_expr(parser, BindingPower::DefaultBp)?;
+
+    let mut has_semicolon = false;
+    if parser.current_token().kind == TokenKind::Semicolon {
+        has_semicolon = true;
+        parser.advance();
+    }
+
+    let span = expr.span;
+    let kind = if has_semicolon {
+        StmtKind::Semi(SemiStmt { expr })
+    } else {
+        StmtKind::Expr(ExprStmt { expr })
+    };
+
+    Ok(Stmt { kind, span })
 }

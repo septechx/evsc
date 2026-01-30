@@ -14,7 +14,7 @@ use crate::{
         arch::compile_arch_size_type,
         builtin::{Builtin, get_builtin},
         compile_type::{cast_int_to_type, compile_type},
-        compiler::{CompilationContext, compile_stmts},
+        compiler::{CompilationContext, compile_body_stmts},
         pointer::SmartValue,
     },
     hashmap::FxHashMap,
@@ -446,7 +446,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         // TODO: Return the value of the last expression in the block
         ExprKind::Block(block) => {
             let mut inner_compilation_context = compilation_context.clone();
-            compile_stmts(
+            compile_body_stmts(
                 context,
                 module,
                 builder,

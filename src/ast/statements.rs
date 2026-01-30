@@ -2,25 +2,34 @@ use thin_vec::ThinVec;
 
 use crate::ast::{Block, Expr, Ident, ImportTree, Mutability, Type, Visibility};
 
-/// Expression without a trailing semicolon
 #[derive(Debug, Clone)]
 pub struct ExprStmt {
     pub expr: Expr,
 }
 
-/// Expression with a trailing semicolon
 #[derive(Debug, Clone)]
 pub struct SemiStmt {
     pub expr: Expr,
 }
 
 #[derive(Debug, Clone)]
-pub struct VarDeclStmt {
+pub struct LetStmt {
     pub variable_name: Ident,
     pub assigned_value: Option<Expr>,
     pub ty: Type,
-    pub is_static: bool,
     pub mutability: Mutability,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReturnStmt {
+    pub value: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Static {
+    pub variable_name: Ident,
+    pub assigned_value: Option<Expr>,
+    pub ty: Type,
     pub visibility: Visibility,
 }
 
@@ -34,12 +43,12 @@ pub struct StructField {
 #[derive(Debug, Clone)]
 pub struct StructMethod {
     pub is_static: bool,
-    pub fn_decl: FnDeclStmt,
+    pub fn_decl: Fn,
     pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone)]
-pub struct StructDeclStmt {
+pub struct Struct {
     pub name: Ident,
     pub fields: ThinVec<StructField>,
     pub methods: ThinVec<StructMethod>,
@@ -47,7 +56,7 @@ pub struct StructDeclStmt {
 }
 
 #[derive(Debug, Clone)]
-pub struct ImplStmt {
+pub struct Impl {
     pub self_ty: Type,
     pub interface: Ident,
     pub items: ThinVec<InterfaceMethod>,
@@ -55,11 +64,11 @@ pub struct ImplStmt {
 
 #[derive(Debug, Clone)]
 pub struct InterfaceMethod {
-    pub fn_decl: FnDeclStmt,
+    pub fn_decl: Fn,
 }
 
 #[derive(Debug, Clone)]
-pub struct InterfaceDeclStmt {
+pub struct Interface {
     pub name: Ident,
     pub methods: ThinVec<InterfaceMethod>,
     pub visibility: Visibility,
@@ -72,7 +81,7 @@ pub struct FnParameter {
 }
 
 #[derive(Debug, Clone)]
-pub struct FnDeclStmt {
+pub struct Fn {
     pub name: Ident,
     pub parameters: ThinVec<FnParameter>,
     pub body: Option<Block>,
@@ -82,12 +91,7 @@ pub struct FnDeclStmt {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReturnStmt {
-    pub value: Option<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ImportStmt {
+pub struct Import {
     pub tree: ImportTree,
     pub visibility: Visibility,
 }

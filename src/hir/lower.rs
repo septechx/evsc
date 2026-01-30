@@ -2,8 +2,8 @@ use thin_vec::{ThinVec, thin_vec};
 
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Stmt, StmtKind, Type, TypeKind, Visibility,
-        statements::{FnDeclStmt, ImplStmt, InterfaceDeclStmt, StructDeclStmt, VarDeclStmt},
+        Ast, Expr, ExprKind, ItemKind, Stmt, StmtKind, Type, TypeKind, Visibility,
+        statements::{Fn, Impl, Interface as ASTInterface, Static, Struct as ASTStruct},
     },
     hashmap::FxHashMap,
     hir::{
@@ -63,9 +63,9 @@ impl LoweringContext {
         // PASS 1: Collect top-level definitions
         for (mid, ast) in asts.iter().enumerate() {
             let modid = ModuleId(mid as u32);
-            for stmt in ast.items.iter() {
-                match &stmt.kind {
-                    StmtKind::FnDecl(f) => {
+            for item in ast.items.iter() {
+                match &item.kind {
+                    ItemKind::Fn(f) => {
                         let sym = self.krate.interner.intern(&f.name.value);
                         let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
@@ -77,7 +77,7 @@ impl LoweringContext {
                         );
                         self.krate.modules[mid].items.push(defid);
                     }
-                    StmtKind::StructDecl(s) => {
+                    ItemKind::Struct(s) => {
                         let sym = self.krate.interner.intern(&s.name.value);
                         let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
@@ -115,7 +115,7 @@ impl LoweringContext {
                             .struct_fields
                             .insert(defid, field_map);
                     }
-                    StmtKind::InterfaceDecl(i) => {
+                    ItemKind::Interface(i) => {
                         let sym = self.krate.interner.intern(&i.name.value);
                         let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
@@ -127,21 +127,20 @@ impl LoweringContext {
                         );
                         self.krate.modules[mid].items.push(defid);
                     }
-                    StmtKind::Impl(_) => {} // Processed in lowering pass 3
-                    StmtKind::VarDecl(v) => {
-                        let sym = self.krate.interner.intern(&v.variable_name.value);
+                    ItemKind::Impl(_) => {} // Processed in lowering pass 3
+                    ItemKind::Static(s) => {
+                        let sym = self.krate.interner.intern(&s.variable_name.value);
                         let defid = self.alloc_def_placeholder(modid);
                         self.krate.modules[mid].exports.insert(
                             sym,
                             ExportEntry {
                                 def: defid,
-                                visibility: v.visibility,
+                                visibility: s.visibility,
                             },
                         );
                         self.krate.modules[mid].items.push(defid);
                     }
-                    StmtKind::Import(_) => {} // Processed in lowering pass 2
-                    _ => todo!("Lowering of {:?} not implemented (PASS 1)", stmt.kind),
+                    ItemKind::Import(_) => {} // Processed in lowering pass 2
                 }
             }
         }
@@ -151,11 +150,11 @@ impl LoweringContext {
         // PASS 2: Resolve imports (iteratively until fixpoint)
         let mut pending: ThinVec<PendingImport> = ThinVec::new();
         for (mid, ast) in asts.iter().enumerate() {
-            for stmt in ast.items.iter() {
-                if let StmtKind::Import(im) = &stmt.kind {
+            for item in ast.items.iter() {
+                if let ItemKind::Import(im) = &item.kind {
                     pending.push(PendingImport {
                         module_idx: mid,
-                        import_stmt: im,
+                        import_item: im,
                     });
                 }
             }
@@ -171,7 +170,7 @@ impl LoweringContext {
             while i < pending.len() {
                 let pi = &pending[i];
                 // try resolve; if resolved we remove from pending and set progress = true
-                match self.try_resolve_import(pi.module_idx, pi.import_stmt) {
+                match self.try_resolve_import(pi.module_idx, pi.import_item) {
                     ResolutionStatus::Resolved => {
                         pending.swap_remove(i);
                         progress = true;
@@ -195,7 +194,7 @@ impl LoweringContext {
         if !pending.is_empty() {
             for pi in pending {
                 let segments: ThinVec<String> = pi
-                    .import_stmt
+                    .import_item
                     .tree
                     .prefix
                     .segments
@@ -215,15 +214,14 @@ impl LoweringContext {
         // PASS 3: Lower definition bodies
         for (mid, ast) in asts.iter().enumerate() {
             self.current_module = Some(ModuleId(mid as u32));
-            for stmt in ast.items.iter().cloned() {
-                match stmt.kind {
-                    StmtKind::FnDecl(f) => self.lower_fn_decl(f),
-                    StmtKind::StructDecl(s) => self.lower_struct_decl(s),
-                    StmtKind::InterfaceDecl(i) => self.lower_interface_decl(i),
-                    StmtKind::Impl(im) => self.lower_impl_stmt(im),
-                    StmtKind::VarDecl(v) => self.lower_top_var_decl(v),
-                    StmtKind::Import(_) => {} // Processed in lowering pass 2
-                    _ => todo!("Lowering of {:?} not implemented (PASS 3)", stmt.kind),
+            for item in ast.items.iter().cloned() {
+                match item.kind {
+                    ItemKind::Fn(f) => self.lower_fn_decl(f),
+                    ItemKind::Struct(s) => self.lower_struct_decl(s),
+                    ItemKind::Interface(i) => self.lower_interface_decl(i),
+                    ItemKind::Impl(im) => self.lower_impl_stmt(im),
+                    ItemKind::Static(s) => self.lower_static_item(s),
+                    ItemKind::Import(_) => {} // Processed in lowering pass 2
                 }
             }
         }
@@ -270,13 +268,7 @@ impl LoweringContext {
         id
     }
 
-    fn lower_fn_impl(
-        &mut self,
-        f: FnDeclStmt,
-        defid: DefId,
-        associated: Option<DefId>,
-        is_static: bool,
-    ) {
+    fn lower_fn_impl(&mut self, f: Fn, defid: DefId, associated: Option<DefId>, is_static: bool) {
         let sym = self.krate.interner.intern(&f.name.value);
         let modid = self.current_module.expect("current module set");
 
@@ -332,13 +324,13 @@ impl LoweringContext {
         }
     }
 
-    fn lower_fn_decl(&mut self, f: FnDeclStmt) {
+    fn lower_fn_decl(&mut self, f: Fn) {
         let sym = self.krate.interner.intern(&f.name.value);
         let defid = self.lookup_in_current_module(sym).expect("def must exist");
         self.lower_fn_impl(f, defid, None, false);
     }
 
-    fn lower_struct_decl(&mut self, s: StructDeclStmt) {
+    fn lower_struct_decl(&mut self, s: ASTStruct) {
         let sym = self.krate.interner.intern(&s.name.value);
         let modid = self.current_module.expect("current module set");
         let defid = self.lookup_in_current_module(sym).expect("def must exist");
@@ -390,7 +382,7 @@ impl LoweringContext {
         self.current_struct = prev_struct;
     }
 
-    fn lower_interface_decl(&mut self, i: InterfaceDeclStmt) {
+    fn lower_interface_decl(&mut self, i: ASTInterface) {
         let sym = self.krate.interner.intern(&i.name.value);
         let modid = self.current_module.expect("current module set");
         let defid = self
@@ -425,7 +417,7 @@ impl LoweringContext {
         self.krate.defs[defid.0 as usize] = Def::Interface(iface);
     }
 
-    fn lower_impl_stmt(&mut self, im: ImplStmt) {
+    fn lower_impl_stmt(&mut self, im: Impl) {
         let interface_sym = self.krate.interner.intern(&im.interface.value);
         let interface_def = match self.lookup_in_current_module(interface_sym) {
             Some(def) => def,
@@ -503,17 +495,17 @@ impl LoweringContext {
             .push(interface_def);
     }
 
-    fn lower_top_var_decl(&mut self, v: VarDeclStmt) {
-        let sym = self.krate.interner.intern(&v.variable_name.value);
+    fn lower_static_item(&mut self, s: Static) {
+        let sym = self.krate.interner.intern(&s.variable_name.value);
         let modid = self.current_module.expect("current module set");
         let defid = self.lookup_in_current_module(sym).expect("def must exist");
 
-        let ty = if let TypeKind::Infer = v.ty.kind {
+        let ty = if let TypeKind::Infer = s.ty.kind {
             None
         } else {
-            Some(self.lower_type(v.ty))
+            Some(self.lower_type(s.ty))
         };
-        let init = v.assigned_value.map(|e| self.lower_expr(e));
+        let init = s.assigned_value.map(|e| self.lower_expr(e));
         let var = Variable {
             name: sym,
             ty,
@@ -715,14 +707,14 @@ impl LoweringContext {
                 let exprid = self.lower_expr(s.expr);
                 self.alloc_stmt(HirStmt::Semi(exprid))
             }
-            StmtKind::VarDecl(v) => {
-                let name = self.krate.interner.intern(&v.variable_name.value);
-                let ty = if let TypeKind::Infer = v.ty.kind {
+            StmtKind::Let(l) => {
+                let name = self.krate.interner.intern(&l.variable_name.value);
+                let ty = if let TypeKind::Infer = l.ty.kind {
                     None
                 } else {
-                    Some(self.lower_type(v.ty))
+                    Some(self.lower_type(l.ty))
                 };
-                let init_expr = v.assigned_value.map(|e| self.lower_expr(e));
+                let init_expr = l.assigned_value.map(|e| self.lower_expr(e));
 
                 let local = self.alloc_local();
 
@@ -742,7 +734,6 @@ impl LoweringContext {
                 let val = r.value.map(|e| self.lower_expr(e));
                 self.alloc_stmt(HirStmt::Return(val))
             }
-            _ => todo!("Lowering of {:?} not implemented", stmt.kind),
         }
     }
 

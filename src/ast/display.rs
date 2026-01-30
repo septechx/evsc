@@ -3,8 +3,8 @@ use std::fmt::Write;
 use colored::Colorize;
 
 use crate::ast::{
-    Expr, ExprKind, ImportTree, ImportTreeKind, Literal, Mutability, Stmt, StmtKind, Type,
-    TypeKind, Visibility, statements::*,
+    Expr, ExprKind, ImportTree, ImportTreeKind, Item, ItemKind, Literal, Mutability, Stmt,
+    StmtKind, Type, TypeKind, Visibility, statements::*,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -147,6 +147,187 @@ fn escape_string(s: &str) -> String {
     result
 }
 
+pub fn write_item(out: &mut String, item: &Item, ctx: &DisplayContext) -> std::fmt::Result {
+    match &item.kind {
+        ItemKind::Static(s) => {
+            let mut modifiers = Vec::new();
+            if s.visibility == Visibility::Public {
+                modifiers.push("pub");
+            }
+            let modifiers = format_modifiers(&modifiers);
+            write!(
+                out,
+                "{} {}{}{}{}: ",
+                "Static".with_color(ctx.color),
+                modifiers_with_color(&modifiers, ctx.color),
+                punct_with_color("\"", ctx.color),
+                s.variable_name.value,
+                punct_with_color("\"", ctx.color)
+            )?;
+            write!(out, "{}", write_type(&s.ty, ctx))?;
+            if let Some(value) = &s.assigned_value {
+                write!(out, " =")?;
+                if value.kind.is_leaf() {
+                    write!(out, " ")?;
+                    write_expr(out, value, ctx)?;
+                } else {
+                    writeln!(out)?;
+                    let value_ctx = ctx.indented();
+                    write!(out, "{}", value_ctx.indent_str())?;
+                    write_expr(out, value, &value_ctx)?;
+                }
+            } else {
+                write!(out, " (uninitialized)")?;
+            }
+        }
+        ItemKind::Struct(s) => {
+            let mut modifiers = Vec::new();
+            if s.visibility == Visibility::Public {
+                modifiers.push("pub");
+            }
+            let modifiers = format_modifiers(&modifiers);
+            write!(
+                out,
+                "{} {}{}{}{}",
+                "StructDecl".with_color(ctx.color),
+                modifiers_with_color(&modifiers, ctx.color),
+                punct_with_color("\"", ctx.color),
+                s.name.value,
+                punct_with_color("\"", ctx.color)
+            )?;
+            if s.fields.is_empty() && s.methods.is_empty() {
+                write!(out, ": (empty)")?;
+            } else {
+                writeln!(out, ":")?;
+                let body_ctx = ctx.indented();
+                let mut idx = 0;
+                for prop in &s.fields {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_struct_property(out, prop, &body_ctx)?;
+                    if idx > 0 {
+                        writeln!(out)?;
+                    }
+                    idx += 1;
+                }
+                for method in &s.methods {
+                    if idx > 0 {
+                        writeln!(out)?;
+                    }
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_struct_method(out, method, &body_ctx)?;
+                    idx += 1;
+                }
+            }
+        }
+        ItemKind::Interface(i) => {
+            let mut modifiers = Vec::new();
+            if i.visibility == Visibility::Public {
+                modifiers.push("pub");
+            }
+            let modifiers = format_modifiers(&modifiers);
+            write!(
+                out,
+                "{} {}{}{}{}",
+                "InterfaceDecl".with_color(ctx.color),
+                modifiers_with_color(&modifiers, ctx.color),
+                punct_with_color("\"", ctx.color),
+                i.name.value,
+                punct_with_color("\"", ctx.color)
+            )?;
+            if i.methods.is_empty() {
+                write!(out, ": (empty)")?;
+            } else {
+                writeln!(out, ":")?;
+                let body_ctx = ctx.indented();
+                for method in &i.methods {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_interface_method(out, method, &body_ctx)?;
+                }
+            }
+        }
+        ItemKind::Impl(i) => {
+            write!(
+                out,
+                "{} {} {} {}",
+                "Impl".with_color(ctx.color),
+                write_type(&i.self_ty, ctx),
+                punct_with_color(":", ctx.color),
+                i.interface.value
+            )?;
+            if i.items.is_empty() {
+                write!(out, ": (empty)")?;
+            } else {
+                writeln!(out, ":")?;
+                let body_ctx = ctx.indented();
+                for method in &i.items {
+                    write!(out, "{}", body_ctx.indent_str())?;
+                    write_interface_method(out, method, &body_ctx)?;
+                }
+            }
+        }
+        ItemKind::Fn(f) => {
+            let mut modifiers = Vec::new();
+            if f.visibility == Visibility::Public {
+                modifiers.push("pub");
+            }
+            if f.is_extern {
+                modifiers.push("extern");
+            }
+            let modifiers = format_modifiers(&modifiers);
+            write!(
+                out,
+                "{} {}\"{}\"",
+                "FnDecl".with_color(ctx.color),
+                modifiers_with_color(&modifiers, ctx.color),
+                f.name.value
+            )?;
+            write!(out, " {} ", punct_with_color("->", ctx.color))?;
+            write!(out, "{}", write_type(&f.return_type, ctx))?;
+            write!(out, ":")?;
+            if f.parameters.is_empty() && f.body.is_none() {
+                write!(out, " (empty)")?;
+            } else {
+                writeln!(out)?;
+                let sub_ctx = ctx.indented();
+                write!(out, "{}Parameters:", sub_ctx.indent_str())?;
+                if f.parameters.is_empty() {
+                    writeln!(out)?;
+                    write!(out, "{}  (empty)", sub_ctx.indent_str())?;
+                } else {
+                    writeln!(out)?;
+                    let arg_ctx = sub_ctx.indented();
+                    for arg in &f.parameters {
+                        writeln!(
+                            out,
+                            "{}FnArg \"{}\": {}",
+                            arg_ctx.indent_str(),
+                            arg.name.value,
+                            write_type(&arg.ty, &arg_ctx)
+                        )?;
+                    }
+                }
+                writeln!(out)?;
+                write_fn_decl(out, f, &sub_ctx)?;
+            }
+        }
+        ItemKind::Import(i) => {
+            let mut modifiers = Vec::new();
+            if i.visibility == Visibility::Public {
+                modifiers.push("pub");
+            }
+            let modifiers = format_modifiers(&modifiers);
+            write!(
+                out,
+                "{} {}: ",
+                "Import".with_color(ctx.color),
+                modifiers_with_color(&modifiers, ctx.color)
+            )?;
+            write_import_tree(out, &i.tree, ctx)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::fmt::Result {
     match &stmt.kind {
         StmtKind::Expr(expr_stmt) => {
@@ -173,29 +354,23 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 write_expr(out, &semi_stmt.expr, &expr_ctx)?;
             }
         }
-        StmtKind::VarDecl(var_decl) => {
+        StmtKind::Let(l) => {
             let mut modifiers = Vec::new();
-            if var_decl.visibility == Visibility::Public {
-                modifiers.push("pub");
-            }
-            if var_decl.mutability == Mutability::Mutable {
+            if l.mutability == Mutability::Mutable {
                 modifiers.push("mut");
-            }
-            if var_decl.is_static {
-                modifiers.push("static");
             }
             let modifiers = format_modifiers(&modifiers);
             write!(
                 out,
                 "{} {}{}{}{}: ",
-                "VarDecl".with_color(ctx.color),
+                "Let".with_color(ctx.color),
                 modifiers_with_color(&modifiers, ctx.color),
                 punct_with_color("\"", ctx.color),
-                var_decl.variable_name.value,
+                l.variable_name.value,
                 punct_with_color("\"", ctx.color)
             )?;
-            write!(out, "{}", write_type(&var_decl.ty, ctx))?;
-            if let Some(value) = &var_decl.assigned_value {
+            write!(out, "{}", write_type(&l.ty, ctx))?;
+            if let Some(value) = &l.assigned_value {
                 write!(out, " =")?;
                 if value.kind.is_leaf() {
                     write!(out, " ")?;
@@ -210,136 +385,6 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 write!(out, " (uninitialized)")?;
             }
         }
-        StmtKind::StructDecl(struct_decl) => {
-            let mut modifiers = Vec::new();
-            if struct_decl.visibility == Visibility::Public {
-                modifiers.push("pub");
-            }
-            let modifiers = format_modifiers(&modifiers);
-            write!(
-                out,
-                "{} {}{}{}",
-                "StructDecl".with_color(ctx.color),
-                modifiers_with_color(&modifiers, ctx.color),
-                punct_with_color("\"", ctx.color),
-                struct_decl.name.value
-            )?;
-            write!(out, "{}", punct_with_color("\"", ctx.color))?;
-            if struct_decl.fields.is_empty() && struct_decl.methods.is_empty() {
-                write!(out, ": (empty)")?;
-            } else {
-                writeln!(out, ":")?;
-                let body_ctx = ctx.indented();
-                let mut idx = 0;
-                for prop in &struct_decl.fields {
-                    write!(out, "{}", body_ctx.indent_str())?;
-                    write_struct_property(out, prop, &body_ctx)?;
-                    if idx > 0 {
-                        writeln!(out)?;
-                    }
-                    idx += 1;
-                }
-                for method in &struct_decl.methods {
-                    if idx > 0 {
-                        writeln!(out)?;
-                    }
-                    write!(out, "{}", body_ctx.indent_str())?;
-                    write_struct_method(out, method, &body_ctx)?;
-                    idx += 1;
-                }
-            }
-        }
-        StmtKind::InterfaceDecl(interface_decl) => {
-            let mut modifiers = Vec::new();
-            if interface_decl.visibility == Visibility::Public {
-                modifiers.push("pub");
-            }
-            let modifiers = format_modifiers(&modifiers);
-            write!(
-                out,
-                "{} {}{}{}",
-                "InterfaceDecl".with_color(ctx.color),
-                modifiers_with_color(&modifiers, ctx.color),
-                punct_with_color("\"", ctx.color),
-                interface_decl.name.value
-            )?;
-            write!(out, "{}", punct_with_color("\"", ctx.color))?;
-            if interface_decl.methods.is_empty() {
-                write!(out, ": (empty)")?;
-            } else {
-                writeln!(out, ":")?;
-                let body_ctx = ctx.indented();
-                for method in &interface_decl.methods {
-                    write!(out, "{}", body_ctx.indent_str())?;
-                    write_interface_method(out, method, &body_ctx)?;
-                }
-            }
-        }
-        StmtKind::Impl(impl_stmt) => {
-            write!(
-                out,
-                "{} {} {} {}",
-                "Impl".with_color(ctx.color),
-                write_type(&impl_stmt.self_ty, ctx),
-                punct_with_color(":", ctx.color),
-                impl_stmt.interface.value
-            )?;
-            if impl_stmt.items.is_empty() {
-                write!(out, ": (empty)")?;
-            } else {
-                writeln!(out, ":")?;
-                let body_ctx = ctx.indented();
-                for method in &impl_stmt.items {
-                    write!(out, "{}", body_ctx.indent_str())?;
-                    write_interface_method(out, method, &body_ctx)?;
-                }
-            }
-        }
-        StmtKind::FnDecl(fn_decl) => {
-            let mut modifiers = Vec::new();
-            if fn_decl.visibility == Visibility::Public {
-                modifiers.push("pub");
-            }
-            if fn_decl.is_extern {
-                modifiers.push("extern");
-            }
-            let modifiers = format_modifiers(&modifiers);
-            write!(
-                out,
-                "{} {}\"{}\"",
-                "FnDecl".with_color(ctx.color),
-                modifiers_with_color(&modifiers, ctx.color),
-                fn_decl.name.value
-            )?;
-            write!(out, " {} ", punct_with_color("->", ctx.color))?;
-            write!(out, "{}", write_type(&fn_decl.return_type, ctx))?;
-            write!(out, ":")?;
-            if fn_decl.parameters.is_empty() && fn_decl.body.is_none() {
-                write!(out, " (empty)")?;
-            } else {
-                writeln!(out)?;
-                let sub_ctx = ctx.indented();
-                write!(out, "{}Parameters:", sub_ctx.indent_str())?;
-                if fn_decl.parameters.is_empty() {
-                    writeln!(out)?;
-                    write!(out, "{}  (empty)", sub_ctx.indent_str())?;
-                } else {
-                    writeln!(out)?;
-                    let arg_ctx = sub_ctx.indented();
-                    for arg in &fn_decl.parameters {
-                        writeln!(
-                            out,
-                            "{}FnArg \"{}\": {}",
-                            arg_ctx.indent_str(),
-                            arg.name.value,
-                            write_type(&arg.ty, &arg_ctx)
-                        )?;
-                    }
-                }
-                writeln!(out)?;
-                write_fn_decl(out, fn_decl, &sub_ctx)?;
-            }
-        }
         StmtKind::Return(return_stmt) => {
             write!(out, "{}:", "Return".with_color(ctx.color),)?;
             if let Some(value) = &return_stmt.value {
@@ -350,10 +395,6 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
             } else {
                 write!(out, " (empty)")?;
             }
-        }
-        StmtKind::Import(import_stmt) => {
-            write!(out, "{}: ", "Import".with_color(ctx.color),)?;
-            write_import_tree(out, &import_stmt.tree, ctx)?;
         }
     }
     Ok(())
@@ -428,7 +469,7 @@ fn write_struct_method(
     Ok(())
 }
 
-fn write_fn_decl(out: &mut String, fn_decl: &FnDeclStmt, ctx: &DisplayContext) -> std::fmt::Result {
+fn write_fn_decl(out: &mut String, fn_decl: &Fn, ctx: &DisplayContext) -> std::fmt::Result {
     write!(out, "{}Body:", ctx.indent_str())?;
     if let Some(body) = &fn_decl.body {
         if body.stmts.is_empty() {

@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Ident, Stmt, StmtKind, Visibility,
-        statements::FnDeclStmt,
+        Ast, Expr, ExprKind, Ident, Item, ItemKind, Stmt, StmtKind,
+        statements::{Fn, InterfaceMethod, StructMethod},
         visit::{VisitAction, Visitable, Visitor},
     },
     error_at,
@@ -57,7 +57,7 @@ impl AstValidator {
         }
     }
 
-    fn validate_fn_decl(&mut self, f: &FnDeclStmt) {
+    fn validate_fn_decl(&mut self, f: &Fn) {
         self.check_duplicate_names(f.parameters.iter().map(|a| &a.name), "function parameters");
 
         if f.is_extern {
@@ -69,7 +69,7 @@ impl AstValidator {
                 )
                 .expect("failed to emit error");
             }
-        } else if self.is_top_level && f.body.is_none() {
+        } else if f.body.is_none() {
             error_at!(
                 f.name.span,
                 self.module_id,
@@ -88,27 +88,33 @@ impl AstValidator {
             self.is_top_level = old_top_level;
         }
     }
+
+    fn validate_method(&mut self, method: &StructMethod) {
+        self.validate_fn_decl(&method.fn_decl);
+    }
+
+    fn validate_interface_method(&mut self, method: &InterfaceMethod) {
+        self.validate_fn_decl(&method.fn_decl);
+    }
 }
 
 impl Visitor for AstValidator {
-    fn visit_stmt(&mut self, stmt: &Stmt) -> VisitAction {
-        match &stmt.kind {
-            StmtKind::FnDecl(f) => {
+    fn visit_item(&mut self, item: &Item) -> VisitAction {
+        match &item.kind {
+            ItemKind::Fn(f) => {
                 self.validate_fn_decl(f);
-
                 VisitAction::SkipChildren
             }
-            StmtKind::Impl(i) => {
+            ItemKind::Impl(i) => {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
                 for method in i.items.iter() {
-                    self.validate_fn_decl(&method.fn_decl);
+                    self.validate_interface_method(method);
                 }
                 self.is_top_level = old_top_level;
-
                 VisitAction::SkipChildren
             }
-            StmtKind::StructDecl(s) => {
+            ItemKind::Struct(s) => {
                 self.check_duplicate_names(s.fields.iter().map(|f| &f.name), "struct fields");
                 self.check_duplicate_names(
                     s.methods.iter().map(|m| &m.fn_decl.name),
@@ -118,13 +124,13 @@ impl Visitor for AstValidator {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
                 for method in s.methods.iter() {
-                    self.validate_fn_decl(&method.fn_decl);
+                    self.validate_method(method);
                 }
                 self.is_top_level = old_top_level;
 
                 VisitAction::SkipChildren
             }
-            StmtKind::InterfaceDecl(i) => {
+            ItemKind::Interface(i) => {
                 self.check_duplicate_names(
                     i.methods.iter().map(|m| &m.fn_decl.name),
                     "interface methods",
@@ -133,12 +139,24 @@ impl Visitor for AstValidator {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
                 for method in i.methods.iter() {
-                    self.validate_fn_decl(&method.fn_decl);
+                    self.validate_interface_method(method);
                 }
                 self.is_top_level = old_top_level;
 
                 VisitAction::SkipChildren
             }
+            ItemKind::Static(s) => {
+                if let Some(val) = &s.assigned_value {
+                    val.visit(self);
+                }
+                VisitAction::SkipChildren
+            }
+            ItemKind::Import(_) => VisitAction::Continue,
+        }
+    }
+
+    fn visit_stmt(&mut self, stmt: &Stmt) -> VisitAction {
+        match &stmt.kind {
             StmtKind::Return(r) => {
                 if !self.in_function {
                     error_at!(
@@ -154,16 +172,8 @@ impl Visitor for AstValidator {
 
                 VisitAction::SkipChildren
             }
-            StmtKind::VarDecl(v) => {
-                if !self.is_top_level && v.visibility == Visibility::Public {
-                    error_at!(
-                        stmt.span,
-                        self.module_id,
-                        "Visibility modifier `pub` is not allowed on local variables"
-                    )
-                    .expect("failed to emit error");
-                }
-                if let Some(val) = &v.assigned_value {
+            StmtKind::Let(l) => {
+                if let Some(val) = &l.assigned_value {
                     val.visit(self);
                 }
 
@@ -234,17 +244,13 @@ pub fn validate_ast(ast: &Ast, module_id: ModuleId) {
     };
 
     let mut top_level_names = Vec::new();
-    for stmt in ast.items.iter() {
-        match &stmt.kind {
-            StmtKind::FnDecl(f) => top_level_names.push(&f.name),
-            StmtKind::StructDecl(s) => top_level_names.push(&s.name),
-            StmtKind::InterfaceDecl(i) => top_level_names.push(&i.name),
-            StmtKind::VarDecl(v) => {
-                if v.is_static {
-                    top_level_names.push(&v.variable_name);
-                }
-            }
-            _ => {}
+    for item in ast.items.iter() {
+        match &item.kind {
+            ItemKind::Fn(f) => top_level_names.push(&f.name),
+            ItemKind::Struct(s) => top_level_names.push(&s.name),
+            ItemKind::Interface(i) => top_level_names.push(&i.name),
+            ItemKind::Static(s) => top_level_names.push(&s.variable_name),
+            ItemKind::Impl(_) | ItemKind::Import(_) => {}
         }
     }
     validator.check_duplicate_names(top_level_names, "module scope");

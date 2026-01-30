@@ -452,7 +452,11 @@ pub fn parse_loop_expr(parser: &mut Parser) -> Result<Expr> {
 pub fn parse_break_expr(parser: &mut Parser) -> Result<Expr> {
     let start_span = parser.expect(TokenKind::Break)?.span;
 
-    let value = if parser.current_token().kind != TokenKind::Semicolon {
+    let current = parser.current_token().kind;
+    let value = if !matches!(
+        current,
+        TokenKind::Semicolon | TokenKind::CloseCurly | TokenKind::Comma
+    ) {
         Some(Box::new(parse_expr(parser, BindingPower::DefaultBp)?))
     } else {
         None

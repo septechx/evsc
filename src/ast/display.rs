@@ -605,7 +605,6 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
                 write_expr(out, value, &value_ctx)?;
             }
         }
-
         ExprKind::Binary(b) => {
             writeln!(out, "{}", "Binary".with_color(ctx.color))?;
             let expr_ctx = ctx.indented();

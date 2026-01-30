@@ -12,7 +12,7 @@ mod tests {
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use thin_vec::{ThinVec, thin_vec};
+    use thin_vec::{thin_vec, ThinVec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {
@@ -511,6 +511,33 @@ mod tests {
         visitor.assert_visited("expr", "Expr", 4);
         visitor.assert_visited("expr", "TupleLiteralExpr", 1);
         visitor.assert_visited("expr", "NumberExpr", 3);
+    }
+
+    #[test]
+    fn test_break_expr_visited_once() {
+        let expr = Expr {
+            kind: ExprKind::Break(BreakExpr { value: None }),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "BreakExpr", 1);
+    }
+
+    #[test]
+    fn test_break_expr_with_value_visited() {
+        let expr = Expr {
+            kind: ExprKind::Break(BreakExpr {
+                value: Some(Box::new(dummy_expr_number(42))),
+            }),
+            span: dummy_span(),
+        };
+        let mut visitor = NodeCounterVisitor::new();
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "BreakExpr", 1);
+        visitor.assert_visited("expr", "NumberExpr", 1);
     }
 
     #[test]

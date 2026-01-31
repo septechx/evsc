@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use thin_vec::ThinVec;
 
 use crate::{
@@ -8,11 +8,11 @@ use crate::{
     fatal_at,
     lexer::token::TokenKind,
     parser::{
-        lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
+        Parser,
+        lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
         string::process_string,
         types::parse_type,
         utils::{parse_body, unexpected_token},
-        Parser,
     },
     span::Span,
 };

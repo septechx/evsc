@@ -2,17 +2,17 @@
 mod tests {
     use oxic::{
         ast::{
-            types::{FixedArrayType, FunctionType, PointerType, SliceType, SymbolType, TupleType},
-            visit::{VisitAction, Visitable, Visitor},
             AssocItem, AssocItemKind, Ast, Block, Expr, ExprKind, Fn, Ident, ImportTree,
             ImportTreeKind, Item, ItemKind, Literal, Mutability, Path, Stmt, StmtKind, Type,
             TypeKind, Visibility,
+            types::{FixedArrayType, FunctionType, PointerType, SliceType, SymbolType, TupleType},
+            visit::{VisitAction, Visitable, Visitor},
         },
         hashmap::FxHashMap,
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use thin_vec::{thin_vec, ThinVec};
+    use thin_vec::{ThinVec, thin_vec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {

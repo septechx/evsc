@@ -8,7 +8,6 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{display::DisplayContext, types::*},
-    hashmap::FxHashMap,
     lexer::token::{Token, TokenKind},
     span::Span,
 };
@@ -146,7 +145,7 @@ pub enum ExprKind {
     },
     StructInstantiation {
         name: Ident,
-        fields: FxHashMap<Ident, Expr>,
+        fields: ThinVec<(Ident, Expr)>,
     },
     ArrayLiteral {
         underlying: Type,

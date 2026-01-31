@@ -214,15 +214,15 @@ impl Visitable for Expr {
                     right.visit(visitor);
                 }
                 ExprKind::Assignment {
-                    assignee,
-                    operator: _,
-                    value,
+                    assignee, value, ..
                 } => {
                     assignee.visit(visitor);
                     value.visit(visitor);
                 }
                 ExprKind::StructInstantiation { name: _, fields } => {
-                    fields.visit(visitor);
+                    for field in fields {
+                        field.1.visit(visitor);
+                    }
                 }
                 ExprKind::ArrayLiteral {
                     underlying,
@@ -235,11 +235,7 @@ impl Visitable for Expr {
                     callee.visit(visitor);
                     parameters.visit(visitor);
                 }
-                ExprKind::MemberAccess {
-                    base,
-                    member: _,
-                    operator: _,
-                } => {
+                ExprKind::MemberAccess { base, .. } => {
                     base.visit(visitor);
                 }
                 ExprKind::Type(t) => t.visit(visitor),

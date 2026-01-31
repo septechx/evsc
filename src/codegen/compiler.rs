@@ -301,18 +301,6 @@ fn compile_function<'ctx>(
         builder.build_return(None)?;
     }
 
-    compilation_context.symbol_table.insert(
-        fn_decl.name.value.clone(),
-        SymbolTableEntry::from_value(
-            function.as_global_value().as_basic_value_enum(),
-            function
-                .as_global_value()
-                .as_pointer_value()
-                .get_type()
-                .as_basic_type_enum(),
-        ),
-    );
-
     Ok(())
 }
 

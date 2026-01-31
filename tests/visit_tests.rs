@@ -2,17 +2,17 @@
 mod tests {
     use oxic::{
         ast::{
+            types::{FixedArrayType, FunctionType, PointerType, SliceType, SymbolType, TupleType},
+            visit::{VisitAction, Visitable, Visitor},
             AssocItem, AssocItemKind, Ast, Block, Expr, ExprKind, Fn, Ident, ImportTree,
             ImportTreeKind, Item, ItemKind, Literal, Mutability, Path, Stmt, StmtKind, Type,
             TypeKind, Visibility,
-            types::{FixedArrayType, FunctionType, PointerType, SliceType, SymbolType, TupleType},
-            visit::{VisitAction, Visitable, Visitor},
         },
         hashmap::FxHashMap,
         lexer::token::{Token, TokenKind},
         span::{ModuleId, Span},
     };
-    use thin_vec::{ThinVec, thin_vec};
+    use thin_vec::{thin_vec, ThinVec};
 
     // Since this is only used for testing, using a string instead of an enum is fine.
     pub struct NodeCounterVisitor {
@@ -382,9 +382,7 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::StructInstantiation {
                 name: dummy_ident("Foo"),
-                fields: [(dummy_ident("a"), dummy_expr_number(1))]
-                    .into_iter()
-                    .collect(),
+                fields: thin_vec![(dummy_ident("a"), dummy_expr_number(1))],
             },
             span: dummy_span(),
         };
@@ -400,13 +398,11 @@ mod tests {
         let expr = Expr {
             kind: ExprKind::StructInstantiation {
                 name: dummy_ident("Foo"),
-                fields: [
+                fields: thin_vec![
                     (dummy_ident("a"), dummy_expr_number(1)),
                     (dummy_ident("b"), dummy_expr_number(2)),
                     (dummy_ident("c"), dummy_expr_number(3)),
-                ]
-                .into_iter()
-                .collect(),
+                ],
             },
             span: dummy_span(),
         };
@@ -925,7 +921,7 @@ mod tests {
                     Expr {
                         kind: ExprKind::StructInstantiation {
                             name: dummy_ident("Bar"),
-                            fields: [
+                            fields: thin_vec![
                                 (dummy_ident("x"), dummy_expr_number(2)),
                                 (
                                     dummy_ident("y"),
@@ -938,9 +934,7 @@ mod tests {
                                         span: dummy_span(),
                                     },
                                 ),
-                            ]
-                            .into_iter()
-                            .collect(),
+                            ],
                         },
                         span: dummy_span(),
                     },

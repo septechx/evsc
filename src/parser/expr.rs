@@ -1,19 +1,18 @@
 use std::convert::TryInto;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use thin_vec::ThinVec;
 
 use crate::{
     ast::{Block, Expr, ExprKind, Ident, Literal},
     fatal_at,
-    hashmap::FxHashMap,
     lexer::token::TokenKind,
     parser::{
-        Parser,
-        lookups::{BP_LU, BindingPower, LED_LU, NUD_LU},
+        lookups::{BindingPower, BP_LU, LED_LU, NUD_LU},
         string::process_string,
         types::parse_type,
         utils::{parse_body, unexpected_token},
+        Parser,
     },
     span::Span,
 };
@@ -184,7 +183,7 @@ pub fn parse_struct_instantiation_expr(
 
     parser.expect(TokenKind::OpenCurly)?;
 
-    let mut properties: FxHashMap<Ident, Expr> = FxHashMap::default();
+    let mut properties: ThinVec<(Ident, Expr)> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseCurly {
@@ -203,7 +202,7 @@ pub fn parse_struct_instantiation_expr(
             }
         };
 
-        properties.insert(property, value);
+        properties.push((property, value));
 
         if parser.current_token().kind != TokenKind::CloseCurly {
             parser.expect(TokenKind::Comma)?;

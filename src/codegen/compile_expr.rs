@@ -295,7 +295,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .collect::<FxHashMap<_, _>>();
 
             // Field in instantiation but not in struct
-            for field_name in fields.keys() {
+            for (field_name, _) in fields.iter() {
                 if !struct_def
                     .field_indices
                     .contains_key(field_name.value.as_ref())

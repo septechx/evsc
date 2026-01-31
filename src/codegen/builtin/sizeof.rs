@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 use inkwell::{context::Context, types::BasicType, values::BasicValue};
 
 use crate::{
@@ -20,17 +20,20 @@ impl BuiltinFunction for SizeofBuiltin {
         expr: &Expr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
-        let expr = match &expr.kind {
-            ExprKind::FunctionCall(expr) => expr,
+        let parameters = match &expr.kind {
+            ExprKind::FunctionCall {
+                callee: _,
+                parameters,
+            } => parameters,
             _ => unreachable!(),
         };
 
-        let ty = match &expr.parameters[0].kind {
-            ExprKind::Type(ty) => ty.underlying.clone(),
+        let ty = match &parameters[0].kind {
+            ExprKind::Type(ty) => ty,
             _ => bail!("First argument must be a type expression"),
         };
 
-        let llvm_ty = compile_type(context, &ty, compilation_context)?;
+        let llvm_ty = compile_type(context, ty, compilation_context)?;
 
         let size = llvm_ty
             .size_of()

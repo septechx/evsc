@@ -1,7 +1,6 @@
 use crate::{
     ast::{
-        Ast, Expr, ExprKind, Ident, Item, ItemKind, Stmt, StmtKind,
-        statements::{Fn, InterfaceMethod, StructMethod},
+        AssocItem, AssocItemKind, Ast, Expr, ExprKind, Fn, Ident, Item, ItemKind, Stmt, StmtKind,
         visit::{VisitAction, Visitable, Visitor},
     },
     error_at,
@@ -58,7 +57,7 @@ impl AstValidator {
     }
 
     fn validate_fn_decl(&mut self, f: &Fn) {
-        self.check_duplicate_names(f.parameters.iter().map(|a| &a.name), "function parameters");
+        self.check_duplicate_names(f.parameters.iter().map(|a| &a.0), "function parameters");
 
         if f.is_extern {
             if f.body.is_some() {
@@ -89,12 +88,10 @@ impl AstValidator {
         }
     }
 
-    fn validate_method(&mut self, method: &StructMethod) {
-        self.validate_fn_decl(&method.fn_decl);
-    }
-
-    fn validate_interface_method(&mut self, method: &InterfaceMethod) {
-        self.validate_fn_decl(&method.fn_decl);
+    fn validate_assoc_item(&mut self, item: &AssocItem) {
+        match &item.kind {
+            AssocItemKind::Fn(f) => self.validate_fn_decl(f),
+        }
     }
 }
 
@@ -105,59 +102,58 @@ impl Visitor for AstValidator {
                 self.validate_fn_decl(f);
                 VisitAction::SkipChildren
             }
-            ItemKind::Impl(i) => {
+            ItemKind::Impl { items, .. } => {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
-                for method in i.items.iter() {
-                    self.validate_interface_method(method);
+                for item in items.iter() {
+                    self.validate_assoc_item(item);
                 }
                 self.is_top_level = old_top_level;
                 VisitAction::SkipChildren
             }
-            ItemKind::Struct(s) => {
-                self.check_duplicate_names(s.fields.iter().map(|f| &f.name), "struct fields");
+            ItemKind::Struct { fields, items, .. } => {
+                self.check_duplicate_names(fields.iter().map(|f| &f.0), "struct fields");
                 self.check_duplicate_names(
-                    s.methods.iter().map(|m| &m.fn_decl.name),
+                    items.iter().map(|item| match &item.kind {
+                        AssocItemKind::Fn(f) => &f.name,
+                    }),
                     "struct methods",
                 );
 
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
-                for method in s.methods.iter() {
-                    self.validate_method(method);
+                for item in items.iter() {
+                    self.validate_assoc_item(item);
                 }
                 self.is_top_level = old_top_level;
 
                 VisitAction::SkipChildren
             }
-            ItemKind::Interface(i) => {
+            ItemKind::Interface { items, .. } => {
                 self.check_duplicate_names(
-                    i.methods.iter().map(|m| &m.fn_decl.name),
+                    items.iter().map(|item| match &item.kind {
+                        AssocItemKind::Fn(f) => &f.name,
+                    }),
                     "interface methods",
                 );
 
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
-                for method in i.methods.iter() {
-                    self.validate_interface_method(method);
+                for item in items.iter() {
+                    self.validate_assoc_item(item);
                 }
                 self.is_top_level = old_top_level;
 
                 VisitAction::SkipChildren
             }
-            ItemKind::Static(s) => {
-                if let Some(val) = &s.assigned_value {
-                    val.visit(self);
-                }
-                VisitAction::SkipChildren
-            }
+            ItemKind::Static { .. } => VisitAction::Continue,
             ItemKind::Import(_) => VisitAction::Continue,
         }
     }
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> VisitAction {
         match &stmt.kind {
-            StmtKind::Return(r) => {
+            StmtKind::Return(ret) => {
                 if !self.in_function {
                     error_at!(
                         stmt.span,
@@ -166,14 +162,19 @@ impl Visitor for AstValidator {
                     )
                     .expect("failed to emit error");
                 }
-                if let Some(val) = &r.value {
+                if let Some(val) = ret {
                     val.visit(self);
                 }
 
                 VisitAction::SkipChildren
             }
-            StmtKind::Let(l) => {
-                if let Some(val) = &l.assigned_value {
+            StmtKind::Let {
+                name: _,
+                ty: _,
+                value,
+                mutability: _,
+            } => {
+                if let Some(val) = value {
                     val.visit(self);
                 }
 
@@ -185,9 +186,9 @@ impl Visitor for AstValidator {
 
     fn visit_expr(&mut self, expr: &Expr) -> VisitAction {
         match &expr.kind {
-            ExprKind::StructInstantiation(s) => {
+            ExprKind::StructInstantiation { name: _, fields } => {
                 let mut seen = FxHashMap::default();
-                for (ident, val) in s.fields.iter() {
+                for (ident, val) in fields.iter() {
                     if let Some(first_span) = seen.insert(&ident.value, ident.span) {
                         let msg =
                             format!("Duplicate field `{}` in struct instantiation", ident.value);
@@ -224,7 +225,7 @@ impl Visitor for AstValidator {
             ExprKind::Block(b) => {
                 let old_top_level = self.is_top_level;
                 self.is_top_level = false;
-                for stmt in b.block.stmts.iter() {
+                for stmt in b.stmts.iter() {
                     stmt.visit(self);
                 }
                 self.is_top_level = old_top_level;
@@ -247,10 +248,10 @@ pub fn validate_ast(ast: &Ast, module_id: ModuleId) {
     for item in ast.items.iter() {
         match &item.kind {
             ItemKind::Fn(f) => top_level_names.push(&f.name),
-            ItemKind::Struct(s) => top_level_names.push(&s.name),
-            ItemKind::Interface(i) => top_level_names.push(&i.name),
-            ItemKind::Static(s) => top_level_names.push(&s.variable_name),
-            ItemKind::Impl(_) | ItemKind::Import(_) => {}
+            ItemKind::Struct { name, .. } => top_level_names.push(name),
+            ItemKind::Interface { name, .. } => top_level_names.push(name),
+            ItemKind::Static { name, .. } => top_level_names.push(name),
+            ItemKind::Impl { .. } | ItemKind::Import(_) => {}
         }
     }
     validator.check_duplicate_names(top_level_names, "module scope");

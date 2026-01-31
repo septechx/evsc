@@ -1,6 +1,6 @@
 use std::{fs, iter::Extend};
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -14,8 +14,8 @@ use crate::{
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::{
-            BuiltinFunction,
             import::{header::compile_header, resolve_lib::resolve_std_lib},
+            BuiltinFunction,
         },
         compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,
@@ -40,17 +40,20 @@ impl BuiltinFunction for ImportBuiltin {
         expr: &Expr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
-        let fn_expr = match &expr.kind {
-            ExprKind::FunctionCall(fn_expr) => fn_expr,
+        let parameters = match &expr.kind {
+            ExprKind::FunctionCall {
+                callee: _,
+                parameters,
+            } => parameters,
             _ => unreachable!(),
         };
 
         // Resolve path
-        if fn_expr.parameters.len() != 1 {
+        if parameters.len() != 1 {
             bail!("Expected one argument to @import");
         }
 
-        let module_name = match &fn_expr.parameters[0].kind {
+        let module_name = match &parameters[0].kind {
             ExprKind::Literal(sym) => {
                 if let Literal::String(s) = sym {
                     s.clone()

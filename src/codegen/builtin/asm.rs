@@ -1,11 +1,11 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use inkwell::{
-    InlineAsmDialect,
     builder::Builder,
     context::Context,
     module::Module,
     types::BasicMetadataTypeEnum,
     values::{BasicMetadataValueEnum, BasicValue},
+    InlineAsmDialect,
 };
 
 use crate::{
@@ -34,26 +34,31 @@ impl BuiltinFunction for AsmBuiltin {
         expr: &Expr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
-        let expr = match &expr.kind {
-            ExprKind::FunctionCall(expr) => expr,
+        let parameters = match &expr.kind {
+            ExprKind::FunctionCall {
+                callee: _,
+                parameters,
+            } => parameters,
             _ => unreachable!(),
         };
 
-        if expr.parameters.len() != 3 {
+        if parameters.len() != 3 {
             return fail();
         }
 
-        let (asm_str, constraints, arguments) = match (
-            &expr.parameters[0].kind,
-            &expr.parameters[1].kind,
-            &expr.parameters[2].kind,
+        let (asm_str, constraints, elements) = match (
+            &parameters[0].kind,
+            &parameters[1].kind,
+            &parameters[2].kind,
         ) {
-            (ExprKind::Literal(asm), ExprKind::Literal(cons), ExprKind::TupleLiteral(args)) => {
-                match (asm, cons) {
-                    (Literal::String(asm), Literal::String(cons)) => (asm, cons, args),
-                    _ => return fail(),
-                }
-            }
+            (
+                ExprKind::Literal(asm),
+                ExprKind::Literal(cons),
+                ExprKind::TupleLiteral { elements },
+            ) => match (asm, cons) {
+                (Literal::String(asm), Literal::String(cons)) => (asm, cons, elements),
+                _ => return fail(),
+            },
             _ => {
                 return fail();
             }
@@ -62,7 +67,7 @@ impl BuiltinFunction for AsmBuiltin {
         let mut operands: Vec<BasicMetadataValueEnum> = Vec::new();
         let mut metadata_types: Vec<BasicMetadataTypeEnum> = Vec::new();
 
-        for arg in &arguments.elements {
+        for arg in elements.iter() {
             let val =
                 compile_expression_to_value(context, module, builder, arg, compilation_context)?;
             let val = val.unwrap(builder)?;

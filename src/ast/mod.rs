@@ -1,6 +1,4 @@
 pub mod display;
-pub mod expressions;
-pub mod statements;
 pub mod types;
 pub mod validate;
 pub mod visit;
@@ -9,7 +7,8 @@ use anyhow::bail;
 use thin_vec::ThinVec;
 
 use crate::{
-    ast::{display::DisplayContext, expressions::*, statements::*, types::*},
+    ast::{display::DisplayContext, types::*},
+    hashmap::FxHashMap,
     lexer::token::{Token, TokenKind},
     span::Span,
 };
@@ -39,16 +38,32 @@ pub struct Item {
     pub kind: ItemKind,
     pub span: Span,
     pub attributes: ThinVec<Attribute>,
+    pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone)]
 pub enum ItemKind {
-    Static(Static),
-    Struct(Struct),
-    Interface(Interface),
-    Impl(Impl),
+    Static {
+        name: Ident,
+        value: Expr,
+        ty: Type,
+    },
+    Struct {
+        name: Ident,
+        fields: ThinVec<(Ident, Type, Visibility)>,
+        items: ThinVec<AssocItem>,
+    },
+    Interface {
+        name: Ident,
+        items: ThinVec<AssocItem>,
+    },
+    Impl {
+        self_ty: Type,
+        interface: Ident,
+        items: ThinVec<AssocItem>,
+    },
     Fn(Fn),
-    Import(Import),
+    Import(ImportTree),
 }
 
 #[derive(Debug, Clone)]
@@ -59,10 +74,38 @@ pub struct Stmt {
 
 #[derive(Debug, Clone)]
 pub enum StmtKind {
-    Expr(ExprStmt),
-    Semi(SemiStmt),
-    Let(LetStmt),
-    Return(ReturnStmt),
+    /// Expression without a trailing semicolon (returns value)
+    Expr(Expr),
+    /// Expression with a trailing semicolon
+    Semi(Expr),
+    Let {
+        name: Ident,
+        ty: Type,
+        value: Option<Expr>,
+        mutability: Mutability,
+    },
+    Return(Option<Expr>),
+}
+
+#[derive(Debug, Clone)]
+pub struct AssocItem {
+    pub kind: AssocItemKind,
+    pub visibility: Visibility,
+    pub is_static: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum AssocItemKind {
+    Fn(Fn),
+}
+
+#[derive(Debug, Clone)]
+pub struct Fn {
+    pub name: Ident,
+    pub parameters: ThinVec<(Ident, Type)>,
+    pub body: Option<Block>,
+    pub return_type: Type,
+    pub is_extern: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -74,23 +117,62 @@ pub struct Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Literal(Literal),
-    Symbol(SymbolExpr),
-    Binary(BinaryExpr),
-    Postfix(PostfixExpr),
-    Prefix(PrefixExpr),
-    Assignment(AssignmentExpr),
-    StructInstantiation(StructInstantiationExpr),
-    ArrayLiteral(ArrayLiteralExpr),
-    FunctionCall(FunctionCallExpr),
-    MemberAccess(MemberAccessExpr),
-    Type(TypeExpr),
-    As(AsExpr),
-    TupleLiteral(TupleLiteralExpr),
-    Block(BlockExpr),
-    If(IfExpr),
-    While(WhileExpr),
-    Loop(LoopExpr),
-    Break(BreakExpr),
+    Symbol(Ident),
+    Binary {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
+    Postfix {
+        left: Box<Expr>,
+        operator: Token,
+    },
+    Prefix {
+        operator: Token,
+        right: Box<Expr>,
+    },
+    Assignment {
+        assignee: Box<Expr>,
+        operator: Token,
+        value: Box<Expr>,
+    },
+    StructInstantiation {
+        name: Ident,
+        fields: FxHashMap<Ident, Expr>,
+    },
+    ArrayLiteral {
+        underlying: Type,
+        contents: ThinVec<Expr>,
+    },
+    FunctionCall {
+        callee: Box<Expr>,
+        parameters: ThinVec<Expr>,
+    },
+    MemberAccess {
+        base: Box<Expr>,
+        member: Ident,
+        operator: Token,
+    },
+    Type(Type),
+    As {
+        expr: Box<Expr>,
+        ty: Type,
+    },
+    TupleLiteral {
+        elements: ThinVec<Expr>,
+    },
+    Block(Block),
+    If {
+        condition: Box<Expr>,
+        then_branch: Block,
+        else_branch: Option<Box<Expr>>,
+    },
+    While {
+        condition: Box<Expr>,
+        body: Block,
+    },
+    Loop(Block),
+    Break(Option<Box<Expr>>),
 }
 
 #[derive(Debug, Clone)]

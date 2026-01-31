@@ -3,8 +3,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Attribute, Block, Expr, ImportTree, ImportTreeKind, Item, ItemKind, Mutability, Stmt,
-        StmtKind, Type, TypeKind, Visibility, statements::*,
+        AssocItem, AssocItemKind, Attribute, Block, Expr, Fn, Ident, ImportTree, ImportTreeKind,
+        Item, ItemKind, Mutability, Stmt, StmtKind, Type, TypeKind, Visibility,
     },
     error_at, get_modifiers,
     lexer::token::TokenKind,
@@ -14,7 +14,7 @@ use crate::{
         attributes::parse_attributes,
         expr::parse_expr,
         lookups::{BindingPower, ITEM_LU},
-        modifiers::{Modifier, ModifierKind, parse_modifiers},
+        modifiers::{Modifier, parse_modifiers},
         types::parse_type,
         utils::{parse_body, parse_path, parse_rename, unexpected_token},
     },
@@ -53,13 +53,13 @@ pub fn parse_static_item(
 
     let static_token = parser.advance();
 
-    let variable_name = parser.expect_identifier()?;
+    let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::Colon)?;
-    let type_ = parse_type(parser, BindingPower::DefaultBp)?;
+    let ty = parse_type(parser, BindingPower::DefaultBp)?;
 
     parser.expect(TokenKind::Equals)?;
-    let assigned_value = Some(parse_expr(parser, BindingPower::Assignment)?);
+    let value = parse_expr(parser, BindingPower::Assignment)?;
 
     let (pub_mod,) = get_modifiers!(&parser, modifiers, [Pub]);
 
@@ -82,14 +82,10 @@ pub fn parse_static_item(
     };
 
     Ok(Item {
-        kind: ItemKind::Static(Static {
-            ty: type_,
-            variable_name,
-            assigned_value,
-            visibility,
-        }),
+        kind: ItemKind::Static { name, ty, value },
         attributes,
         span,
+        visibility,
     })
 }
 
@@ -99,8 +95,8 @@ pub fn parse_struct_decl_item(
     modifiers: ThinVec<Modifier>,
 ) -> Result<Item> {
     let struct_token = parser.expect(TokenKind::Struct)?;
-    let mut fields: ThinVec<StructField> = ThinVec::new();
-    let mut methods: ThinVec<StructMethod> = ThinVec::new();
+    let mut fields: ThinVec<(Ident, Type, Visibility)> = ThinVec::new();
+    let mut items: ThinVec<AssocItem> = ThinVec::new();
     let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::OpenCurly)?;
@@ -130,12 +126,11 @@ pub fn parse_struct_decl_item(
             if let ItemKind::Fn(fn_decl) =
                 parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
             {
-                methods.push(StructMethod {
-                    fn_decl: Fn {
+                items.push(AssocItem {
+                    kind: AssocItemKind::Fn(Fn {
                         is_extern: false,
-                        visibility,
                         ..fn_decl
-                    },
+                    }),
                     is_static,
                     visibility,
                 })
@@ -165,10 +160,7 @@ pub fn parse_struct_decl_item(
                 parser.expect(TokenKind::Comma)?;
             }
 
-            if fields
-                .iter()
-                .any(|arg| arg.name.value == property_name.value)
-            {
+            if fields.iter().any(|arg| arg.0.value == property_name.value) {
                 error_at!(
                     property_name.span,
                     parser.current_token().module_id,
@@ -186,11 +178,7 @@ pub fn parse_struct_decl_item(
                 Visibility::Private
             };
 
-            fields.push(StructField {
-                name: property_name,
-                ty: type_,
-                visibility,
-            });
+            fields.push((property_name, type_, visibility));
 
             continue;
         }
@@ -220,14 +208,14 @@ pub fn parse_struct_decl_item(
     };
 
     Ok(Item {
-        kind: ItemKind::Struct(Struct {
-            fields,
-            methods,
+        kind: ItemKind::Struct {
             name,
-            visibility,
-        }),
+            fields,
+            items,
+        },
         attributes,
         span,
+        visibility,
     })
 }
 
@@ -239,7 +227,7 @@ pub fn parse_interface_decl_item(
     let interface_token = parser.expect(TokenKind::Interface)?;
     let name = parser.expect_identifier()?;
 
-    let mut methods: ThinVec<InterfaceMethod> = ThinVec::new();
+    let mut items: ThinVec<AssocItem> = ThinVec::new();
     parser.expect(TokenKind::OpenCurly)?;
     loop {
         if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
@@ -250,7 +238,11 @@ pub fn parse_interface_decl_item(
             && let ItemKind::Fn(fn_decl) =
                 parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
         {
-            methods.push(InterfaceMethod { fn_decl });
+            items.push(AssocItem {
+                kind: AssocItemKind::Fn(fn_decl),
+                visibility: Visibility::Private,
+                is_static: false,
+            });
         } else if parser.current_token().kind == TokenKind::Comma {
             parser.advance();
         } else {
@@ -279,13 +271,10 @@ pub fn parse_interface_decl_item(
     };
 
     Ok(Item {
-        kind: ItemKind::Interface(Interface {
-            methods,
-            name,
-            visibility,
-        }),
+        kind: ItemKind::Interface { items, name },
         attributes,
         span,
+        visibility,
     })
 }
 
@@ -306,7 +295,7 @@ pub fn parse_fn_decl_item(
     let name = parser.expect_identifier()?;
 
     parser.expect(TokenKind::OpenParen)?;
-    let mut parameters: ThinVec<FnParameter> = ThinVec::new();
+    let mut parameters: ThinVec<(Ident, Type)> = ThinVec::new();
 
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
@@ -318,10 +307,7 @@ pub fn parse_fn_decl_item(
         parser.expect(TokenKind::Colon)?;
         let type_ = parse_type(parser, BindingPower::DefaultBp)?;
 
-        parameters.push(FnParameter {
-            name: arg_name,
-            ty: type_,
-        });
+        parameters.push((arg_name, type_));
 
         if parser.current_token().kind == TokenKind::Comma {
             parser.advance();
@@ -371,11 +357,11 @@ pub fn parse_fn_decl_item(
             body,
             name,
             return_type,
-            visibility,
             is_extern: extern_mod.is_some(),
         }),
         attributes,
         span,
+        visibility,
     })
 }
 
@@ -392,7 +378,7 @@ pub fn parse_impl_item(
     parser.expect(TokenKind::Colon)?;
     let self_ty = parse_type(parser, BindingPower::DefaultBp)?;
 
-    let mut methods: ThinVec<InterfaceMethod> = ThinVec::new();
+    let mut items: ThinVec<AssocItem> = ThinVec::new();
     parser.expect(TokenKind::OpenCurly)?;
     loop {
         if !parser.has_tokens() || parser.current_token().kind == TokenKind::CloseCurly {
@@ -403,7 +389,11 @@ pub fn parse_impl_item(
             && let ItemKind::Fn(fn_decl) =
                 parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
         {
-            methods.push(InterfaceMethod { fn_decl });
+            items.push(AssocItem {
+                kind: AssocItemKind::Fn(fn_decl),
+                visibility: Visibility::Public,
+                is_static: false,
+            });
         } else {
             unexpected_token(parser.current_token());
         }
@@ -411,13 +401,14 @@ pub fn parse_impl_item(
     let end_span = parser.expect(TokenKind::CloseCurly)?.span;
 
     Ok(Item {
-        kind: ItemKind::Impl(Impl {
-            items: methods,
+        kind: ItemKind::Impl {
+            items,
             self_ty,
             interface,
-        }),
+        },
         attributes,
         span: Span::new(start_span.start(), end_span.end()),
+        visibility: Visibility::Public, // Should never be read
     })
 }
 
@@ -441,9 +432,10 @@ pub fn parse_import_item(
     };
 
     Ok(Item {
-        kind: ItemKind::Import(Import { tree, visibility }),
+        kind: ItemKind::Import(tree),
         attributes,
         span,
+        visibility,
     })
 }
 
@@ -520,7 +512,7 @@ fn parse_return_stmt(parser: &mut Parser) -> Result<Stmt> {
     let span = Span::new(return_token.span.start(), end_span.end());
 
     Ok(Stmt {
-        kind: StmtKind::Return(ReturnStmt { value }),
+        kind: StmtKind::Return(value),
         span,
     })
 }
@@ -569,12 +561,12 @@ fn parse_let_stmt(parser: &mut Parser) -> Result<Stmt> {
     };
 
     Ok(Stmt {
-        kind: StmtKind::Let(LetStmt {
+        kind: StmtKind::Let {
+            name: variable_name,
             ty: type_,
-            variable_name,
-            assigned_value,
+            value: assigned_value,
             mutability,
-        }),
+        },
         span,
     })
 }
@@ -590,9 +582,9 @@ fn parse_expr_stmt(parser: &mut Parser) -> Result<Stmt> {
 
     let span = expr.span;
     let kind = if has_semicolon {
-        StmtKind::Semi(SemiStmt { expr })
+        StmtKind::Semi(expr)
     } else {
-        StmtKind::Expr(ExprStmt { expr })
+        StmtKind::Expr(expr)
     };
 
     Ok(Stmt { kind, span })

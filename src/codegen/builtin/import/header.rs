@@ -4,11 +4,7 @@ use inkwell::{builder::Builder, context::Context, module::Module};
 use thin_vec::ThinVec;
 
 use crate::{
-    ast::{
-        Ast, Ident, Item, ItemKind, Type, TypeKind, Visibility,
-        statements::{Fn, FnParameter},
-        types::SymbolType,
-    },
+    ast::{Ast, Fn, Ident, Item, ItemKind, Type, TypeKind, Visibility, types::SymbolType},
     codegen::{
         builtin::import::create_module,
         compiler::{self, CompilationContext},
@@ -47,12 +43,14 @@ pub fn compile_header<'ctx>(
             let arguments =
                 ty.1.into_iter()
                     .enumerate()
-                    .map(|(i, arg)| FnParameter {
-                        name: Ident {
-                            value: format!("arg{}", i).into(),
-                            span: arg.span,
-                        },
-                        ty: arg,
+                    .map(|(i, arg)| {
+                        (
+                            Ident {
+                                value: format!("arg{}", i).into(),
+                                span: arg.span,
+                            },
+                            arg,
+                        )
                     })
                     .collect::<ThinVec<_>>();
 
@@ -66,10 +64,10 @@ pub fn compile_header<'ctx>(
                     body: None,
                     return_type: ty.0,
                     is_extern: true,
-                    visibility: Visibility::Public,
                 }),
                 span,
                 attributes: ThinVec::new(),
+                visibility: Visibility::Public,
             };
 
             items.push(item);

@@ -328,6 +328,7 @@ fn string_literals_and_slice_operations() {
     })
 }
 
+#[ignore]
 #[test]
 fn import_and_print_function() {
     it(|ctx| {

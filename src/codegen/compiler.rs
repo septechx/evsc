@@ -9,11 +9,11 @@ use inkwell::{
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
 };
+use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Item, ItemKind, Type,
-        statements::{ExprStmt, Fn, LetStmt, ReturnStmt, Static, Struct},
+        AssocItem, AssocItemKind, Expr, Fn, Ident, Item, ItemKind, Mutability, Type, Visibility,
     },
     bindings::llvm_bindings::create_named_struct,
     codegen::{
@@ -129,11 +129,8 @@ pub fn compile_items<'a, 'ctx>(
     for item in items {
         match &item.kind {
             ItemKind::Fn(fn_decl) => {
-                let param_types: Vec<Type> = fn_decl
-                    .parameters
-                    .iter()
-                    .map(|arg| arg.ty.clone())
-                    .collect();
+                let param_types: Vec<Type> =
+                    fn_decl.parameters.iter().map(|arg| arg.1.clone()).collect();
                 let fn_type = compile_function_type(
                     context,
                     &fn_decl.return_type,
@@ -146,8 +143,12 @@ pub fn compile_items<'a, 'ctx>(
                     .function_table
                     .insert(fn_decl.name.value.clone(), function.into());
             }
-            ItemKind::Struct(struct_decl) => {
-                compile_struct_decl(context, module, struct_decl, compilation_context)?;
+            ItemKind::Struct {
+                name,
+                fields,
+                items,
+            } => {
+                compile_struct_decl(context, module, name, fields, items, compilation_context)?;
             }
             _ => (),
         }
@@ -170,13 +171,21 @@ pub fn compile_items<'a, 'ctx>(
                     )?;
                 }
             }
-            ItemKind::Static(static_item) => {
-                compile_static_item(context, module, builder, static_item, compilation_context)?;
+            ItemKind::Static { name, ty, value } => {
+                compile_static_item(
+                    context,
+                    module,
+                    builder,
+                    name,
+                    ty,
+                    value,
+                    compilation_context,
+                )?;
             }
-            ItemKind::Struct(_) => (), // Structs are compiled during the first pass
-            ItemKind::Interface(_) => (), // Handled elsewhere
-            ItemKind::Impl(_) => (),   // Handled elsewhere
-            ItemKind::Import(_) => (), // Handled elsewhere
+            ItemKind::Struct { .. } => (), // Structs are compiled during the first pass
+            ItemKind::Interface { .. } => todo!(),
+            ItemKind::Impl { .. } => todo!(),
+            ItemKind::Import { .. } => todo!(),
         }
     }
 
@@ -194,23 +203,37 @@ pub fn compile_body_stmts<'a, 'ctx>(
 
     for stmt in stmts {
         match &stmt.kind {
-            StmtKind::Expr(expr_stmt) => {
-                compile_expression(context, module, builder, expr_stmt, compilation_context)?;
+            StmtKind::Expr(expr) => {
+                compile_expression(context, module, builder, expr, compilation_context)?;
             }
-            StmtKind::Semi(semi_stmt) => {
-                compile_expression_to_value(
+            StmtKind::Semi(expr) => {
+                compile_expression_to_value(context, module, builder, expr, compilation_context)?;
+            }
+            StmtKind::Let {
+                name,
+                ty,
+                value,
+                mutability,
+            } => {
+                compile_let_stmt(
                     context,
                     module,
                     builder,
-                    &semi_stmt.expr,
+                    name,
+                    ty,
+                    value.as_ref(),
+                    *mutability,
                     compilation_context,
                 )?;
             }
-            StmtKind::Let(let_stmt) => {
-                compile_let_stmt(context, module, builder, let_stmt, compilation_context)?;
-            }
-            StmtKind::Return(ret_stmt) => {
-                compile_return(context, module, builder, ret_stmt, compilation_context)?;
+            StmtKind::Return(ret_expr) => {
+                compile_return(
+                    context,
+                    module,
+                    builder,
+                    ret_expr.as_ref(),
+                    compilation_context,
+                )?;
             }
         }
     }
@@ -249,13 +272,13 @@ fn compile_function<'ctx>(
 
     for (i, arg_decl) in fn_decl.parameters.iter().enumerate() {
         if let Some(param) = function.get_nth_param(i as u32) {
-            param.set_name(&arg_decl.name.value);
+            param.set_name(&arg_decl.0.value);
 
-            let alloca = builder.build_alloca(param.get_type(), &arg_decl.name.value)?;
+            let alloca = builder.build_alloca(param.get_type(), &arg_decl.0.value)?;
             builder.build_store(alloca, param)?;
 
             symbol_table.insert(
-                arg_decl.name.value.clone(),
+                arg_decl.0.value.clone(),
                 SymbolTableEntry::from_pointer(
                     context,
                     alloca.as_basic_value_enum(),
@@ -306,10 +329,10 @@ fn compile_return<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
     builder: &Builder<'ctx>,
-    ret_stmt: &ReturnStmt,
+    ret_expr: Option<&Expr>,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    if let Some(expr) = &ret_stmt.value {
+    if let Some(expr) = ret_expr {
         let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
 
         let ret_val = ret.unwrap(builder)?;
@@ -338,40 +361,42 @@ fn compile_expression<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    expr_stmt: &'a ExprStmt,
+    expr: &'a Expr,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    compile_expression_to_value(
-        context,
-        module,
-        builder,
-        &expr_stmt.expr,
-        compilation_context,
-    )?;
+    compile_expression_to_value(context, module, builder, expr, compilation_context)?;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compile_let_stmt<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
-    let_stmt: &LetStmt,
+    name: &Ident,
+    _ty: &Type,
+    value: Option<&Expr>,
+    _mutability: Mutability,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let value = if let Some(expr) = &let_stmt.assigned_value {
+    let compiled_value = if let Some(expr) = value {
         compile_expression_to_value(context, module, builder, expr, compilation_context)?
     } else {
         bail!("Variable must have an initial value");
     };
 
-    let value = value.unwrap(builder)?;
+    let compiled_value = compiled_value.unwrap(builder)?;
 
-    let alloca = builder.build_alloca(value.get_type(), &let_stmt.variable_name.value)?;
-    builder.build_store(alloca, value)?;
+    let alloca = builder.build_alloca(compiled_value.get_type(), &name.value)?;
+    builder.build_store(alloca, compiled_value)?;
 
     compilation_context.symbol_table.insert(
-        let_stmt.variable_name.value.clone(),
-        SymbolTableEntry::from_pointer(context, alloca.as_basic_value_enum(), value.get_type()),
+        name.value.clone(),
+        SymbolTableEntry::from_pointer(
+            context,
+            alloca.as_basic_value_enum(),
+            compiled_value.get_type(),
+        ),
     );
 
     Ok(())
@@ -381,27 +406,21 @@ fn compile_static_item<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     _builder: &'a Builder<'ctx>,
-    static_item: &Static,
+    static_name: &Ident,
+    _static_ty: &Type,
+    static_value: &Expr,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
-    let value = if let Some(expr) = &static_item.assigned_value {
-        compile_expression_to_value(context, module, _builder, expr, compilation_context)?
-    } else {
-        bail!("Static variable must have an initial value");
-    };
+    let value =
+        compile_expression_to_value(context, module, _builder, static_value, compilation_context)?;
 
     let value = value.unwrap(_builder)?;
 
-    let gv = add_global_constant(
-        module,
-        value.get_type(),
-        &static_item.variable_name.value,
-        value,
-    )?;
+    let gv = add_global_constant(module, value.get_type(), &static_name.value, value)?;
     gv.set_linkage(Linkage::Private);
 
     compilation_context.symbol_table.insert(
-        static_item.variable_name.value.clone(),
+        static_name.value.clone(),
         SymbolTableEntry::from_pointer(
             context,
             gv.as_pointer_value().as_basic_value_enum(),
@@ -415,23 +434,26 @@ fn compile_static_item<'a, 'ctx>(
 fn compile_struct_decl<'ctx>(
     context: &'ctx Context,
     module: &Module<'ctx>,
-    struct_decl: &Struct,
+    struct_name: &Ident,
+    struct_fields: &ThinVec<(Ident, Type, Visibility)>,
+    struct_items: &ThinVec<AssocItem>,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let mut field_types = Vec::new();
     let mut field_indices = FxHashMap::default();
 
-    for (index, property) in struct_decl.fields.iter().enumerate() {
-        let field_ty = compile_type(context, &property.ty, compilation_context)?;
+    for (index, field) in struct_fields.iter().enumerate() {
+        let field_ty = compile_type(context, &field.1, compilation_context)?;
         field_types.push(field_ty);
-        field_indices.insert(property.name.value.clone(), index as u32);
+        field_indices.insert(field.0.value.clone(), index as u32);
     }
 
-    for method in &struct_decl.methods {
-        let mut method = method.fn_decl.clone();
-        method.name.value = format!("{}_{}", struct_decl.name.value, method.name.value).into();
+    for item in struct_items {
+        let AssocItemKind::Fn(fn_decl) = &item.kind;
+        let mut method = fn_decl.clone();
+        method.name.value = format!("{}_{}", struct_name.value, method.name.value).into();
 
-        let param_types: Vec<Type> = method.parameters.iter().map(|arg| arg.ty.clone()).collect();
+        let param_types: Vec<Type> = method.parameters.iter().map(|arg| arg.1.clone()).collect();
         let fn_type = compile_function_type(
             context,
             &method.return_type,
@@ -447,10 +469,10 @@ fn compile_struct_decl<'ctx>(
         compile_function(context, module, function, &method, compilation_context)?;
     }
 
-    let struct_ty = create_named_struct(context, &field_types, &struct_decl.name.value, false)?;
+    let struct_ty = create_named_struct(context, &field_types, &struct_name.value, false)?;
 
     compilation_context.type_context.struct_defs.insert(
-        struct_decl.name.value.clone(),
+        struct_name.value.clone(),
         StructDef {
             llvm_type: struct_ty,
             is_builtin: false,

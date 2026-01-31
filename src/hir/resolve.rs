@@ -1,5 +1,5 @@
 use crate::{
-    ast::{ImportTreeKind, Visibility, statements::Import},
+    ast::{ImportTree, ImportTreeKind, Visibility},
     hir::{ExportEntry, lower::LoweringContext},
 };
 
@@ -15,14 +15,20 @@ pub enum ResolutionStatus {
 
 pub struct PendingImport<'a> {
     pub module_idx: usize,
-    pub import_item: &'a Import,
+    pub import_item: &'a ImportTree,
+    pub visibility: Visibility,
 }
 
 impl LoweringContext {
-    pub fn try_resolve_import(&mut self, mid: usize, im: &Import) -> ResolutionStatus {
-        match &im.tree.kind {
+    pub fn try_resolve_import(
+        &mut self,
+        mid: usize,
+        im: &ImportTree,
+        vis: Visibility,
+    ) -> ResolutionStatus {
+        match &im.kind {
             ImportTreeKind::Simple(rename_opt) => {
-                let segments = &im.tree.prefix.segments;
+                let segments = &im.prefix.segments;
                 if segments.is_empty() {
                     self.krate.diagnostics.push(format!(
                         "Empty import in module {}",
@@ -75,7 +81,7 @@ impl LoweringContext {
                             .imports
                             .insert(local_sym, export_entry.def);
 
-                        if im.visibility == Visibility::Public {
+                        if vis == Visibility::Public {
                             if def_mod_idx != mid && export_entry.visibility == Visibility::Private
                             {
                                 self.krate.diagnostics.push(format!(
@@ -128,7 +134,7 @@ impl LoweringContext {
                             };
                             self.krate.modules[mid].imports.insert(local_name, def);
 
-                            if im.visibility == Visibility::Public {
+                            if vis == Visibility::Public {
                                 self.krate.modules[mid].exports.insert(
                                     local_sym,
                                     ExportEntry {

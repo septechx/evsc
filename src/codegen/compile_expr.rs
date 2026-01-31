@@ -79,29 +79,29 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         ExprKind::Symbol(sym) => {
             let entry = compilation_context
                 .symbol_table
-                .get(sym.value.value.as_ref())
+                .get(sym.value.as_ref())
                 .cloned()
-                .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value.value))?;
+                .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?;
 
             if let Some(fn_entry) = compilation_context
                 .function_table
-                .get(sym.value.value.as_ref())
+                .get(sym.value.as_ref())
             {
                 entry.value.with_fn_type(fn_entry.function.get_type())
             } else {
                 entry.value
             }
         }
-        ExprKind::Prefix(expr) => {
+        ExprKind::Prefix { operator, right } => {
             let right = compile_expression_to_value(
                 context,
                 module,
                 builder,
-                &expr.right,
+                right,
                 compilation_context,
             )?;
 
-            match expr.operator.kind {
+            match operator.kind {
                 TokenKind::Reference => {
                     let ptr = builder.build_alloca(right.value.get_type(), "ptr")?;
                     builder.build_store(ptr, right.value)?;
@@ -116,26 +116,26 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => unimplemented!(),
             }
         }
-        ExprKind::Binary(expr) => {
+        ExprKind::Binary { left, operator, right } => {
             let left = compile_expression_to_value(
                 context,
                 module,
                 builder,
-                &expr.left,
+                left,
                 compilation_context,
             )?;
             let right = compile_expression_to_value(
                 context,
                 module,
                 builder,
-                &expr.right,
+                right,
                 compilation_context,
             )?;
 
             let left = left.unwrap(builder)?;
             let right = right.unwrap(builder)?;
 
-            match expr.operator.kind {
+            match operator.kind {
                 TokenKind::Plus => {
                     let left = left.into_int_value();
                     let right = right.into_int_value();
@@ -169,9 +169,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => unimplemented!(),
             }
         }
-        ExprKind::FunctionCall(fn_expr) => {
-            if let ExprKind::Symbol(sym) = &fn_expr.callee.kind
-                && let Some(builtin) = sym.value.value.strip_prefix("@")
+        ExprKind::FunctionCall { callee, parameters } => {
+            if let ExprKind::Symbol(sym) = &callee.kind
+                && let Some(builtin) = sym.value.strip_prefix("@")
                 && let Some(builtin) = Builtin::from_str(builtin)
             {
                 return builtin.handle_call(context, module, builder, expr, compilation_context);
@@ -181,7 +181,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 context,
                 module,
                 builder,
-                &fn_expr.callee,
+                callee,
                 compilation_context,
             )?;
 
@@ -202,7 +202,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
             let mut arg_types: Vec<BasicMetadataTypeEnum> = Vec::new();
-            for (i, arg_expr) in fn_expr.parameters.iter().enumerate() {
+            for (i, arg_expr) in parameters.iter().enumerate() {
                 let arg_val = compile_expression_to_value(
                     context,
                     module,
@@ -239,12 +239,12 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
             )
         }
-        ExprKind::MemberAccess(expr) => {
+        ExprKind::MemberAccess { base, member, operator: _ } => {
             let base = compile_expression_to_value(
                 context,
                 module,
                 builder,
-                &expr.base,
+                base,
                 compilation_context,
             )?;
 
@@ -261,7 +261,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .get(struct_name)
                 .ok_or_else(|| anyhow!("Unknown struct: {}", struct_name))?;
 
-            if let Some(field_index) = struct_def.field_indices.get(expr.member.value.as_ref()) {
+            if let Some(field_index) = struct_def.field_indices.get(member.value.as_ref()) {
                 match base.value.get_type() {
                     BasicTypeEnum::StructType(_) => {
                         SmartValue::from_value(builder.build_extract_value(
@@ -286,7 +286,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     _ => bail!("Expected struct or pointer type, got {:?}", base_type),
                 }
             } else if let Some(func) =
-                module.get_function(&format!("{}_{}", struct_name, expr.member.value))
+                module.get_function(&format!("{}_{}", struct_name, member.value))
             {
                 SmartValue::from_pointer(
                     func.as_global_value().as_basic_value_enum(),
@@ -296,27 +296,26 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 )
                 .with_fn_type(func.get_type())
             } else {
-                bail!("No such field or function: {}", expr.member.value);
+                bail!("No such field or function: {}", member.value);
             }
         }
-        ExprKind::StructInstantiation(expr) => {
+        ExprKind::StructInstantiation { name, fields } => {
             let struct_def = compilation_context
                 .type_context
                 .struct_defs
-                .get(expr.name.value.as_ref())
+                .get(name.value.as_ref())
                 .cloned()
-                .ok_or_else(|| anyhow!("Unknown struct: {}", expr.name.value))?;
+                .ok_or_else(|| anyhow!("Unknown struct: {}", name.value))?;
 
             let struct_ty = struct_def.llvm_type;
 
-            let properties = expr
-                .fields
+            let properties = fields
                 .iter()
                 .map(|(ident, expr)| (ident.value.clone(), expr))
                 .collect::<FxHashMap<_, _>>();
 
             // Field in instantiation but not in struct
-            for field_name in expr.fields.keys() {
+            for field_name in fields.keys() {
                 if !struct_def
                     .field_indices
                     .contains_key(field_name.value.as_ref())
@@ -324,18 +323,18 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     bail!(
                         "No such field {} in struct: {}",
                         field_name.value,
-                        expr.name.value
+                        name.value
                     );
                 }
             }
             // Field in struct but not in instantiation
             for field_name in struct_def.field_indices.keys() {
                 if !properties.contains_key(field_name.as_ref()) {
-                    bail!("Missing field {} in struct {}", field_name, expr.name.value);
+                    bail!("Missing field {} in struct {}", field_name, name.value);
                 }
             }
 
-            let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", expr.name.value))?;
+            let alloca = builder.build_alloca(struct_ty, &format!("inst_{}", name.value))?;
 
             for (field_name, field_index) in &struct_def.field_indices {
                 let expr_val = properties.get(field_name.as_ref()).expect("field exists");
@@ -368,15 +367,15 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(val.as_basic_value_enum())
         }
-        ExprKind::ArrayLiteral(ar_expr) => {
-            let element_ty = compile_type(context, &ar_expr.underlying, compilation_context)?;
-            let len = ar_expr.contents.len();
+        ExprKind::ArrayLiteral { underlying, contents } => {
+            let element_ty = compile_type(context, underlying, compilation_context)?;
+            let len = contents.len();
 
             let array_ty = element_ty.array_type(len as u32);
 
             let array_ptr = builder.build_alloca(array_ty, "array")?;
 
-            for (i, elem_expr) in ar_expr.contents.iter().enumerate() {
+            for (i, elem_expr) in contents.iter().enumerate() {
                 let elem_smart_val = compile_expression_to_value(
                     context,
                     module,
@@ -422,9 +421,9 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             let slice_ty = Type {
                 kind: TypeKind::Slice(SliceType {
-                    underlying: Box::new(ar_expr.underlying.clone()),
+                    underlying: Box::new(underlying.clone()),
                 }),
-                span: Span::new(expr.span.start(), ar_expr.underlying.span.end()),
+                span: Span::new(expr.span.start(), underlying.span.end()),
             };
 
             let slice_llvm_type = compile_type(context, &slice_ty, compilation_context)?;
@@ -450,7 +449,7 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 context,
                 module,
                 builder,
-                &block.block.stmts,
+                &block.stmts,
                 &mut inner_compilation_context,
             )?;
             SmartValue::from_value(

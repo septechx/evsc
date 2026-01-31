@@ -153,21 +153,6 @@ impl Visitor for AstValidator {
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> VisitAction {
         match &stmt.kind {
-            StmtKind::Return(ret) => {
-                if !self.in_function {
-                    error_at!(
-                        stmt.span,
-                        self.module_id,
-                        "Return statement outside of function"
-                    )
-                    .expect("failed to emit error");
-                }
-                if let Some(val) = ret {
-                    val.visit(self);
-                }
-
-                VisitAction::SkipChildren
-            }
             StmtKind::Let {
                 name: _,
                 ty: _,
@@ -232,6 +217,18 @@ impl Visitor for AstValidator {
 
                 VisitAction::SkipChildren
             }
+            ExprKind::Return(_) => {
+                if !self.in_function {
+                    error_at!(
+                        expr.span,
+                        self.module_id,
+                        "Return statement outside of function"
+                    )
+                    .expect("failed to emit error");
+                }
+                VisitAction::Continue
+            }
+
             _ => VisitAction::Continue,
         }
     }

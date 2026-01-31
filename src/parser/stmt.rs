@@ -492,29 +492,9 @@ pub fn parse_stmt(parser: &mut Parser) -> Result<Stmt> {
     let current_kind = parser.current_token().kind;
 
     match current_kind {
-        TokenKind::Return => parse_return_stmt(parser),
         TokenKind::Let => parse_let_stmt(parser),
         _ => parse_expr_stmt(parser),
     }
-}
-
-fn parse_return_stmt(parser: &mut Parser) -> Result<Stmt> {
-    let return_token = parser.advance();
-
-    let value = if parser.current_token().kind != TokenKind::Semicolon {
-        Some(parse_expr(parser, BindingPower::DefaultBp)?)
-    } else {
-        None
-    };
-
-    let end_span = parser.expect(TokenKind::Semicolon)?.span;
-
-    let span = Span::new(return_token.span.start(), end_span.end());
-
-    Ok(Stmt {
-        kind: StmtKind::Return(value),
-        span,
-    })
 }
 
 fn parse_let_stmt(parser: &mut Parser) -> Result<Stmt> {

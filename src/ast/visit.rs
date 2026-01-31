@@ -170,11 +170,6 @@ impl Visitable for Stmt {
                     }
                     ty.visit(visitor);
                 }
-                StmtKind::Return(ret) => {
-                    if let Some(val) = ret {
-                        val.visit(visitor);
-                    }
-                }
             },
             VisitAction::SkipChildren => {}
         }
@@ -259,6 +254,11 @@ impl Visitable for Expr {
                 }
                 ExprKind::Break(b) => {
                     if let Some(val) = b {
+                        val.visit(visitor);
+                    }
+                }
+                ExprKind::Return(r) => {
+                    if let Some(val) = r {
                         val.visit(visitor);
                     }
                 }

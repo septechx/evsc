@@ -84,7 +84,6 @@ pub enum StmtKind {
         value: Option<Expr>,
         mutability: Mutability,
     },
-    Return(Option<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +172,7 @@ pub enum ExprKind {
     },
     Loop(Block),
     Break(Option<Box<Expr>>),
+    Return(Option<Box<Expr>>),
 }
 
 #[derive(Debug, Clone)]

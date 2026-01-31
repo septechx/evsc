@@ -394,17 +394,6 @@ pub fn write_stmt(out: &mut String, stmt: &Stmt, ctx: &DisplayContext) -> std::f
                 write!(out, " (uninitialized)")?;
             }
         }
-        StmtKind::Return(ret) => {
-            write!(out, "{}:", "Return".with_color(ctx.color),)?;
-            if let Some(value) = ret {
-                writeln!(out)?;
-                let value_ctx = ctx.indented();
-                write!(out, "{}", value_ctx.indent_str())?;
-                write_expr(out, value, &value_ctx)?;
-            } else {
-                write!(out, " (empty)")?;
-            }
-        }
     }
     Ok(())
 }
@@ -615,6 +604,15 @@ fn write_expr(out: &mut String, expr: &Expr, ctx: &DisplayContext) -> std::fmt::
         ExprKind::Break(break_expr) => {
             write!(out, "{}", "Break".with_color(ctx.color),)?;
             if let Some(value) = break_expr {
+                writeln!(out, ":")?;
+                let value_ctx = ctx.indented();
+                write!(out, "{}", value_ctx.indent_str())?;
+                write_expr(out, value, &value_ctx)?;
+            }
+        }
+        ExprKind::Return(return_expr) => {
+            write!(out, "{}", "Return".with_color(ctx.color),)?;
+            if let Some(value) = return_expr {
                 writeln!(out, ":")?;
                 let value_ctx = ctx.indented();
                 write!(out, "{}", value_ctx.indent_str())?;

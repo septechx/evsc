@@ -101,7 +101,6 @@ mod tests {
             let kind_name = match &stmt.kind {
                 StmtKind::Expr(_) => "ExprStmt",
                 StmtKind::Let { .. } => "LetStmt",
-                StmtKind::Return(_) => "ReturnStmt",
                 StmtKind::Semi(_) => "SemiStmt",
             };
             *self.stmt_counts.entry(kind_name).or_insert(0) += 1;
@@ -139,6 +138,7 @@ mod tests {
                 ExprKind::As { .. } => "AsExpr",
                 ExprKind::TupleLiteral { .. } => "TupleLiteralExpr",
                 ExprKind::Break(_) => "BreakExpr",
+                ExprKind::Return(_) => "ReturnExpr",
             };
             *self.expr_counts.entry(kind_name).or_insert(0) += 1;
 
@@ -765,29 +765,30 @@ mod tests {
     }
 
     #[test]
-    fn test_return_stmt_with_value() {
-        let stmt = Stmt {
-            kind: StmtKind::Return(Some(dummy_expr_number(1))),
+
+    fn test_return_with_value() {
+        let expr = Expr {
+            kind: ExprKind::Return(Some(Box::new(dummy_expr_number(1)))),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
-        stmt.visit(&mut visitor);
-        visitor.assert_visited("stmt", "Stmt", 1);
-        visitor.assert_visited("stmt", "ReturnStmt", 1);
-        visitor.assert_visited("expr", "Expr", 1);
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 2);
+        visitor.assert_visited("expr", "ReturnExpr", 1);
         visitor.assert_visited("expr", "NumberExpr", 1);
     }
 
     #[test]
-    fn test_return_stmt_no_value() {
-        let stmt = Stmt {
-            kind: StmtKind::Return(None),
+
+    fn test_return_no_value() {
+        let expr = Expr {
+            kind: ExprKind::Return(None),
             span: dummy_span(),
         };
         let mut visitor = NodeCounterVisitor::new();
-        stmt.visit(&mut visitor);
-        visitor.assert_visited("stmt", "Stmt", 1);
-        visitor.assert_visited("stmt", "ReturnStmt", 1);
+        expr.visit(&mut visitor);
+        visitor.assert_visited("expr", "Expr", 1);
+        visitor.assert_visited("expr", "ReturnExpr", 1);
     }
 
     #[test]
@@ -1058,7 +1059,12 @@ mod tests {
                                     kind: StmtKind::Expr(Expr {
                                         kind: ExprKind::Block(Block {
                                             stmts: thin_vec![Stmt {
-                                                kind: StmtKind::Return(Some(dummy_expr_number(2))),
+                                                kind: StmtKind::Semi(Expr {
+                                                    kind: ExprKind::Return(Some(Box::new(
+                                                        dummy_expr_number(2)
+                                                    ))),
+                                                    span: dummy_span()
+                                                }),
                                                 span: dummy_span(),
                                             }],
                                         }),
@@ -1088,8 +1094,8 @@ mod tests {
             ("item", "FnDeclItem", 1),
             ("stmt", "LetStmt", 1),
             ("expr", "BlockExpr", 1),
-            ("stmt", "ReturnStmt", 1),
-            ("stmt", "ExprStmt", 2),
+            ("expr", "ReturnExpr", 1),
+            ("stmt", "SemiStmt", 1),
         ]);
     }
 

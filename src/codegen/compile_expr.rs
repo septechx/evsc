@@ -83,23 +83,15 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 .cloned()
                 .ok_or_else(|| anyhow!("Undefined variable `{}`", sym.value))?;
 
-            if let Some(fn_entry) = compilation_context
-                .function_table
-                .get(sym.value.as_ref())
-            {
+            if let Some(fn_entry) = compilation_context.function_table.get(sym.value.as_ref()) {
                 entry.value.with_fn_type(fn_entry.function.get_type())
             } else {
                 entry.value
             }
         }
         ExprKind::Prefix { operator, right } => {
-            let right = compile_expression_to_value(
-                context,
-                module,
-                builder,
-                right,
-                compilation_context,
-            )?;
+            let right =
+                compile_expression_to_value(context, module, builder, right, compilation_context)?;
 
             match operator.kind {
                 TokenKind::Reference => {
@@ -116,21 +108,15 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 _ => unimplemented!(),
             }
         }
-        ExprKind::Binary { left, operator, right } => {
-            let left = compile_expression_to_value(
-                context,
-                module,
-                builder,
-                left,
-                compilation_context,
-            )?;
-            let right = compile_expression_to_value(
-                context,
-                module,
-                builder,
-                right,
-                compilation_context,
-            )?;
+        ExprKind::Binary {
+            left,
+            operator,
+            right,
+        } => {
+            let left =
+                compile_expression_to_value(context, module, builder, left, compilation_context)?;
+            let right =
+                compile_expression_to_value(context, module, builder, right, compilation_context)?;
 
             let left = left.unwrap(builder)?;
             let right = right.unwrap(builder)?;
@@ -177,13 +163,8 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                 return builtin.handle_call(context, module, builder, expr, compilation_context);
             }
 
-            let callee_val = compile_expression_to_value(
-                context,
-                module,
-                builder,
-                callee,
-                compilation_context,
-            )?;
+            let callee_val =
+                compile_expression_to_value(context, module, builder, callee, compilation_context)?;
 
             let (function_ptr, function_ty) = if let Some(pointee_ty) = callee_val.pointee_ty {
                 (callee_val.value.into_pointer_value(), pointee_ty)
@@ -239,14 +220,13 @@ pub fn compile_expression_to_value<'a, 'ctx>(
                     .ok_or_else(|| anyhow!("Espected call site value to be a basic value"))?,
             )
         }
-        ExprKind::MemberAccess { base, member, operator: _ } => {
-            let base = compile_expression_to_value(
-                context,
-                module,
-                builder,
-                base,
-                compilation_context,
-            )?;
+        ExprKind::MemberAccess {
+            base,
+            member,
+            operator: _,
+        } => {
+            let base =
+                compile_expression_to_value(context, module, builder, base, compilation_context)?;
 
             let base_type = base.pointee_ty.unwrap_or_else(|| base.value.get_type());
 
@@ -367,7 +347,10 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(val.as_basic_value_enum())
         }
-        ExprKind::ArrayLiteral { underlying, contents } => {
+        ExprKind::ArrayLiteral {
+            underlying,
+            contents,
+        } => {
             let element_ty = compile_type(context, underlying, compilation_context)?;
             let len = contents.len();
 
@@ -442,6 +425,14 @@ pub fn compile_expression_to_value<'a, 'ctx>(
 
             SmartValue::from_value(slice_val.as_basic_value_enum())
         }
+        ExprKind::Return(ret) => {
+            compile_return(context, module, builder, ret, compilation_context)?;
+            SmartValue::from_value(
+                compile_arch_size_type(context)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            )
+        }
         // TODO: Return the value of the last expression in the block
         ExprKind::Block(block) => {
             let mut inner_compilation_context = compilation_context.clone();
@@ -460,4 +451,47 @@ pub fn compile_expression_to_value<'a, 'ctx>(
         }
         expr => unimplemented!("{expr:#?}"),
     })
+}
+
+fn compile_return<'ctx>(
+    context: &'ctx Context,
+    module: &Module<'ctx>,
+    builder: &Builder<'ctx>,
+    ret: &Option<Box<Expr>>,
+    compilation_context: &mut CompilationContext<'ctx>,
+) -> Result<()> {
+    if let Some(expr) = &ret {
+        let ret = compile_expression_to_value(context, module, builder, expr, compilation_context)?;
+
+        let ret_val = ret.unwrap(builder)?;
+
+        let function = builder
+            .get_insert_block()
+            .expect("function has a block")
+            .get_parent()
+            .expect("block has a function");
+        let expected_ret_type = function.get_type().get_return_type();
+
+        if let Some(expected_type) = expected_ret_type {
+            let casted = cast_int_to_type(builder, ret_val, expected_type)?;
+            builder.build_return(Some(&casted))?;
+        } else {
+            bail!("cannot return a value from a void function");
+        }
+    } else {
+        let function = builder
+            .get_insert_block()
+            .expect("function has a block")
+            .get_parent()
+            .expect("block has a function");
+        let expected_ret_type = function.get_type().get_return_type();
+
+        if expected_ret_type.is_some() {
+            bail!("cannot return a value from a void function");
+        } else {
+            builder.build_return(None)?;
+        }
+    }
+
+    Ok(())
 }

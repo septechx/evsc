@@ -719,6 +719,10 @@ impl LoweringContext {
                 let value = b.map(|e| self.lower_expr(*e));
                 self.alloc_expr(HirExpr::Break { value })
             }
+            ExprKind::Return(r) => {
+                let value = r.map(|e| self.lower_expr(*e));
+                self.alloc_expr(HirExpr::Return { value })
+            }
             _ => todo!("Lowering of {:?} not implemented", expr.kind),
         }
     }
@@ -760,10 +764,6 @@ impl LoweringContext {
                     local,
                 };
                 self.alloc_stmt(var)
-            }
-            StmtKind::Return(value) => {
-                let val = value.map(|e| self.lower_expr(e));
-                self.alloc_stmt(HirStmt::Return(val))
             }
         }
     }

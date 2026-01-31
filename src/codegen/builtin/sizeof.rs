@@ -28,6 +28,10 @@ impl BuiltinFunction for SizeofBuiltin {
             _ => unreachable!(),
         };
 
+        if parameters.is_empty() {
+            bail!("sizeof expects one type argument");
+        }
+
         let ty = match &parameters[0].kind {
             ExprKind::Type(ty) => ty,
             _ => bail!("First argument must be a type expression"),

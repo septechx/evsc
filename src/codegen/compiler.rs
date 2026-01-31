@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use inkwell::{
-    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
+    AddressSpace,
 };
 use thin_vec::ThinVec;
 
@@ -180,13 +180,14 @@ pub fn compile_items<'a, 'ctx>(
                     name,
                     ty,
                     value,
+                    item.visibility,
                     compilation_context,
                 )?;
             }
             ItemKind::Struct { .. } => (), // Structs are compiled during the first pass
             ItemKind::Interface { .. } => todo!(),
             ItemKind::Impl { .. } => todo!(),
-            ItemKind::Import { .. } => todo!(),
+            ItemKind::Import(_) => todo!(),
         }
     }
 
@@ -360,6 +361,7 @@ fn compile_let_stmt<'a, 'ctx>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compile_static_item<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
@@ -367,6 +369,7 @@ fn compile_static_item<'a, 'ctx>(
     static_name: &Ident,
     _static_ty: &Type,
     static_value: &Expr,
+    visibility: Visibility,
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let value =
@@ -375,7 +378,11 @@ fn compile_static_item<'a, 'ctx>(
     let value = value.unwrap(_builder)?;
 
     let gv = add_global_constant(module, value.get_type(), &static_name.value, value)?;
-    gv.set_linkage(Linkage::Private);
+    let linkage = match visibility {
+        Visibility::Public => Linkage::External,
+        Visibility::Private => Linkage::Private,
+    };
+    gv.set_linkage(linkage);
 
     compilation_context.symbol_table.insert(
         static_name.value.clone(),

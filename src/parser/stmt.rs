@@ -126,6 +126,13 @@ pub fn parse_struct_decl_item(
             if let ItemKind::Fn(fn_decl) =
                 parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
             {
+                if fn_decl.body.is_none() {
+                    error_at!(
+                        fn_decl.name.span,
+                        parser.current_token().module_id,
+                        "Struct methods must have a body"
+                    )?;
+                }
                 items.push(AssocItem {
                     kind: AssocItemKind::Fn(Fn {
                         is_extern: false,
@@ -389,6 +396,13 @@ pub fn parse_impl_item(
             && let ItemKind::Fn(fn_decl) =
                 parse_fn_decl_item(parser, ThinVec::new(), ThinVec::new())?.kind
         {
+            if fn_decl.body.is_none() {
+                error_at!(
+                    fn_decl.name.span,
+                    parser.current_token().module_id,
+                    "Impl methods must have a body"
+                )?;
+            }
             items.push(AssocItem {
                 kind: AssocItemKind::Fn(fn_decl),
                 visibility: Visibility::Public,

@@ -266,7 +266,6 @@ pub fn parse_function_call_expr(
     parser.expect(TokenKind::OpenParen)?;
 
     let mut parameters: ThinVec<Expr> = ThinVec::new();
-
     loop {
         if parser.current_token().kind == TokenKind::CloseParen {
             break;
@@ -279,9 +278,8 @@ pub fn parse_function_call_expr(
         }
     }
 
-    parser.expect(TokenKind::CloseParen)?;
-
-    let span = Span::new(left.span.start(), parser.current_token().span.end());
+    let end_span = parser.expect(TokenKind::CloseParen)?.span;
+    let span = Span::new(left.span.start(), end_span.end());
     Ok(Expr {
         kind: ExprKind::FunctionCall {
             callee: Box::new(left),

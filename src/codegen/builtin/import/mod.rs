@@ -40,17 +40,20 @@ impl BuiltinFunction for ImportBuiltin {
         expr: &Expr,
         compilation_context: &mut CompilationContext<'ctx>,
     ) -> Result<SmartValue<'ctx>> {
-        let fn_expr = match &expr.kind {
-            ExprKind::FunctionCall(fn_expr) => fn_expr,
+        let parameters = match &expr.kind {
+            ExprKind::FunctionCall {
+                callee: _,
+                parameters,
+            } => parameters,
             _ => unreachable!(),
         };
 
         // Resolve path
-        if fn_expr.parameters.len() != 1 {
+        if parameters.len() != 1 {
             bail!("Expected one argument to @import");
         }
 
-        let module_name = match &fn_expr.parameters[0].kind {
+        let module_name = match &parameters[0].kind {
             ExprKind::Literal(sym) => {
                 if let Literal::String(s) = sym {
                     s.clone()
@@ -118,7 +121,7 @@ fn compile_oxi_module<'ctx>(
 
     let mut mod_compilation_context = CompilationContext::new(module_path, module_id);
 
-    compiler::compile_stmts(
+    compiler::compile_items(
         context,
         module,
         builder,

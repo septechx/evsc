@@ -4,8 +4,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        Ast, Block, Expr, ExprKind, Literal, Stmt, StmtKind, Type, TypeKind, expressions::*,
-        statements::*, types::*,
+        AssocItem, AssocItemKind, Ast, Block, Expr, ExprKind, Fn, Item, ItemKind, Literal, Stmt,
+        StmtKind, Type, TypeKind, types::*,
     },
     hashmap::FxHashMap,
 };
@@ -18,6 +18,9 @@ pub enum VisitAction {
 }
 
 pub trait Visitor {
+    fn visit_item(&mut self, _item: &Item) -> VisitAction {
+        VisitAction::Continue
+    }
     fn visit_stmt(&mut self, _stmt: &Stmt) -> VisitAction {
         VisitAction::Continue
     }
@@ -81,9 +84,66 @@ impl<K: Eq + Hash, V: Visitable> Visitable for FxHashMap<K, V> {
 
 impl Visitable for Ast {
     fn visit(&self, visitor: &mut impl Visitor) {
-        for stmt in &self.items {
-            stmt.visit(visitor);
+        for item in &self.items {
+            item.visit(visitor);
         }
+    }
+}
+
+impl Visitable for Item {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        match visitor.visit_item(self) {
+            VisitAction::Continue => match &self.kind {
+                ItemKind::Static { value, ty, .. } => {
+                    value.visit(visitor);
+                    ty.visit(visitor);
+                }
+                ItemKind::Struct { fields, items, .. } => {
+                    for field in fields {
+                        field.1.visit(visitor);
+                    }
+                    items.visit(visitor);
+                }
+                ItemKind::Interface { items, .. } => {
+                    items.visit(visitor);
+                }
+                ItemKind::Impl { self_ty, items, .. } => {
+                    self_ty.visit(visitor);
+                    items.visit(visitor);
+                }
+                ItemKind::Fn(f) => f.visit(visitor),
+                ItemKind::Import(_) => {
+                    // Leaf
+                }
+            },
+            VisitAction::SkipChildren => {}
+        }
+    }
+}
+
+impl Visitable for AssocItem {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        self.kind.visit(visitor);
+    }
+}
+
+impl Visitable for AssocItemKind {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        match self {
+            AssocItemKind::Fn(f) => f.visit(visitor),
+        }
+    }
+}
+
+impl Visitable for Fn {
+    fn visit(&self, visitor: &mut impl Visitor) {
+        for arg in &self.parameters {
+            arg.1.visit(visitor);
+        }
+        if let Some(body) = &self.body {
+            body.visit(visitor);
+        }
+        self.return_type.visit(visitor);
     }
 }
 
@@ -97,114 +157,22 @@ impl Visitable for Stmt {
     fn visit(&self, visitor: &mut impl Visitor) {
         match visitor.visit_stmt(self) {
             VisitAction::Continue => match &self.kind {
-                StmtKind::Expr(expr_stmt) => expr_stmt.visit(visitor),
-                StmtKind::Semi(semi_stmt) => semi_stmt.visit(visitor),
-                StmtKind::VarDecl(var) => var.visit(visitor),
-                StmtKind::StructDecl(s) => s.visit(visitor),
-                StmtKind::InterfaceDecl(i) => i.visit(visitor),
-                StmtKind::Impl(i) => i.visit(visitor),
-                StmtKind::FnDecl(f) => f.visit(visitor),
-                StmtKind::Import(i) => i.visit(visitor),
+                StmtKind::Expr(expr) => expr.visit(visitor),
+                StmtKind::Semi(expr) => expr.visit(visitor),
+                StmtKind::Let {
+                    name: _,
+                    ty,
+                    value,
+                    mutability: _,
+                } => {
+                    if let Some(val) = value {
+                        val.visit(visitor);
+                    }
+                    ty.visit(visitor);
+                }
             },
             VisitAction::SkipChildren => {}
         }
-    }
-}
-
-impl Visitable for ImportStmt {
-    fn visit(&self, _visitor: &mut impl Visitor) {
-        // Leaf
-    }
-}
-
-impl Visitable for BlockExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.block.visit(visitor);
-    }
-}
-
-impl Visitable for ExprStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.expr.visit(visitor);
-    }
-}
-
-impl Visitable for SemiStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.expr.visit(visitor);
-    }
-}
-
-impl Visitable for VarDeclStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        if let Some(val) = &self.assigned_value {
-            val.visit(visitor);
-        }
-        self.ty.visit(visitor);
-    }
-}
-
-impl Visitable for StructField {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.ty.visit(visitor);
-    }
-}
-
-impl Visitable for StructMethod {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.fn_decl.visit(visitor);
-    }
-}
-
-impl Visitable for StructDeclStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        for p in &self.fields {
-            p.visit(visitor);
-        }
-        for m in &self.methods {
-            m.visit(visitor);
-        }
-    }
-}
-
-impl Visitable for InterfaceMethod {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.fn_decl.visit(visitor);
-    }
-}
-
-impl Visitable for InterfaceDeclStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        for m in &self.methods {
-            m.visit(visitor);
-        }
-    }
-}
-
-impl Visitable for ImplStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.self_ty.visit(visitor);
-        for item in &self.items {
-            item.visit(visitor);
-        }
-    }
-}
-
-impl Visitable for FnParameter {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.ty.visit(visitor);
-    }
-}
-
-impl Visitable for FnDeclStmt {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        for arg in &self.parameters {
-            arg.visit(visitor);
-        }
-        if let Some(body) = &self.body {
-            body.visit(visitor);
-        }
-        self.return_type.visit(visitor);
     }
 }
 
@@ -214,139 +182,91 @@ impl Visitable for Expr {
             VisitAction::Continue => match &self.kind {
                 ExprKind::Literal(l) => l.visit(visitor),
                 ExprKind::Block(b) => b.visit(visitor),
-                ExprKind::If(i) => i.visit(visitor),
-                ExprKind::While(w) => w.visit(visitor),
-                ExprKind::Loop(l) => l.visit(visitor),
-                ExprKind::Symbol(s) => s.visit(visitor),
-                ExprKind::Binary(b) => b.visit(visitor),
-                ExprKind::Postfix(p) => p.visit(visitor),
-                ExprKind::Prefix(p) => p.visit(visitor),
-                ExprKind::Assignment(a) => a.visit(visitor),
-                ExprKind::StructInstantiation(s) => s.visit(visitor),
-                ExprKind::ArrayLiteral(a) => a.visit(visitor),
-                ExprKind::FunctionCall(f) => f.visit(visitor),
-                ExprKind::MemberAccess(m) => m.visit(visitor),
+                ExprKind::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    condition.visit(visitor);
+                    then_branch.visit(visitor);
+                    else_branch.visit(visitor);
+                }
+                ExprKind::While { condition, body } => {
+                    condition.visit(visitor);
+                    body.visit(visitor);
+                }
+                ExprKind::Loop(b) => b.visit(visitor),
+                ExprKind::Symbol(_) => {
+                    // Leaf
+                }
+                ExprKind::Binary {
+                    left,
+                    operator: _,
+                    right,
+                } => {
+                    left.visit(visitor);
+                    right.visit(visitor);
+                }
+                ExprKind::Postfix { left, operator: _ } => {
+                    left.visit(visitor);
+                }
+                ExprKind::Prefix { operator: _, right } => {
+                    right.visit(visitor);
+                }
+                ExprKind::Assignment {
+                    assignee, value, ..
+                } => {
+                    assignee.visit(visitor);
+                    value.visit(visitor);
+                }
+                ExprKind::StructInstantiation { name: _, fields } => {
+                    for field in fields {
+                        field.1.visit(visitor);
+                    }
+                }
+                ExprKind::ArrayLiteral {
+                    underlying,
+                    contents,
+                } => {
+                    underlying.visit(visitor);
+                    contents.visit(visitor);
+                }
+                ExprKind::FunctionCall { callee, parameters } => {
+                    callee.visit(visitor);
+                    parameters.visit(visitor);
+                }
+                ExprKind::MemberAccess { base, .. } => {
+                    base.visit(visitor);
+                }
                 ExprKind::Type(t) => t.visit(visitor),
-                ExprKind::As(a) => a.visit(visitor),
-                ExprKind::TupleLiteral(t) => t.visit(visitor),
-                ExprKind::Break(b) => b.visit(visitor),
-                ExprKind::Return(r) => r.visit(visitor),
+                ExprKind::As { expr, ty } => {
+                    expr.visit(visitor);
+                    ty.visit(visitor);
+                }
+                ExprKind::TupleLiteral { elements } => {
+                    for element in elements {
+                        element.visit(visitor);
+                    }
+                }
+                ExprKind::Break(b) => {
+                    if let Some(val) = b {
+                        val.visit(visitor);
+                    }
+                }
+                ExprKind::Return(r) => {
+                    if let Some(val) = r {
+                        val.visit(visitor);
+                    }
+                }
             },
             VisitAction::SkipChildren => {}
         }
     }
 }
 
-impl Visitable for SymbolExpr {
-    fn visit(&self, _visitor: &mut impl Visitor) {
-        // Leaf
-    }
-}
-
 impl Visitable for Literal {
     fn visit(&self, _visitor: &mut impl Visitor) {
         // Unit
-    }
-}
-
-impl Visitable for IfExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.condition.visit(visitor);
-        self.then_branch.visit(visitor);
-        self.else_branch.visit(visitor);
-    }
-}
-
-impl Visitable for WhileExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.condition.visit(visitor);
-        self.body.visit(visitor);
-    }
-}
-
-impl Visitable for LoopExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.body.visit(visitor);
-    }
-}
-
-impl Visitable for BreakExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        if let Some(v) = &self.value {
-            v.visit(visitor);
-        }
-    }
-}
-
-impl Visitable for ReturnExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        if let Some(v) = &self.value {
-            v.visit(visitor);
-        }
-    }
-}
-
-impl Visitable for BinaryExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.left.visit(visitor);
-        self.right.visit(visitor);
-    }
-}
-impl Visitable for PostfixExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.left.visit(visitor);
-    }
-}
-impl Visitable for PrefixExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.right.visit(visitor);
-    }
-}
-impl Visitable for AssignmentExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.assigne.visit(visitor);
-        self.value.visit(visitor);
-    }
-}
-impl Visitable for StructInstantiationExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.fields.visit(visitor);
-    }
-}
-impl Visitable for ArrayLiteralExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.underlying.visit(visitor);
-        self.contents.visit(visitor);
-    }
-}
-impl Visitable for FunctionCallExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.callee.visit(visitor);
-        self.parameters.visit(visitor);
-    }
-}
-impl Visitable for MemberAccessExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.base.visit(visitor);
-    }
-}
-impl Visitable for TypeExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.underlying.visit(visitor);
-    }
-}
-impl Visitable for AsExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        self.expr.visit(visitor);
-        self.ty.visit(visitor);
-    }
-}
-
-impl Visitable for TupleLiteralExpr {
-    fn visit(&self, visitor: &mut impl Visitor) {
-        for element in &self.elements {
-            element.visit(visitor);
-        }
     }
 }
 

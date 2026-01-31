@@ -8,10 +8,10 @@ mod types;
 mod utils;
 
 use crate::{
-    ast::{Ast, Ident, Stmt},
+    ast::{Ast, Ident, Item},
     fatal_at,
     lexer::token::{Token, TokenKind, TokenStream},
-    parser::{lookups::create_token_lookups, stmt::parse_stmt, types::create_token_type_lookups},
+    parser::{lookups::create_token_lookups, stmt::parse_item, types::create_token_type_lookups},
 };
 
 use anyhow::Result;
@@ -104,15 +104,15 @@ pub fn parse(tokens: TokenStream, name: &str) -> Result<Ast> {
     create_token_lookups();
     create_token_type_lookups();
 
-    let mut body: ThinVec<Stmt> = ThinVec::new();
+    let mut items: ThinVec<Item> = ThinVec::new();
     let mut parser = Parser::new(tokens);
 
     while parser.has_tokens() {
-        body.push(parse_stmt(&mut parser)?);
+        items.push(parse_item(&mut parser)?);
     }
 
     Ok(Ast {
         name: name.into(),
-        items: body,
+        items,
     })
 }

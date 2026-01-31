@@ -87,7 +87,7 @@ macro_rules! get_modifiers {
         let parser = $parser;
         let module_id = parser.current_token().module_id;
         let modifiers = $modifiers;
-        let expected_order = [$( ModifierKind::$expected ),*];
+        let expected_order = [$( $crate::parser::modifiers::ModifierKind::$expected ),*];
 
         if !modifiers.is_empty() && !expected_order.is_empty() {
             for (idx, modifier) in modifiers.iter().enumerate() {
@@ -133,7 +133,7 @@ macro_rules! get_modifiers {
 
         (
             $(
-                modifiers.iter().find(|m| m.kind == ModifierKind::$expected).copied(),
+                modifiers.iter().find(|m| m.kind == $crate::parser::modifiers::ModifierKind::$expected).copied(),
             )*
         )
     }}

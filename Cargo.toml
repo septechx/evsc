@@ -18,7 +18,7 @@ thin-vec = "0.2.14"
 
 [dev-dependencies]
 similar = "2.7.0"
-cargo-husky = { version = "1.5.0", default-features = false, features = ["precommit-hook", "run-cargo-fmt"] }
+husky-rs = "0.2.2"
 
 [build-dependencies]
 cc = "1.2.53"

@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        visit::{VisitAction, Visitable, Visitor},
         AssocItem, AssocItemKind, Ast, Expr, ExprKind, Fn, Ident, Item, ItemKind, Stmt, StmtKind,
+        visit::{VisitAction, Visitable, Visitor},
     },
     error_at,
     errors::{

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use inkwell::{
+    AddressSpace,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{BasicValue, BasicValueEnum, FunctionValue},
-    AddressSpace,
 };
 use thin_vec::ThinVec;
 
@@ -365,7 +365,7 @@ fn compile_let_stmt<'a, 'ctx>(
 fn compile_static_item<'a, 'ctx>(
     context: &'ctx Context,
     module: &'a Module<'ctx>,
-    _builder: &'a Builder<'ctx>,
+    builder: &'a Builder<'ctx>,
     static_name: &Ident,
     _static_ty: &Type,
     static_value: &Expr,
@@ -373,9 +373,9 @@ fn compile_static_item<'a, 'ctx>(
     compilation_context: &mut CompilationContext<'ctx>,
 ) -> Result<()> {
     let value =
-        compile_expression_to_value(context, module, _builder, static_value, compilation_context)?;
+        compile_expression_to_value(context, module, builder, static_value, compilation_context)?;
 
-    let value = value.unwrap(_builder)?;
+    let value = value.unwrap(builder)?;
 
     let gv = add_global_constant(module, value.get_type(), &static_name.value, value)?;
     let linkage = match visibility {

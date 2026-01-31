@@ -1,6 +1,6 @@
 use std::{fs, iter::Extend};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -14,8 +14,8 @@ use crate::{
     bindings::llvm_bindings::create_named_struct,
     codegen::{
         builtin::{
-            import::{header::compile_header, resolve_lib::resolve_std_lib},
             BuiltinFunction,
+            import::{header::compile_header, resolve_lib::resolve_std_lib},
         },
         compiler::{self, CompilationContext, StructDef},
         pointer::SmartValue,

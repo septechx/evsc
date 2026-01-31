@@ -572,12 +572,14 @@ fn parse_expr_stmt(parser: &mut Parser) -> Result<Stmt> {
     let expr = parse_expr(parser, BindingPower::DefaultBp)?;
 
     let mut has_semicolon = false;
+    let mut semi_span = expr.span;
     if parser.current_token().kind == TokenKind::Semicolon {
         has_semicolon = true;
+        semi_span = parser.current_token().span;
         parser.advance();
     }
 
-    let span = expr.span;
+    let span = Span::new(expr.span.start(), semi_span.end());
     let kind = if has_semicolon {
         StmtKind::Semi(expr)
     } else {

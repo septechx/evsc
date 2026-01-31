@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use inkwell::{
+    InlineAsmDialect,
     builder::Builder,
     context::Context,
     module::Module,
     types::BasicMetadataTypeEnum,
     values::{BasicMetadataValueEnum, BasicValue},
-    InlineAsmDialect,
 };
 
 use crate::{

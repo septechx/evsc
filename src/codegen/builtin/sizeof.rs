@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use inkwell::{context::Context, types::BasicType, values::BasicValue};
 
 use crate::{

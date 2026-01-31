@@ -11,11 +11,7 @@ use crate::{
     ast::{Ast, Ident, Item},
     fatal_at,
     lexer::token::{Token, TokenKind, TokenStream},
-    parser::{
-        lookups::create_token_lookups,
-        stmt::parse_item,
-        types::create_token_type_lookups,
-    },
+    parser::{lookups::create_token_lookups, stmt::parse_item, types::create_token_type_lookups},
 };
 
 use anyhow::Result;

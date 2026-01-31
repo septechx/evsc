@@ -4,8 +4,8 @@ use thin_vec::ThinVec;
 
 use crate::{
     ast::{
-        AssocItem, AssocItemKind, Ast, Block, Expr, ExprKind, Fn, Item, ItemKind, Literal, Stmt,
-        StmtKind, Type, TypeKind, types::*,
+        types::*, AssocItem, AssocItemKind, Ast, Block, Expr, ExprKind, Fn, Item, ItemKind,
+        Literal, Stmt, StmtKind, Type, TypeKind,
     },
     hashmap::FxHashMap,
 };

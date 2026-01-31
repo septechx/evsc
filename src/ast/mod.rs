@@ -38,6 +38,15 @@ pub struct Item {
     pub kind: ItemKind,
     pub span: Span,
     pub attributes: ThinVec<Attribute>,
+    /// Visibility modifier for this item.
+    ///
+    /// For most item kinds (static, struct, interface, function, import), this is the visibility
+    /// as written in the source code (defaults to private if not specified).
+    ///
+    /// For [`ItemKind::Impl`], this field is a placeholder value since impl blocks do not have
+    /// visibility modifiers in the source grammar. The value is always set to [`Visibility::Private`]
+    /// for uniformity across the AST. Code that processes items should ignore this field for impls
+    /// and instead check the visibility of individual associated items within the impl block.
     pub visibility: Visibility,
 }
 
@@ -282,16 +291,17 @@ pub struct ImportTree {
 }
 
 impl ImportTree {
-    pub fn ident(&self) -> Ident {
+    pub fn ident(&self) -> Option<Ident> {
         match &self.kind {
-            ImportTreeKind::Simple(Some(rename)) => rename.clone(),
-            ImportTreeKind::Simple(None) => self
-                .prefix
-                .segments
-                .last()
-                .expect("empty prefix in a simple import")
-                .clone(),
-            _ => panic!("`ImportTree::ident` can only be used on a simple import"),
+            ImportTreeKind::Simple(Some(rename)) => Some(rename.clone()),
+            ImportTreeKind::Simple(None) => Some(
+                self.prefix
+                    .segments
+                    .last()
+                    .expect("empty prefix in a simple import")
+                    .clone(),
+            ),
+            _ => None,
         }
     }
 }

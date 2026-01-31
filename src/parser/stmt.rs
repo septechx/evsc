@@ -422,7 +422,10 @@ pub fn parse_impl_item(
         },
         attributes,
         span: Span::new(start_span.start(), end_span.end()),
-        visibility: Visibility::Public, // Should never be read
+        // Impl blocks do not have visibility modifiers in the source grammar, so we use
+        // Visibility::Public as a placeholder value for AST uniformity. The visibility of
+        // individual associated items within the impl block should be used instead.
+        visibility: Visibility::Private,
     })
 }
 

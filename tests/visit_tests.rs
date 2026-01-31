@@ -765,7 +765,6 @@ mod tests {
     }
 
     #[test]
-
     fn test_return_with_value() {
         let expr = Expr {
             kind: ExprKind::Return(Some(Box::new(dummy_expr_number(1)))),
@@ -779,7 +778,6 @@ mod tests {
     }
 
     #[test]
-
     fn test_return_no_value() {
         let expr = Expr {
             kind: ExprKind::Return(None),
